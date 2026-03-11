@@ -60,7 +60,8 @@ class TestBaseAgentInit:
 
     def test_default_personality_description(self):
         agent = BaseAgent(personality="bluffer")
-        assert "bluffer" in agent.personality_description
+        # T2.2: known personality now auto-loads full Chinese profile description
+        assert "虚张声势" in agent.personality_description
 
     def test_repr(self):
         agent = BaseAgent(name="火焰哥", model_id="openai-gpt4o-mini", personality="aggressive")
