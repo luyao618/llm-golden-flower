@@ -19,7 +19,7 @@
 - **验收**: `import app.models.card` 和 `import app.models.game` 正常工作
 
 ### T1.2 牌型评估器 + 单元测试
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T1.1
 - **内容**:
   - 实现 `app/engine/evaluator.py`: 
@@ -29,10 +29,10 @@
     - 处理 A-2-3 最小顺子特殊规则
   - 实现 `app/engine/deck.py`: `Deck` 类（洗牌、发牌）
   - 编写 `tests/test_evaluator.py`: 覆盖每种牌型识别、牌型比较、边界情况（A-2-3, Q-K-A）
-- **验收**: `pytest tests/test_evaluator.py` 全部通过
+- **验收**: `pytest tests/test_evaluator.py` 全部通过（55 tests）
 
 ### T1.3 规则引擎（操作合法性 + 下注计算）
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T1.1
 - **内容**:
   - 实现 `app/engine/rules.py`:
@@ -42,10 +42,10 @@
     - `get_compare_cost(round_state, player) -> int`
     - `validate_action(round_state, player, action) -> bool`
   - 编写 `tests/test_rules.py`: 覆盖暗注/明注操作差异、筹码不足时的操作限制、比牌资格校验
-- **验收**: `pytest tests/test_rules.py` 全部通过
+- **验收**: `pytest tests/test_rules.py` 全部通过（66 tests）
 
 ### T1.4 游戏流程引擎（发牌、轮转、结算）
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T1.2, T1.3
 - **内容**:
   - 实现 `app/engine/game_manager.py`:
@@ -57,7 +57,7 @@
     - `settle_round(game) -> RoundResult` 结算（处理弃牌胜出、比牌胜出、最大轮数强制比牌）
     - 信息隐藏：`get_visible_state(game, viewer_id)`
   - 编写 `tests/test_game_engine.py`: 模拟完整一局（发牌 → 多轮操作 → 结算）
-- **验收**: `pytest tests/test_game_engine.py` 全部通过
+- **验收**: `pytest tests/test_game_engine.py` 全部通过（54 tests）
 
 ---
 
