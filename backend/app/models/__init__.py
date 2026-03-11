@@ -24,6 +24,11 @@ from app.models.game import (
     RoundResult,
     RoundState,
 )
+from app.models.thought import (
+    GameSummary,
+    RoundNarrative,
+    ThoughtRecord,
+)
 
 __all__ = [
     "Card",
@@ -45,4 +50,7 @@ __all__ = [
     "PlayerType",
     "RoundResult",
     "RoundState",
+    "GameSummary",
+    "RoundNarrative",
+    "ThoughtRecord",
 ]
