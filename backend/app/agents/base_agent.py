@@ -18,6 +18,13 @@ import litellm
 
 from app.config import AI_MODELS, get_settings
 from app.models.game import GameAction
+from app.agents.personalities import (
+    PersonalityProfile,
+    get_personality,
+    get_personality_description_for_prompt,
+    PERSONALITY_PROFILES,
+)
+from app.agents.prompts import render_system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -144,8 +151,18 @@ class BaseAgent:
         self.name = name
         self.model_id = model_id
         self.personality = personality
-        self.personality_description = personality_description or f"{personality}型玩家"
         self.memory = AgentMemory()
+
+        # 加载性格配置
+        self.personality_profile: PersonalityProfile | None = PERSONALITY_PROFILES.get(personality)
+
+        # 性格描述优先级：显式传入 > 从性格配置自动生成 > 默认占位
+        if personality_description:
+            self.personality_description = personality_description
+        elif self.personality_profile:
+            self.personality_description = get_personality_description_for_prompt(personality)
+        else:
+            self.personality_description = f"{personality}型玩家"
 
         # 验证 model_id 有效
         if model_id not in AI_MODELS:
@@ -230,38 +247,20 @@ class BaseAgent:
     def build_system_prompt(self) -> str:
         """构建 system prompt
 
-        包含：角色身份 + 炸金花规则 + 决策原则 + 牌桌交流指导 + 输出格式。
-        性格描述会注入到角色身份部分。
+        使用 prompts 模块的模板，注入性格系统的完整描述文本。
+        包含：角色身份 + 性格特征 + 炸金花规则 + 决策原则 + 牌桌交流指导 + 输出格式。
 
         Returns:
             完整的 system prompt 文本
         """
-        return f"""\
-你是一个正在玩炸金花（三张牌扑克）的玩家。
-
-## 你的身份
-- 名字: {self.name}
-- 性格: {self.personality_description}
-
-## 炸金花规则摘要
-{RULES_SUMMARY}
-
-## 你的决策原则
-- 根据你的性格特征做出符合角色的决策
-- 仔细分析对手的行为模式
-- 权衡风险与收益
-- 记录你的真实想法
-
-## 牌桌交流
-- 你可以在做出操作时说一句话（也可以选择沉默）
-- 你的发言应该符合你的性格特征
-- 你可以利用言语来施压、虚张声势、试探对手、回应挑衅
-- 注意：你说的话对手能看到，不要泄露自己的真实策略
-- 牌桌上的对话也是博弈的一部分，对手的话可能是真话也可能是烟雾弹
-
-## 输出格式
-你必须以 JSON 格式输出，包含以下字段:
-{DECISION_OUTPUT_SCHEMA}"""
+        personality_name = (
+            self.personality_profile.name_zh if self.personality_profile else self.personality
+        )
+        return render_system_prompt(
+            agent_name=self.name,
+            personality_name=personality_name,
+            personality_description=self.personality_description,
+        )
 
     # ---- 响应解析 ----
 
@@ -320,6 +319,24 @@ class BaseAgent:
             策略摘要文本，空字符串表示暂无策略调整
         """
         return self.memory.strategy_context
+
+    def get_behavior_params(self) -> dict[str, float]:
+        """获取性格行为倾向参数
+
+        Returns:
+            行为参数字典（aggression, bluff_tendency 等），
+            如果没有性格配置则返回默认中性值。
+        """
+        if self.personality_profile:
+            return self.personality_profile.get_behavior_params()
+        return {
+            "aggression": 0.5,
+            "bluff_tendency": 0.3,
+            "fold_threshold": 0.5,
+            "talk_frequency": 0.5,
+            "risk_tolerance": 0.5,
+            "see_cards_tendency": 0.5,
+        }
 
     def set_strategy_context(self, context: str) -> None:
         """设置经验回顾生成的策略上下文"""
