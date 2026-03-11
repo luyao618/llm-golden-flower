@@ -4,6 +4,12 @@
 """
 
 from app.models.card import Card, Rank, Suit
+from app.models.chat import (
+    BystanderReaction,
+    ChatContext,
+    ChatMessage,
+    ChatMessageType,
+)
 from app.models.game import (
     ActionRecord,
     GameAction,
@@ -23,6 +29,10 @@ __all__ = [
     "Card",
     "Rank",
     "Suit",
+    "BystanderReaction",
+    "ChatContext",
+    "ChatMessage",
+    "ChatMessageType",
     "ActionRecord",
     "GameAction",
     "GameConfig",
