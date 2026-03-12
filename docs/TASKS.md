@@ -268,7 +268,7 @@
 - **验收**: 能通过 WebSocket 收到游戏状态更新并正确渲染
 
 ### T6.2 操作面板 + 玩家行动交互
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T6.1
 - **内容**:
   - 实现 `src/components/Actions/ActionPanel.tsx`: 根据可用操作显示按钮

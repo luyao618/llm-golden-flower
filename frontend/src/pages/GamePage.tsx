@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo } from 'react'
 import TableLayout from '../components/Table/TableLayout'
+import { ActionPanel } from '../components/Actions'
 import { useGameStore } from '../stores/gameStore'
 import { useUIStore } from '../stores/uiStore'
 import { useGame } from '../hooks/useGame'
@@ -56,7 +57,7 @@ export default function GamePage() {
     [effectiveGameId, myPlayerId],
   )
 
-  const { connectionStatus, sendStartRound, disconnect } = useGame(gameConfig)
+  const { connectionStatus, sendAction, sendStartRound, disconnect } = useGame(gameConfig)
 
   // 清理：离开页面时断开连接并重置状态
   useEffect(() => {
@@ -146,7 +147,7 @@ export default function GamePage() {
       </main>
 
       {/* 底部操作区域 */}
-      <footer className="h-16 bg-black/40 border-t border-green-800/50 flex items-center justify-center gap-4">
+      <footer className="h-20 bg-black/40 border-t border-green-800/50 flex items-center justify-center gap-4">
         {canStartRound && (
           <button
             onClick={sendStartRound}
@@ -159,9 +160,7 @@ export default function GamePage() {
           <span className="text-amber-400 text-sm font-medium">游戏已结束</span>
         )}
         {!canStartRound && status === 'playing' && currentRound && (
-          <span className="text-green-600/40 text-sm">
-            操作面板 — T6.2 中实现
-          </span>
+          <ActionPanel onAction={sendAction} />
         )}
         {connectionStatus === 'disconnected' && status !== 'finished' && (
           <span className="text-red-400 text-sm">连接已断开</span>
