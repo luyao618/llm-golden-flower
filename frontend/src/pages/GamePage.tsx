@@ -5,6 +5,7 @@ import { ActionPanel } from '../components/Actions'
 import ChatPanel from '../components/Table/ChatPanel'
 import ChatInput from '../components/Table/ChatInput'
 import GameLog from '../components/Table/GameLog'
+import { ThoughtDrawer } from '../components/Thought'
 import { useGameStore } from '../stores/gameStore'
 import { useUIStore } from '../stores/uiStore'
 import { useGame } from '../hooks/useGame'
@@ -49,6 +50,7 @@ export default function GamePage() {
   const resetUI = useUIStore((s) => s.resetUI)
   const isChatPanelExpanded = useUIStore((s) => s.isChatPanelExpanded)
   const toggleChatPanel = useUIStore((s) => s.toggleChatPanel)
+  const toggleThoughtDrawer = useUIStore((s) => s.toggleThoughtDrawer)
 
   // 使用 URL 中的 gameId，如果 store 中有 myPlayerId 就用它
   // 否则等 WebSocket 连接后通过 game_state 事件获取
@@ -129,6 +131,16 @@ export default function GamePage() {
           <ConnectionIndicator status={connectionStatus} />
         </div>
         <div className="flex items-center gap-2">
+          {/* 心路历程按钮 - 有已完成局时显示 */}
+          {roundHistory.length > 0 && (
+            <button
+              onClick={() => toggleThoughtDrawer()}
+              className="text-green-500/70 hover:text-green-400 text-sm transition-colors cursor-pointer"
+              title="查看 AI 心路历程"
+            >
+              心路历程
+            </button>
+          )}
           {status === 'finished' ? (
             <button
               onClick={() => navigate(`/result/${effectiveGameId}`)}
@@ -231,6 +243,9 @@ export default function GamePage() {
           <span className="text-yellow-400 text-sm animate-pulse">正在连接服务器...</span>
         )}
       </footer>
+
+      {/* 心路历程抽屉 */}
+      <ThoughtDrawer />
     </div>
   )
 }

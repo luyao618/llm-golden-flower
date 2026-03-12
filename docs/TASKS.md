@@ -64,7 +64,7 @@
 ## Phase 2: AI Agent
 
 ### T2.1 LiteLLM 集成 + BaseAgent 框架
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T1.1
 - **内容**:
   - 实现 `app/agents/base_agent.py`:
@@ -77,7 +77,7 @@
 - **验收**: 能通过 BaseAgent 调用至少一个 LLM API 并获得 JSON 响应
 
 ### T2.2 AI 性格系统 + Prompt 模板
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T2.1
 - **内容**:
   - 实现 `app/agents/personalities.py`: 5 种性格定义（激进型、保守型、分析型、直觉型、诈唬型），每种包含:
@@ -107,7 +107,7 @@
 - **验收**: mock 测试通过，非法操作降级逻辑正确
 
 ### T2.4 聊天引擎（行动发言 + 旁观插嘴）
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T2.1, T2.2
 - **内容**:
   - 实现 `app/agents/chat_engine.py`:
@@ -119,7 +119,7 @@
 - **验收**: 单元测试验证回应概率逻辑和 must_respond 保证
 
 ### T2.5 心路历程记录 + 叙事生成
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T2.3
 - **内容**:
   - 实现 `app/thought/recorder.py`:
@@ -152,7 +152,7 @@
 ## Phase 4: 后端 API
 
 ### T4.1 FastAPI 搭建 + 数据库初始化
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T1.1
 - **内容**:
   - 实现 `app/main.py`: FastAPI 应用入口，CORS 配置，路由注册
@@ -162,7 +162,7 @@
 - **验收**: `uvicorn app.main:app` 能启动，数据库表创建成功
 
 ### T4.2 游戏管理 REST API
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T4.1, T1.4
 - **内容**:
   - 实现 `app/api/game.py`:
@@ -175,7 +175,7 @@
 - **验收**: 用 curl/httpie 能创建游戏并获取状态
 
 ### T4.3 WebSocket + AI 回合调度
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T4.2, T2.3, T2.4, T3.1
 - **内容**:
   - 实现 `app/api/websocket.py`:
@@ -187,7 +187,7 @@
 - **验收**: WebSocket 连接测试，能完成一个完整的人机对弈回合
 
 ### T4.4 心路历程 + 聊天 REST API + 持久化
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T4.1, T2.5, T3.1
 - **内容**:
   - 实现 `app/api/thought.py`:
@@ -207,7 +207,7 @@
 ## Phase 5: 前端基础
 
 ### T5.1 React 项目搭建
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: 无
 - **内容**:
   - 创建 `frontend/` 目录：Vite + React 18 + TypeScript
@@ -219,7 +219,7 @@
 - **验收**: `npm run dev` 能启动，路由切换正常
 
 ### T5.2 游戏大厅页面
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T5.1
 - **内容**:
   - 实现 `src/components/Lobby/`:
@@ -230,7 +230,7 @@
 - **验收**: 能配置并创建游戏，成功跳转到牌桌页面
 
 ### T5.3 牌桌布局 + 玩家座位
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T5.1
 - **内容**:
   - 实现 `src/components/Table/TableLayout.tsx`: 椭圆形牌桌布局
@@ -241,7 +241,7 @@
 - **验收**: 牌桌显示正确的玩家座位布局，筹码和状态正确渲染
 
 ### T5.4 拟物风格扑克牌组件
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T5.1
 - **内容**:
   - 实现 `src/components/Cards/CardFace.tsx`: 单张扑克牌渲染
@@ -279,7 +279,7 @@
 - **验收**: 玩家能完成一个完整的操作回合（看牌 → 跟注 → 比牌等）
 
 ### T6.3 发牌/翻牌动画
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T5.4, T6.1
 - **内容**:
   - 使用 Framer Motion 实现发牌动画：卡牌从牌堆飞向各玩家位置
@@ -290,7 +290,7 @@
 - **验收**: 动画流畅自然，不影响游戏操作
 
 ### T6.4 聊天面板 + 气泡
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T6.1
 - **内容**:
   - 实现 `src/components/Table/ChatPanel.tsx`:
@@ -303,7 +303,7 @@
 - **验收**: 聊天消息实时显示，气泡动画正常
 
 ### T6.5 行动日志 + 游戏信息显示
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T6.1
 - **内容**:
   - 实现 `src/components/Table/GameLog.tsx`: 行动历史日志（谁做了什么操作，简洁文字格式）
@@ -317,7 +317,7 @@
 ## Phase 7: 心路历程前端
 
 ### T7.1 心路历程查看器组件
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T6.1, T4.4
 - **内容**:
   - 实现 `src/components/Thought/ThoughtDrawer.tsx`: 侧边抽屉组件（局结束后可展开）
@@ -429,12 +429,12 @@ T5.1 ──┬── T5.2 ──┐                      │
 
 | 阶段 | 任务数 | 完成数 | 状态 |
 |------|--------|--------|------|
-| Phase 1: 游戏引擎 | 4 | 1 | 进行中 |
-| Phase 2: AI Agent | 5 | 0 | 未开始 |
+| Phase 1: 游戏引擎 | 4 | 4 | 完成 |
+| Phase 2: AI Agent | 5 | 5 | 完成 |
 | Phase 3: 经验学习 | 1 | 1 | 完成 |
-| Phase 4: 后端 API | 4 | 0 | 未开始 |
-| Phase 5: 前端基础 | 4 | 0 | 未开始 |
-| Phase 6: 前端交互 | 5 | 0 | 未开始 |
-| Phase 7: 心路历程前端 | 2 | 0 | 未开始 |
+| Phase 4: 后端 API | 4 | 4 | 完成 |
+| Phase 5: 前端基础 | 4 | 4 | 完成 |
+| Phase 6: 前端交互 | 5 | 5 | 完成 |
+| Phase 7: 心路历程前端 | 2 | 1 | 进行中 |
 | Phase 8: 打磨联调 | 4 | 0 | 未开始 |
-| **总计** | **29** | **1** | **进行中** |
+| **总计** | **29** | **24** | **进行中** |

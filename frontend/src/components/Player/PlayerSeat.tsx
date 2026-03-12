@@ -85,7 +85,7 @@ export default function PlayerSeat({
   onLookAtCards,
   onClick,
 }: PlayerSeatProps) {
-  const { isCompareMode, thinkingPlayerId, reviewingPlayerId, showPlayerCards, hasLookedAtCards } = useUIStore()
+  const { isCompareMode, thinkingPlayerId, reviewingPlayerId, showPlayerCards, hasLookedAtCards, toggleThoughtDrawer } = useUIStore()
 
   const isFolded = player.status === 'folded'
   const isOut = player.status === 'out'
@@ -93,6 +93,7 @@ export default function PlayerSeat({
   const isThinking = thinkingPlayerId === player.id
   const isReviewing = reviewingPlayerId === player.id
   const isClickable = isCompareMode && !isMe && !isFolded && !isOut
+  const isAI = player.player_type === 'ai'
 
   // 气泡位置：牌桌下半部分的玩家气泡显示在上方，上半部分显示在下方
   const bubblePosition = position.y > 50 ? 'above' : 'below'
@@ -139,7 +140,11 @@ export default function PlayerSeat({
         )}
 
         {/* 头像 */}
-        <div className="relative">
+        <div
+          className={`relative ${isAI && !isCompareMode ? 'cursor-pointer' : ''}`}
+          onClick={isAI && !isCompareMode ? () => toggleThoughtDrawer(player.id) : undefined}
+          title={isAI && !isCompareMode ? `查看 ${player.name} 的心路历程` : undefined}
+        >
           <div
             className={`
               w-12 h-12 rounded-full flex items-center justify-center
