@@ -258,7 +258,7 @@
 ## Phase 6: 前端交互
 
 ### T6.1 WebSocket 通信 + 状态同步
-- **状态**: `pending`
+- **状态**: `done`
 - **depends_on**: T5.2, T5.3, T4.3
 - **内容**:
   - 实现 `src/hooks/useWebSocket.ts`: WebSocket 连接管理 Hook（连接、断线重连、消息分发）

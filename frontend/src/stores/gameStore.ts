@@ -17,6 +17,17 @@ import type {
   RoundResult,
   RoundState,
 } from '../types/game'
+
+// ---- 操作日志条目（用于行动日志 T6.5）----
+
+export interface ActionLogEntry {
+  player_id: string
+  player_name: string
+  action: GameAction
+  amount: number
+  compare_result: Record<string, unknown> | null
+  timestamp: number
+}
 import { createGame as apiCreateGame, getAvailableModels } from '../services/api'
 
 // ---- AI 对手配置 (大厅用) ----
@@ -45,6 +56,7 @@ interface GameStore {
   config: GameConfig | null
   chatMessages: ChatMessage[]
   availableActions: GameAction[]
+  actionLog: ActionLogEntry[]
 
   // 大厅配置
   playerName: string
@@ -79,6 +91,8 @@ interface GameStore {
   addRoundResult: (result: RoundResult) => void
   addChatMessage: (message: ChatMessage) => void
   clearChatMessages: () => void
+  addActionLog: (entry: Omit<ActionLogEntry, 'timestamp'>) => void
+  clearActionLog: () => void
 
   // 衍生状态
   getMyPlayer: () => Player | undefined
@@ -123,6 +137,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   config: null,
   chatMessages: [],
   availableActions: [],
+  actionLog: [],
 
   playerName: '玩家',
   aiOpponents: [createDefaultAIOpponent(), createDefaultAIOpponent()],
@@ -197,8 +212,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         max_turns: gameConfig.max_turns,
       })
 
+      // 从响应中找到人类玩家的 ID
+      const humanPlayer = response.players.find((p) => p.player_type === 'human')
+
       set({
         gameId: response.game_id,
+        myPlayerId: humanPlayer?.id ?? null,
         status: 'playing',
       })
 
@@ -235,6 +254,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       config: null,
       chatMessages: [],
       availableActions: [],
+      actionLog: [],
       playerName: '玩家',
       aiOpponents: [createDefaultAIOpponent(), createDefaultAIOpponent()],
       gameConfig: { ...DEFAULT_GAME_CONFIG },
@@ -268,6 +288,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     })),
 
   clearChatMessages: () => set({ chatMessages: [] }),
+
+  addActionLog: (entry) =>
+    set((state) => ({
+      actionLog: [
+        ...state.actionLog,
+        { ...entry, timestamp: Date.now() / 1000 },
+      ],
+    })),
+
+  clearActionLog: () => set({ actionLog: [] }),
 
   // ---- 衍生状态 ----
 

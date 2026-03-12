@@ -316,6 +316,7 @@ export interface AIModelInfo {
 // ---- WebSocket 事件 ----
 
 export type ServerEventType =
+  | 'game_state'
   | 'game_started'
   | 'round_started'
   | 'cards_dealt'
