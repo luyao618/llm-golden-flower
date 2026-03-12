@@ -24,13 +24,14 @@ router = APIRouter()
 class ChatMessageResponse(BaseModel):
     """单条聊天消息响应"""
 
-    id: int
+    id: str
     game_id: str
     round_number: int
-    sender_id: str
-    sender_name: str
+    player_id: str
+    player_name: str
     message_type: str
     content: str
+    timestamp: float = 0.0
     related_action: str | None = None
     trigger_event: str | None = None
     inner_thought: str | None = None
@@ -52,13 +53,14 @@ class ChatListResponse(BaseModel):
 def _chat_db_to_response(record: ChatMessageDB) -> ChatMessageResponse:
     """将 ChatMessageDB 转为响应模型"""
     return ChatMessageResponse(
-        id=record.id,
+        id=str(record.id),
         game_id=record.game_id,
         round_number=record.round_number,
-        sender_id=record.sender_id,
-        sender_name=record.sender_name,
+        player_id=record.sender_id,
+        player_name=record.sender_name,
         message_type=record.message_type,
         content=record.content,
+        timestamp=record.created_at.timestamp() if record.created_at else 0.0,
         related_action=record.related_action,
         trigger_event=record.trigger_event,
         inner_thought=record.inner_thought,

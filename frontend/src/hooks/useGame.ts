@@ -26,6 +26,10 @@ interface GameStateData extends GameState {}
 interface RoundStartedData {
   round_number: number
   dealer: string
+  dealer_index: number
+  pot: number
+  current_bet: number
+  max_turns: number
 }
 
 interface CardsDealtData {
@@ -183,17 +187,17 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
           // 触发发牌动画
           startDealingAnimation()
 
-          // 更新局信息（部分信息，完整的 RoundState 会通过 game_state 更新）
+          // 更新局信息（使用服务端推送的实际数据）
           setCurrentRound({
             round_number: data.round_number,
-            pot: 0,
-            current_bet: 0,
-            dealer_index: 0,
+            pot: data.pot ?? 0,
+            current_bet: data.current_bet ?? 0,
+            dealer_index: data.dealer_index ?? 0,
             current_player_index: 0,
             actions: [],
             phase: 'dealing',
             turn_count: 0,
-            max_turns: 10,
+            max_turns: data.max_turns ?? 10,
           })
           break
         }
@@ -228,8 +232,8 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
           const data = event.data as PlayerActedData
           setThinkingPlayer(null) // 清除 AI 思考状态
 
-          // 筹码飞行动画：下注/加注/跟注 等涉及筹码的操作
-          if (data.amount > 0 && ['bet', 'raise', 'call', 'ante'].includes(data.action)) {
+          // 筹码飞行动画：跟注/加注/比牌 等涉及筹码的操作
+          if (data.amount > 0 && ['call', 'raise', 'compare'].includes(data.action)) {
             triggerChipAnimation(data.player_id, data.amount)
           }
 
@@ -271,6 +275,17 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
           setActivePlayer(null)
           setThinkingPlayer(null)
           setReviewingPlayer(null)
+
+          // 应用筹码变化，更新玩家筹码显示
+          if (data.player_chip_changes) {
+            const store = useGameStore.getState()
+            for (const [pid, chipChange] of Object.entries(data.player_chip_changes)) {
+              const player = store.getPlayerById(pid)
+              if (player) {
+                store.updatePlayer(pid, { chips: player.chips + chipChange })
+              }
+            }
+          }
 
           // 触发赢家筹码飞行动画（底池 → 赢家）
           if (data.winner_id && data.pot > 0) {

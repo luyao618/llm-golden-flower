@@ -225,8 +225,8 @@ class TestGetGameChat:
         msg = bystander_msgs[0]
         assert msg["game_id"] == GAME_ID
         assert msg["round_number"] == 1
-        assert msg["sender_id"] == AGENT_ID
-        assert msg["sender_name"] == AGENT_NAME
+        assert msg["player_id"] == AGENT_ID
+        assert msg["player_name"] == AGENT_NAME
         assert msg["content"] == "哈哈有意思"
         assert msg["trigger_event"] == "human raised 100"
         assert msg["inner_thought"] == "他在虚张声势"

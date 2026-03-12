@@ -206,11 +206,25 @@ def event_game_started(game: GameState, viewer_id: str) -> dict[str, Any]:
     }
 
 
-def event_round_started(round_number: int, dealer_name: str) -> dict[str, Any]:
+def event_round_started(
+    round_number: int,
+    dealer_name: str,
+    dealer_index: int = 0,
+    pot: int = 0,
+    current_bet: int = 0,
+    max_turns: int = 10,
+) -> dict[str, Any]:
     """round_started 事件"""
     return {
         "type": "round_started",
-        "data": {"round_number": round_number, "dealer": dealer_name},
+        "data": {
+            "round_number": round_number,
+            "dealer": dealer_name,
+            "dealer_index": dealer_index,
+            "pot": pot,
+            "current_bet": current_bet,
+            "max_turns": max_turns,
+        },
     }
 
 
@@ -497,7 +511,12 @@ async def process_ai_turns(
             except Exception as e:
                 logger.warning("Failed to persist chat message: %s", e)
 
-        # Step 8: 旁观者反应
+        # Step 8: 检查是否本局结束（在旁观反应之前检查，避免对已结束的局收集反应）
+        if result.round_ended:
+            await _handle_round_end(game_id, game, result, ws_manager)
+            break
+
+        # Step 9: 旁观者反应（仅在局未结束时收集）
         await _collect_and_broadcast_bystander_reactions(
             game_id=game_id,
             game=game,
@@ -509,11 +528,6 @@ async def process_ai_turns(
             chat_context=chat_context,
             ws_manager=ws_manager,
         )
-
-        # Step 9: 检查是否本局结束
-        if result.round_ended:
-            await _handle_round_end(game_id, game, result, ws_manager)
-            break
 
         # 小延迟让前端动画有时间播放
         await asyncio.sleep(0.5)
@@ -571,8 +585,13 @@ async def handle_player_chat(
     # 创建触发事件并收集 AI 反应
     trigger = create_player_message_event(player_id, player.name, content)
 
-    # 获取所有 AI Agent 作为旁观者
-    bystanders = agent_manager.get_agents_for_game(game_id)
+    # 获取所有活跃的 AI Agent 作为旁观者（排除已弃牌的）
+    all_agents = agent_manager.get_agents_for_game(game_id)
+    bystanders = []
+    for a in all_agents:
+        p = game.get_player_by_id(a.agent_id)
+        if p is not None and p.is_active:
+            bystanders.append(a)
     if not bystanders:
         return
 
@@ -616,7 +635,7 @@ async def _broadcast_action_result(
     result: ActionResult,
     ws_manager: WebSocketManager,
 ) -> None:
-    """广播操作结果事件"""
+    """广播操作结果事件 + 更新后的游戏状态"""
     await ws_manager.broadcast(
         game_id,
         event_player_acted(
@@ -627,6 +646,8 @@ async def _broadcast_action_result(
             compare_result=result.compare_result,
         ),
     )
+    # 广播更新后的游戏状态（筹码、底池、玩家状态等）
+    await ws_manager.broadcast_game_state(game_id, game)
 
 
 async def _handle_round_end(
@@ -639,6 +660,9 @@ async def _handle_round_end(
     if result.round_result is not None:
         round_result_dict = result.round_result.model_dump(mode="json")
         await ws_manager.broadcast(game_id, event_round_ended(round_result_dict))
+
+    # 广播更新后的游戏状态（含结算后的筹码）
+    await ws_manager.broadcast_game_state(game_id, game)
 
     # 检查游戏是否整体结束
     if game.status == "finished":
@@ -717,8 +741,15 @@ async def _collect_and_broadcast_bystander_reactions(
         compare_winner=compare_winner,
     )
 
-    # 获取旁观者（排除行动者自己）
-    bystanders = [a for a in agent_manager.get_agents_for_game(game_id) if a.agent_id != actor.id]
+    # 获取旁观者（排除行动者自己，排除已弃牌的玩家）
+    all_agents = agent_manager.get_agents_for_game(game_id)
+    bystanders = []
+    for a in all_agents:
+        if a.agent_id == actor.id:
+            continue
+        p = game.get_player_by_id(a.agent_id)
+        if p is not None and p.is_active:
+            bystanders.append(a)
     if not bystanders:
         return
 
@@ -984,7 +1015,17 @@ async def _handle_player_action(
         await _handle_round_end(game_id, game, result, ws_manager)
         return
 
-    # 收集旁观反应
+    # 启动 AI 回合循环（先发送 turn_changed / ai_thinking，避免 UI 卡顿）
+    # 旁观反应在 AI 回合循环内部处理
+    await process_ai_turns(
+        game_id=game_id,
+        game=game,
+        ws_manager=ws_manager,
+        agent_manager=agent_mgr,
+        chat_engine=chat_engine,
+    )
+
+    # 收集人类行动的旁观反应（在 turn_changed 之后，不阻塞 UI）
     chat_context = ws_manager.get_chat_context(game_id)
     await _collect_and_broadcast_bystander_reactions(
         game_id=game_id,
@@ -996,15 +1037,6 @@ async def _handle_player_action(
         chat_engine=chat_engine,
         chat_context=chat_context,
         ws_manager=ws_manager,
-    )
-
-    # 启动 AI 回合循环
-    await process_ai_turns(
-        game_id=game_id,
-        game=game,
-        ws_manager=ws_manager,
-        agent_manager=agent_mgr,
-        chat_engine=chat_engine,
     )
 
 
@@ -1044,11 +1076,21 @@ async def _handle_start_round(
 
     dealer = game.players[round_state.dealer_index]
 
-    # 广播 round_started
+    # 广播 round_started（包含完整局面信息）
     await ws_manager.broadcast(
         game_id,
-        event_round_started(round_state.round_number, dealer.name),
+        event_round_started(
+            round_number=round_state.round_number,
+            dealer_name=dealer.name,
+            dealer_index=round_state.dealer_index,
+            pot=round_state.pot,
+            current_bet=round_state.current_bet,
+            max_turns=game.config.max_turns,
+        ),
     )
+
+    # 广播初始游戏状态（含筹码扣除后的数据）
+    await ws_manager.broadcast_game_state(game_id, game)
 
     # 向每个连接的玩家发送各自的手牌
     connections = ws_manager.get_connections(game_id)

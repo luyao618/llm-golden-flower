@@ -569,10 +569,10 @@ class TestFastAPIApp:
         response = await async_client.get("/api/models")
         assert response.status_code == 200
         data = response.json()
-        assert "models" in data
-        assert len(data["models"]) > 0
+        assert isinstance(data, list)
+        assert len(data) > 0
         # 验证模型包含必要字段
-        model = data["models"][0]
+        model = data[0]
         assert "id" in model
         assert "model" in model
         assert "display_name" in model

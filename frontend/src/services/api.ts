@@ -106,7 +106,10 @@ export async function getThoughts(
   gameId: string,
   agentId: string
 ): Promise<ThoughtRecord[]> {
-  return request<ThoughtRecord[]>(`/game/${gameId}/thoughts/${agentId}`)
+  const res = await request<{ thoughts: ThoughtRecord[] }>(
+    `/game/${gameId}/thoughts/${agentId}`
+  )
+  return res.thoughts
 }
 
 /** 获取某 AI 某局的思考记录 */
@@ -115,9 +118,10 @@ export async function getRoundThoughts(
   agentId: string,
   roundNum: number
 ): Promise<ThoughtRecord[]> {
-  return request<ThoughtRecord[]>(
+  const res = await request<{ thoughts: ThoughtRecord[] }>(
     `/game/${gameId}/thoughts/${agentId}/round/${roundNum}`
   )
+  return res.thoughts
 }
 
 /** 获取某 AI 某局的叙事 */
@@ -136,7 +140,36 @@ export async function getGameSummary(
   gameId: string,
   agentId: string
 ): Promise<GameSummary> {
-  return request<GameSummary>(`/game/${gameId}/summary/${agentId}`)
+  // Backend returns GameSummaryResponse with stats nested in a dict;
+  // transform to the flat GameSummary shape the frontend expects.
+  const res = await request<{
+    agent_id: string
+    stats: Record<string, unknown> | null
+    key_moments: string[] | null
+    opponent_impressions: Record<string, string> | null
+    self_reflection: string | null
+    chat_strategy_summary: string | null
+    learning_journey: string | null
+    narrative_summary: string | null
+  }>(`/game/${gameId}/summary/${agentId}`)
+
+  const stats = res.stats ?? {}
+  return {
+    agent_id: res.agent_id,
+    rounds_played: (stats.rounds_played as number) ?? 0,
+    rounds_won: (stats.rounds_won as number) ?? 0,
+    total_chips_won: (stats.total_chips_won as number) ?? 0,
+    total_chips_lost: (stats.total_chips_lost as number) ?? 0,
+    biggest_win: (stats.biggest_win as number) ?? 0,
+    biggest_loss: (stats.biggest_loss as number) ?? 0,
+    fold_rate: (stats.fold_rate as number) ?? 0,
+    key_moments: res.key_moments ?? [],
+    opponent_impressions: res.opponent_impressions ?? {},
+    self_reflection: res.self_reflection ?? '',
+    chat_strategy_summary: res.chat_strategy_summary ?? '',
+    learning_journey: res.learning_journey ?? '',
+    narrative_summary: res.narrative_summary ?? '',
+  }
 }
 
 /** 获取某 AI 的所有经验回顾记录 */
@@ -144,14 +177,18 @@ export async function getExperienceReviews(
   gameId: string,
   agentId: string
 ): Promise<ExperienceReview[]> {
-  return request<ExperienceReview[]>(`/game/${gameId}/reviews/${agentId}`)
+  const res = await request<{ reviews: ExperienceReview[] }>(
+    `/game/${gameId}/reviews/${agentId}`
+  )
+  return res.reviews
 }
 
 // ---- 聊天 ----
 
 /** 获取聊天历史 */
 export async function getChatHistory(gameId: string): Promise<ChatMessage[]> {
-  return request<ChatMessage[]>(`/game/${gameId}/chat`)
+  const res = await request<{ messages: ChatMessage[] }>(`/game/${gameId}/chat`)
+  return res.messages
 }
 
 /** 获取某局聊天历史 */
@@ -159,5 +196,8 @@ export async function getRoundChatHistory(
   gameId: string,
   roundNum: number
 ): Promise<ChatMessage[]> {
-  return request<ChatMessage[]>(`/game/${gameId}/chat/round/${roundNum}`)
+  const res = await request<{ messages: ChatMessage[] }>(
+    `/game/${gameId}/chat/round/${roundNum}`
+  )
+  return res.messages
 }

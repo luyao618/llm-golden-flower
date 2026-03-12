@@ -61,7 +61,7 @@ def create_app() -> FastAPI:
         """获取可用的 AI 模型列表"""
         from app.config import get_available_models
 
-        return {"models": get_available_models()}
+        return get_available_models()
 
     # T4.2: 游戏管理路由
     from app.api.game import router as game_router
