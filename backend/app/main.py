@@ -73,11 +73,12 @@ def create_app() -> FastAPI:
 
     app.include_router(ws_router, tags=["websocket"])
 
-    # TODO: T4.4 中注册心路历程和聊天路由
-    # from app.api.thought import router as thought_router
-    # from app.api.chat import router as chat_router
-    # app.include_router(thought_router, prefix="/api/game", tags=["thought"])
-    # app.include_router(chat_router, prefix="/api/game", tags=["chat"])
+    # T4.4: 心路历程和聊天路由
+    from app.api.thought import router as thought_router
+    from app.api.chat import router as chat_router
+
+    app.include_router(thought_router, prefix="/api/game", tags=["thought"])
+    app.include_router(chat_router, prefix="/api/game", tags=["chat"])
 
     return app
 

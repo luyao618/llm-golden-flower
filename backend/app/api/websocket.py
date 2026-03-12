@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.agent_manager import AgentManager, get_agent_manager
-from app.agents.base_agent import BaseAgent
+from app.agents.base_agent import BaseAgent, ThoughtData
 from app.agents.chat_engine import (
     ChatEngine,
     TriggerEvent,
@@ -30,6 +30,7 @@ from app.agents.chat_engine import (
     create_trigger_event_from_action,
 )
 from app.api.game_store import GameStore, get_game_store
+from app.api.persistence import persist_chat_message, persist_thought_record
 from app.db.database import get_db
 from app.db.schemas import PlayerDB, RoundDB
 from app.engine.game_manager import (
@@ -48,10 +49,26 @@ from app.models.game import (
     Player,
     PlayerType,
 )
+from app.models.thought import ThoughtRecord
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def _get_db_session():
+    """获取一个独立的数据库 session（用于 WebSocket 上下文中的持久化）
+
+    WebSocket 端点无法使用 FastAPI 的 Depends(get_db)，
+    因此需要手动创建和管理 session。
+
+    Returns:
+        AsyncSession: 异步数据库会话（调用方负责 commit/close）
+    """
+    from app.db.database import _get_session_factory
+
+    factory = _get_session_factory()
+    return factory()
 
 
 # ---- WebSocket Connection Manager ----
@@ -426,10 +443,38 @@ async def process_ai_turns(
                 logger.error("Even fold failed for %s, breaking", current_player.name)
                 break
 
-        # Step 5: 广播操作结果
+        # Step 5: 持久化思考记录（T4.4）
+        if decision is not None and decision.thought is not None:
+            thought_record = ThoughtRecord(
+                agent_id=current_player.id,
+                round_number=round_state.round_number if round_state else 0,
+                turn_number=len(round_state.actions) if round_state else 0,
+                hand_evaluation=decision.thought.hand_evaluation,
+                opponent_analysis=decision.thought.opponent_analysis,
+                risk_assessment=decision.thought.risk_assessment,
+                chat_analysis=decision.thought.chat_analysis or None,
+                reasoning=decision.thought.reasoning,
+                confidence=decision.thought.confidence,
+                emotion=decision.thought.emotion,
+                decision=action,
+                decision_target=target_id,
+                table_talk=table_talk,
+                raw_response=decision.raw_response,
+            )
+            try:
+                db = await _get_db_session()
+                try:
+                    await persist_thought_record(db, game_id, thought_record)
+                    await db.commit()
+                finally:
+                    await db.close()
+            except Exception as e:
+                logger.warning("Failed to persist thought record: %s", e)
+
+        # Step 6: 广播操作结果
         await _broadcast_action_result(game_id, game, current_player, action, result, ws_manager)
 
-        # Step 6: 处理行动发言（table_talk）
+        # Step 7: 处理行动发言（table_talk）
         if table_talk:
             talk_msg = ChatMessage(
                 game_id=game_id,
@@ -441,8 +486,18 @@ async def process_ai_turns(
             )
             chat_context.add_message(talk_msg)
             await ws_manager.broadcast(game_id, event_chat_message(talk_msg))
+            # 持久化聊天消息（T4.4）
+            try:
+                db = await _get_db_session()
+                try:
+                    await persist_chat_message(db, talk_msg)
+                    await db.commit()
+                finally:
+                    await db.close()
+            except Exception as e:
+                logger.warning("Failed to persist chat message: %s", e)
 
-        # Step 7: 旁观者反应
+        # Step 8: 旁观者反应
         await _collect_and_broadcast_bystander_reactions(
             game_id=game_id,
             game=game,
@@ -455,7 +510,7 @@ async def process_ai_turns(
             ws_manager=ws_manager,
         )
 
-        # Step 8: 检查是否本局结束
+        # Step 9: 检查是否本局结束
         if result.round_ended:
             await _handle_round_end(game_id, game, result, ws_manager)
             break
@@ -502,6 +557,17 @@ async def handle_player_chat(
     chat_context.add_message(player_msg)
     await ws_manager.broadcast(game_id, event_chat_message(player_msg))
 
+    # 持久化玩家聊天消息（T4.4）
+    try:
+        db = await _get_db_session()
+        try:
+            await persist_chat_message(db, player_msg)
+            await db.commit()
+        finally:
+            await db.close()
+    except Exception as e:
+        logger.warning("Failed to persist player chat message: %s", e)
+
     # 创建触发事件并收集 AI 反应
     trigger = create_player_message_event(player_id, player.name, content)
 
@@ -526,6 +592,16 @@ async def handle_player_chat(
         if msg is not None:
             chat_context.add_message(msg)
             await ws_manager.broadcast(game_id, event_chat_message(msg))
+            # 持久化 AI 回应消息（T4.4）
+            try:
+                db = await _get_db_session()
+                try:
+                    await persist_chat_message(db, msg)
+                    await db.commit()
+                finally:
+                    await db.close()
+            except Exception as e:
+                logger.warning("Failed to persist AI response chat message: %s", e)
             await asyncio.sleep(0.3)  # 间隔一小段时间，模拟打字
 
 
@@ -661,6 +737,16 @@ async def _collect_and_broadcast_bystander_reactions(
         if msg is not None:
             chat_context.add_message(msg)
             await ws_manager.broadcast(game_id, event_chat_message(msg))
+            # 持久化旁观者反应消息（T4.4）
+            try:
+                db = await _get_db_session()
+                try:
+                    await persist_chat_message(db, msg)
+                    await db.commit()
+                finally:
+                    await db.close()
+            except Exception as e:
+                logger.warning("Failed to persist bystander reaction: %s", e)
             await asyncio.sleep(0.2)
 
 
