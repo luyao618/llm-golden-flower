@@ -346,6 +346,66 @@
 
 ## Phase 8: 打磨与联调
 
+### T8.0 模型配置中心 + GitHub Copilot 集成
+- **状态**: `pending`
+- **depends_on**: T5.2, T4.2
+- **内容**:
+  - **模型配置页面（前端）**:
+    - 在游戏大厅页面增加"配置模型"入口按钮
+    - 实现 `src/components/Lobby/ModelConfigPanel.tsx`: 模型配置面板（Modal 或侧边栏）
+    - 支持多种 LLM Provider 的 API Key 配置：
+      - **GitHub Copilot**（排第一）: 通过 OAuth Device Flow 连接，无需手动输入 Key
+      - **OpenAI**: 输入 API Key
+      - **Anthropic**: 输入 API Key
+      - **Google Gemini**: 输入 API Key
+    - 每个 Provider 显示连接状态（已连接/未连接）
+    - API Key 输入后即时验证有效性
+    - 连接成功后，该 Provider 的模型自动出现在 AI 对手的模型选择列表中
+  - **GitHub Copilot Device Flow（前端）**:
+    - 实现 `src/components/Lobby/CopilotConnect.tsx`: Copilot 连接组件
+    - 点击"连接 GitHub Copilot"→ 显示 8 位验证码 + github.com/login/device 链接
+    - 自动轮询等待用户完成授权
+    - 授权成功后显示"已连接"状态 + 可用模型列表
+  - **Copilot 认证服务（后端）**:
+    - 实现 `app/services/copilot_auth.py`: Copilot 认证管理器
+      - `start_device_flow()` — 发起 GitHub Device Flow，返回 device_code + user_code
+      - `poll_for_token()` — 轮询 GitHub 获取 access_token
+      - `get_copilot_token()` — 用 GitHub access_token 换取 Copilot 会话令牌（30 分钟有效）
+      - `refresh_copilot_token()` — 自动刷新即将过期的 Copilot 会话令牌
+      - `call_copilot_api()` — 调用 Copilot Chat Completions API（OpenAI 兼容格式）
+    - 令牌存储在内存中（单例模式），应用重启需重新授权
+  - **Copilot API 路由（后端）**:
+    - 实现 `app/api/copilot.py`: 3 个端点
+      - `POST /api/copilot/connect` — 发起设备授权
+      - `GET /api/copilot/poll` — 前端轮询授权状态
+      - `GET /api/copilot/status` — 查询 Copilot 连接状态
+  - **API Key 管理（后端）**:
+    - 实现 `app/api/provider.py`: Provider 配置端点
+      - `GET /api/providers` — 获取所有 Provider 的状态（已配置/未配置）
+      - `POST /api/providers/{provider}/key` — 设置某个 Provider 的 API Key
+      - `POST /api/providers/{provider}/verify` — 验证 API Key 有效性
+      - `DELETE /api/providers/{provider}/key` — 移除 API Key
+    - API Key 运行时存储在内存中（Settings 覆盖），不持久化到 .env
+  - **LLM 调用适配（后端）**:
+    - 修改 `app/agents/base_agent.py` 的 `call_llm()`:
+      - 当 `provider == "github_copilot"` 时，绕过 LiteLLM，直接调用 Copilot API
+      - 其他 Provider 走原有 LiteLLM 路径
+    - 修改 `app/config.py`:
+      - Copilot 模型（如 `copilot-gpt4o`, `copilot-claude-sonnet`）仅在 Copilot 认证成功后出现在 `get_available_models()` 中
+      - 其他 Provider 的模型仅在对应 API Key 已配置后出现
+    - 注册 Copilot + Provider 路由到 `app/main.py`
+  - **Copilot API 技术要点**:
+    - GitHub Device Flow: `POST github.com/login/device/code` → 用户授权 → `POST github.com/login/oauth/access_token`
+    - Copilot Token: `GET api.github.com/copilot_internal/v2/token`（用 GitHub access_token 换取）
+    - Chat API: `POST api.githubcopilot.com/chat/completions`（OpenAI 兼容，需特定 Headers）
+    - Client ID: VS Code 公开 OAuth App ID（`Iv1.b507a08c87ecfe98`）
+    - 注意：使用未公开 API，存在 ToS 风险，仅限个人学习使用
+- **验收**:
+  - 游戏大厅有"配置模型"入口，点击弹出配置面板
+  - 能通过面板添加 OpenAI/Anthropic/Google API Key，添加后对应模型出现在选择列表
+  - 能通过面板连接 GitHub Copilot（Device Flow），连接后 Copilot 模型出现在选择列表
+  - 选择 Copilot 模型创建游戏，AI 能正常通过 Copilot API 进行决策
+
 ### T8.1 端到端联调
 - **状态**: `pending`
 - **depends_on**: T4.3, T6.2, T6.4
@@ -436,5 +496,5 @@ T5.1 ──┬── T5.2 ──┐                      │
 | Phase 5: 前端基础 | 4 | 4 | 完成 |
 | Phase 6: 前端交互 | 5 | 5 | 完成 |
 | Phase 7: 心路历程前端 | 2 | 2 | 完成 |
-| Phase 8: 打磨联调 | 4 | 0 | 未开始 |
-| **总计** | **29** | **25** | **进行中** |
+| Phase 8: 打磨联调 | 5 | 0 | 未开始 |
+| **总计** | **30** | **25** | **进行中** |
