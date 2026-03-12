@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
-import type { Player, PlayerStatus } from '../../types/game'
+import type { ChatMessage, Player, PlayerStatus } from '../../types/game'
 import { useUIStore } from '../../stores/uiStore'
+import ChatBubble from './ChatBubble'
 
 interface PlayerSeatProps {
   player: Player
@@ -12,6 +13,8 @@ interface PlayerSeatProps {
   isMe: boolean
   /** 是否是庄家 */
   isDealer: boolean
+  /** 该玩家最新的聊天消息（用于头顶气泡） */
+  latestMessage?: ChatMessage | null
   /** 点击玩家座位的回调（比牌选择等） */
   onClick?: () => void
 }
@@ -72,6 +75,7 @@ export default function PlayerSeat({
   isActive,
   isMe,
   isDealer,
+  latestMessage,
   onClick,
 }: PlayerSeatProps) {
   const { isCompareMode, thinkingPlayerId, reviewingPlayerId } = useUIStore()
@@ -82,6 +86,9 @@ export default function PlayerSeat({
   const isThinking = thinkingPlayerId === player.id
   const isReviewing = reviewingPlayerId === player.id
   const isClickable = isCompareMode && !isMe && !isFolded && !isOut
+
+  // 气泡位置：牌桌下半部分的玩家气泡显示在上方，上半部分显示在下方
+  const bubblePosition = position.y > 50 ? 'above' : 'below'
 
   return (
     <motion.div
@@ -106,6 +113,9 @@ export default function PlayerSeat({
         `}
         onClick={isClickable ? onClick : undefined}
       >
+        {/* 聊天气泡 */}
+        <ChatBubble message={latestMessage ?? null} position={bubblePosition} />
+
         {/* 行动指示器 - 外部发光环 */}
         {isActive && (
           <motion.div

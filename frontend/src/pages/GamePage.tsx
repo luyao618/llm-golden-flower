@@ -2,6 +2,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo } from 'react'
 import TableLayout from '../components/Table/TableLayout'
 import { ActionPanel } from '../components/Actions'
+import ChatPanel from '../components/Table/ChatPanel'
+import ChatInput from '../components/Table/ChatInput'
 import { useGameStore } from '../stores/gameStore'
 import { useUIStore } from '../stores/uiStore'
 import { useGame } from '../hooks/useGame'
@@ -41,8 +43,11 @@ export default function GamePage() {
   const status = useGameStore((s) => s.status)
   const currentRound = useGameStore((s) => s.currentRound)
   const roundHistory = useGameStore((s) => s.roundHistory)
+  const chatMessages = useGameStore((s) => s.chatMessages)
   const reset = useGameStore((s) => s.reset)
   const resetUI = useUIStore((s) => s.resetUI)
+  const isChatPanelExpanded = useUIStore((s) => s.isChatPanelExpanded)
+  const toggleChatPanel = useUIStore((s) => s.toggleChatPanel)
 
   // 使用 URL 中的 gameId，如果 store 中有 myPlayerId 就用它
   // 否则等 WebSocket 连接后通过 game_state 事件获取
@@ -57,7 +62,7 @@ export default function GamePage() {
     [effectiveGameId, myPlayerId],
   )
 
-  const { connectionStatus, sendAction, sendStartRound, disconnect } = useGame(gameConfig)
+  const { connectionStatus, sendAction, sendStartRound, sendChatMessage, disconnect } = useGame(gameConfig)
 
   // 清理：离开页面时断开连接并重置状态
   useEffect(() => {
@@ -141,9 +146,60 @@ export default function GamePage() {
         </div>
       </header>
 
-      {/* 牌桌区域 */}
-      <main className="flex-1 relative min-h-0">
-        <TableLayout className="w-full h-full" />
+      {/* 牌桌 + 聊天区域 */}
+      <main className="flex-1 relative min-h-0 flex">
+        {/* 牌桌区域 */}
+        <div className="flex-1 relative min-w-0">
+          <TableLayout className="w-full h-full" />
+        </div>
+
+        {/* 聊天面板 */}
+        <div
+          className={`
+            relative border-l border-green-800/50 bg-black/20
+            flex flex-col transition-all duration-300
+            ${isChatPanelExpanded ? 'w-72' : 'w-8'}
+          `}
+        >
+          {/* 折叠/展开按钮 */}
+          <button
+            onClick={toggleChatPanel}
+            className="absolute -left-3 top-1/2 -translate-y-1/2 z-10
+              w-6 h-12 bg-green-900/80 border border-green-700/50
+              rounded-l-md flex items-center justify-center
+              hover:bg-green-800/80 transition-colors cursor-pointer"
+            title={isChatPanelExpanded ? '收起聊天' : '展开聊天'}
+          >
+            <span className="text-green-400 text-xs">
+              {isChatPanelExpanded ? '›' : '‹'}
+            </span>
+          </button>
+
+          {isChatPanelExpanded && (
+            <>
+              {/* 聊天标题栏 */}
+              <div className="px-3 py-2 border-b border-green-800/40 flex items-center justify-between">
+                <h3 className="text-xs font-medium text-green-400/80">牌桌聊天</h3>
+                <span className="text-[10px] text-green-700/50">
+                  {chatMessages.length} 条消息
+                </span>
+              </div>
+
+              {/* 消息列表 */}
+              <ChatPanel
+                messages={chatMessages}
+                className="flex-1 min-h-0 py-1"
+              />
+
+              {/* 输入框 */}
+              <ChatInput
+                onSend={sendChatMessage}
+                disabled={connectionStatus !== 'connected'}
+                placeholder={connectionStatus !== 'connected' ? '未连接...' : '说点什么...'}
+              />
+            </>
+          )}
+        </div>
       </main>
 
       {/* 底部操作区域 */}

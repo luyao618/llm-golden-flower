@@ -1,4 +1,5 @@
-import type { Player } from '../../types/game'
+import { useMemo } from 'react'
+import type { ChatMessage, Player } from '../../types/game'
 import { useGameStore } from '../../stores/gameStore'
 import { useUIStore } from '../../stores/uiStore'
 import PlayerSeat from '../Player/PlayerSeat'
@@ -86,6 +87,7 @@ export default function TableLayout({ className = '' }: TableLayoutProps) {
     players,
     currentRound,
     myPlayerId,
+    chatMessages,
   } = useGameStore()
 
   const { setCompareTarget, isCompareMode } = useUIStore()
@@ -93,6 +95,18 @@ export default function TableLayout({ className = '' }: TableLayoutProps) {
   // 重新排序：人类放底部
   const orderedPlayers = reorderPlayersHumanFirst(players)
   const seatPositions = calculateSeatPositions(orderedPlayers.length)
+
+  // 每个玩家的最新非系统聊天消息（用于头顶气泡）
+  const latestMessageByPlayer = useMemo(() => {
+    const map: Record<string, ChatMessage> = {}
+    // 正向遍历，后面的消息覆盖前面的
+    for (const msg of chatMessages) {
+      if (msg.message_type !== 'system_message') {
+        map[msg.player_id] = msg
+      }
+    }
+    return map
+  }, [chatMessages])
 
   // 当前行动玩家
   const currentPlayerIndex = currentRound?.current_player_index ?? -1
@@ -144,6 +158,7 @@ export default function TableLayout({ className = '' }: TableLayoutProps) {
           isActive={player.id === currentPlayerId}
           isMe={player.id === myPlayerId}
           isDealer={player.id === dealerId}
+          latestMessage={latestMessageByPlayer[player.id] ?? null}
           onClick={
             isCompareMode
               ? () => setCompareTarget(player.id)
