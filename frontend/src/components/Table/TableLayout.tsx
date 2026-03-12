@@ -1,9 +1,11 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import type { ChatMessage, Player } from '../../types/game'
 import { useGameStore } from '../../stores/gameStore'
 import { useUIStore } from '../../stores/uiStore'
 import PlayerSeat from '../Player/PlayerSeat'
 import PotDisplay from './PotDisplay'
+import DealingAnimation from './DealingAnimation'
+import ChipFlyAnimation, { WinChipAnimation } from './ChipFlyAnimation'
 
 interface TableLayoutProps {
   className?: string
@@ -87,10 +89,19 @@ export default function TableLayout({ className = '' }: TableLayoutProps) {
     players,
     currentRound,
     myPlayerId,
+    myCards,
     chatMessages,
   } = useGameStore()
 
-  const { setCompareTarget, isCompareMode } = useUIStore()
+  const {
+    setCompareTarget,
+    isCompareMode,
+    stopDealingAnimation,
+    setShowPlayerCards,
+    setHasLookedAtCards,
+    winAnimation,
+    clearWinAnimation,
+  } = useUIStore()
 
   // 重新排序：人类放底部
   const orderedPlayers = reorderPlayersHumanFirst(players)
@@ -120,6 +131,39 @@ export default function TableLayout({ className = '' }: TableLayoutProps) {
   const pot = currentRound?.pot ?? 0
   const currentBet = currentRound?.current_bet ?? 0
   const roundNumber = currentRound?.round_number ?? 0
+
+  // 构建 playerID → 座位位置的映射（供 ChipFlyAnimation 使用）
+  const playerPositions = useMemo(() => {
+    const map: Record<string, { x: number; y: number }> = {}
+    orderedPlayers.forEach((player, index) => {
+      if (seatPositions[index]) {
+        map[player.id] = seatPositions[index]
+      }
+    })
+    return map
+  }, [orderedPlayers, seatPositions])
+
+  // 赢家座位位置
+  const winnerPosition = useMemo(() => {
+    if (!winAnimation) return null
+    return playerPositions[winAnimation.winnerId] ?? null
+  }, [winAnimation, playerPositions])
+
+  // 发牌动画完成回调
+  const handleDealingComplete = useCallback(() => {
+    stopDealingAnimation()
+    setShowPlayerCards(true)
+  }, [stopDealingAnimation, setShowPlayerCards])
+
+  // 看牌回调
+  const handleLookAtCards = useCallback(() => {
+    setHasLookedAtCards(true)
+  }, [setHasLookedAtCards])
+
+  // 赢家动画完成回调
+  const handleWinAnimationComplete = useCallback(() => {
+    clearWinAnimation()
+  }, [clearWinAnimation])
 
   return (
     <div className={`relative w-full h-full ${className}`}>
@@ -159,6 +203,8 @@ export default function TableLayout({ className = '' }: TableLayoutProps) {
           isMe={player.id === myPlayerId}
           isDealer={player.id === dealerId}
           latestMessage={latestMessageByPlayer[player.id] ?? null}
+          myCards={player.id === myPlayerId ? myCards : undefined}
+          onLookAtCards={player.id === myPlayerId ? handleLookAtCards : undefined}
           onClick={
             isCompareMode
               ? () => setCompareTarget(player.id)
@@ -166,6 +212,24 @@ export default function TableLayout({ className = '' }: TableLayoutProps) {
           }
         />
       ))}
+
+      {/* 发牌动画 */}
+      <DealingAnimation
+        seatPositions={seatPositions}
+        playerCount={orderedPlayers.length}
+        onComplete={handleDealingComplete}
+      />
+
+      {/* 下注筹码飞行动画 */}
+      <ChipFlyAnimation playerPositions={playerPositions} />
+
+      {/* 赢家筹码飞行动画 */}
+      <WinChipAnimation
+        winnerPosition={winnerPosition}
+        amount={winAnimation?.amount ?? 0}
+        isPlaying={winAnimation?.isPlaying ?? false}
+        onComplete={handleWinAnimationComplete}
+      />
 
       {/* 游戏等待提示 */}
       {players.length === 0 && (

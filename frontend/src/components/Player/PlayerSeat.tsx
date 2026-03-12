@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion'
-import type { ChatMessage, Player, PlayerStatus } from '../../types/game'
+import type { Card, ChatMessage, Player, PlayerStatus } from '../../types/game'
 import { useUIStore } from '../../stores/uiStore'
 import ChatBubble from './ChatBubble'
+import CardHand from '../Cards/CardHand'
 
 interface PlayerSeatProps {
   player: Player
@@ -15,6 +16,10 @@ interface PlayerSeatProps {
   isDealer: boolean
   /** 该玩家最新的聊天消息（用于头顶气泡） */
   latestMessage?: ChatMessage | null
+  /** 人类玩家的手牌（只有 isMe 时有值） */
+  myCards?: Card[]
+  /** 看牌回调（点击自己的牌背触发看牌） */
+  onLookAtCards?: () => void
   /** 点击玩家座位的回调（比牌选择等） */
   onClick?: () => void
 }
@@ -76,9 +81,11 @@ export default function PlayerSeat({
   isMe,
   isDealer,
   latestMessage,
+  myCards = [],
+  onLookAtCards,
   onClick,
 }: PlayerSeatProps) {
-  const { isCompareMode, thinkingPlayerId, reviewingPlayerId } = useUIStore()
+  const { isCompareMode, thinkingPlayerId, reviewingPlayerId, showPlayerCards, hasLookedAtCards } = useUIStore()
 
   const isFolded = player.status === 'folded'
   const isOut = player.status === 'out'
@@ -210,12 +217,97 @@ export default function PlayerSeat({
         >
           {STATUS_LABELS[player.status]}
         </div>
+
+        {/* 手牌显示 */}
+        {showPlayerCards && !isOut && !isFolded && (
+          <PlayerCards
+            isMe={isMe}
+            myCards={myCards}
+            hasLookedAtCards={hasLookedAtCards}
+            playerStatus={player.status}
+            onLookAtCards={onLookAtCards}
+          />
+        )}
       </div>
     </motion.div>
   )
 }
 
 // ---- 辅助组件 ----
+
+/**
+ * 玩家手牌显示
+ * - 人类玩家：点击牌背触发看牌（3D翻转），看牌后显示正面
+ * - AI 玩家：始终显示牌背
+ */
+function PlayerCards({
+  isMe,
+  myCards,
+  hasLookedAtCards,
+  playerStatus,
+  onLookAtCards,
+}: {
+  isMe: boolean
+  myCards: Card[]
+  hasLookedAtCards: boolean
+  playerStatus: PlayerStatus
+  onLookAtCards?: () => void
+}) {
+  // 人类玩家
+  if (isMe) {
+    // 没有手牌数据时显示 3 张牌背占位
+    const cards = myCards.length > 0 ? myCards : PLACEHOLDER_CARDS
+    const isFaceUp = hasLookedAtCards && myCards.length > 0
+    const canLook = !hasLookedAtCards && myCards.length > 0 && playerStatus === 'active_blind'
+
+    return (
+      <motion.div
+        className="mt-1"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+      >
+        <CardHand
+          cards={cards}
+          faceUp={isFaceUp}
+          size="sm"
+          clickable={canLook}
+          onClick={canLook ? onLookAtCards : undefined}
+          fanAngle={6}
+        />
+        {canLook && (
+          <div className="text-center text-[9px] text-amber-400/70 mt-0.5 animate-pulse">
+            点击看牌
+          </div>
+        )}
+      </motion.div>
+    )
+  }
+
+  // AI 玩家：显示牌背
+  return (
+    <motion.div
+      className="mt-1"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: 0.1 }}
+    >
+      <CardHand
+        cards={PLACEHOLDER_CARDS}
+        faceUp={false}
+        size="sm"
+        fanAngle={6}
+      />
+    </motion.div>
+  )
+}
+
+/** 占位牌数据（仅用于牌背显示） */
+const PLACEHOLDER_CARDS: Card[] = [
+  { suit: 'spades', rank: 14 },
+  { suit: 'hearts', rank: 13 },
+  { suit: 'diamonds', rank: 12 },
+]
 
 /** AI 思考中的动态圆点指示器 */
 function ThinkingDots() {

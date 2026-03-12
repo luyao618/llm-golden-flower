@@ -124,6 +124,11 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
   const setActivePlayer = useUIStore((s) => s.setActivePlayer)
   const setThinkingPlayer = useUIStore((s) => s.setThinkingPlayer)
   const setReviewingPlayer = useUIStore((s) => s.setReviewingPlayer)
+  const startDealingAnimation = useUIStore((s) => s.startDealingAnimation)
+  const triggerChipAnimation = useUIStore((s) => s.triggerChipAnimation)
+  const startWinAnimation = useUIStore((s) => s.startWinAnimation)
+  const setShowPlayerCards = useUIStore((s) => s.setShowPlayerCards)
+  const setHasLookedAtCards = useUIStore((s) => s.setHasLookedAtCards)
 
   // ---- Server event handler ----
 
@@ -171,6 +176,13 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
           setReviewingPlayer(null)
           useGameStore.getState().clearActionLog()
 
+          // 重置卡牌和看牌状态
+          setShowPlayerCards(false)
+          setHasLookedAtCards(false)
+
+          // 触发发牌动画
+          startDealingAnimation()
+
           // 更新局信息（部分信息，完整的 RoundState 会通过 game_state 更新）
           setCurrentRound({
             round_number: data.round_number,
@@ -190,6 +202,7 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
         case 'cards_dealt': {
           const data = event.data as CardsDealtData
           if (data.your_cards) {
+            // 先保存手牌数据（不立即显示，等发牌动画完成后 showPlayerCards=true 再显示）
             setMyCards(data.your_cards)
           }
           break
@@ -214,6 +227,11 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
         case 'player_acted': {
           const data = event.data as PlayerActedData
           setThinkingPlayer(null) // 清除 AI 思考状态
+
+          // 筹码飞行动画：下注/加注/跟注 等涉及筹码的操作
+          if (data.amount > 0 && ['bet', 'raise', 'call', 'ante'].includes(data.action)) {
+            triggerChipAnimation(data.player_id, data.amount)
+          }
 
           // 将操作记录添加到 store 中的 actionLog（用于行动日志 T6.5）
           const store = useGameStore.getState()
@@ -254,8 +272,17 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
           setThinkingPlayer(null)
           setReviewingPlayer(null)
 
-          // 更新局面阶段
-          setCurrentRound(null)
+          // 触发赢家筹码飞行动画（底池 → 赢家）
+          if (data.winner_id && data.pot > 0) {
+            startWinAnimation(data.winner_id, data.pot)
+          }
+
+          // 延迟清理 round 状态，让赢家动画有时间播放
+          setTimeout(() => {
+            setCurrentRound(null)
+            setShowPlayerCards(false)
+            setHasLookedAtCards(false)
+          }, 1500)
           break
         }
 
@@ -330,6 +357,11 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
       setActivePlayer,
       setThinkingPlayer,
       setReviewingPlayer,
+      startDealingAnimation,
+      triggerChipAnimation,
+      startWinAnimation,
+      setShowPlayerCards,
+      setHasLookedAtCards,
     ],
   )
 
