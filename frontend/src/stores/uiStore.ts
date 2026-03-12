@@ -16,6 +16,17 @@ export interface ChipAnimation {
   amount: number
 }
 
+// ---- 赢家动画状态 ----
+
+export interface WinAnimationState {
+  /** 赢家玩家 ID */
+  winnerId: string
+  /** 赢得的筹码数量 */
+  amount: number
+  /** 是否正在播放 */
+  isPlaying: boolean
+}
+
 // ---- UI 状态 ----
 
 export interface UIState {
@@ -38,6 +49,15 @@ export interface UIState {
   // 筹码动画
   chipAnimation: ChipAnimation | null
 
+  // 赢家筹码飞行动画
+  winAnimation: WinAnimationState | null
+
+  // 发牌完毕后是否显示手牌
+  showPlayerCards: boolean
+
+  // 人类玩家是否已看牌（触发翻牌动画）
+  hasLookedAtCards: boolean
+
   // 心路历程抽屉
   isThoughtDrawerOpen: boolean
   thoughtDrawerAgentId: string | null
@@ -59,6 +79,10 @@ export interface UIState {
   advanceDealingCard: () => void
   triggerChipAnimation: (fromPlayerId: string, amount: number) => void
   clearChipAnimation: () => void
+  startWinAnimation: (winnerId: string, amount: number) => void
+  clearWinAnimation: () => void
+  setShowPlayerCards: (show: boolean) => void
+  setHasLookedAtCards: (looked: boolean) => void
   toggleThoughtDrawer: (agentId?: string) => void
   toggleGameLog: () => void
   toggleChatPanel: () => void
@@ -78,6 +102,9 @@ export const useUIStore = create<UIState>((set) => ({
     currentCardIndex: 0,
   },
   chipAnimation: null,
+  winAnimation: null,
+  showPlayerCards: false,
+  hasLookedAtCards: false,
   isThoughtDrawerOpen: false,
   thoughtDrawerAgentId: null,
   isGameLogExpanded: true,
@@ -129,6 +156,18 @@ export const useUIStore = create<UIState>((set) => ({
   clearChipAnimation: () =>
     set({ chipAnimation: null }),
 
+  startWinAnimation: (winnerId, amount) =>
+    set({ winAnimation: { winnerId, amount, isPlaying: true } }),
+
+  clearWinAnimation: () =>
+    set({ winAnimation: null }),
+
+  setShowPlayerCards: (show) =>
+    set({ showPlayerCards: show }),
+
+  setHasLookedAtCards: (looked) =>
+    set({ hasLookedAtCards: looked }),
+
   toggleThoughtDrawer: (agentId) =>
     set((state) => ({
       isThoughtDrawerOpen: agentId
@@ -153,6 +192,9 @@ export const useUIStore = create<UIState>((set) => ({
       reviewingPlayerId: null,
       dealingAnimation: { isDealing: false, currentCardIndex: 0 },
       chipAnimation: null,
+      winAnimation: null,
+      showPlayerCards: false,
+      hasLookedAtCards: false,
       isThoughtDrawerOpen: false,
       thoughtDrawerAgentId: null,
     }),
