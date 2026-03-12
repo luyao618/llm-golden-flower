@@ -313,6 +313,45 @@ export interface AIModelInfo {
   provider: string
 }
 
+// ---- Provider / Copilot 配置 (T8.0) ----
+
+export type ProviderName = 'openai' | 'anthropic' | 'google'
+
+export interface ProviderStatus {
+  provider: ProviderName
+  name: string
+  configured: boolean
+  key_preview: string | null
+}
+
+export interface CopilotDeviceFlowResponse {
+  user_code: string
+  verification_uri: string
+  expires_in: number
+}
+
+export interface CopilotPollResponse {
+  status: 'pending' | 'connected'
+  models?: AIModelInfo[]
+}
+
+export interface CopilotStatusResponse {
+  connected: boolean
+  has_valid_token: boolean
+  models: AIModelInfo[]
+}
+
+export interface SetKeyResponse {
+  message: string
+  provider: string
+  configured: boolean
+}
+
+export interface VerifyKeyResponse {
+  valid: boolean
+  message: string
+}
+
 // ---- WebSocket 事件 ----
 
 export type ServerEventType =

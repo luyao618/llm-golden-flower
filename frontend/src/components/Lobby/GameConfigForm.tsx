@@ -20,6 +20,7 @@ const PROVIDER_STYLES: Record<string, { color: string; label: string }> = {
   openai: { color: 'text-green-400', label: 'OpenAI' },
   anthropic: { color: 'text-orange-400', label: 'Anthropic' },
   google: { color: 'text-blue-400', label: 'Google' },
+  github_copilot: { color: 'text-purple-400', label: 'Copilot' },
 }
 
 export default function GameConfigForm() {
@@ -125,8 +126,8 @@ export default function GameConfigForm() {
                         </option>
                       ))
                     ) : (
-                      <option value="openai-gpt4o-mini">
-                        GPT-4o Mini (默认)
+                      <option value="" disabled>
+                        请先配置模型 (点击右上角「配置模型」)
                       </option>
                     )}
                   </select>

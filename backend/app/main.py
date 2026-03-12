@@ -80,6 +80,13 @@ def create_app() -> FastAPI:
     app.include_router(thought_router, prefix="/api/game", tags=["thought"])
     app.include_router(chat_router, prefix="/api/game", tags=["chat"])
 
+    # T8.0: 模型配置中心 — Provider + Copilot 路由
+    from app.api.provider import router as provider_router
+    from app.api.copilot import router as copilot_router
+
+    app.include_router(provider_router)  # prefix already set in router
+    app.include_router(copilot_router)  # prefix already set in router
+
     return app
 
 

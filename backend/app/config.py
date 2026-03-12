@@ -1,6 +1,7 @@
 """基础配置管理
 
 管理 AI 模型列表、游戏默认参数、环境变量等配置。
+支持动态模型列表（根据已配置的 Provider 过滤）。
 """
 
 from __future__ import annotations
@@ -40,7 +41,7 @@ class Settings(BaseSettings):
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
-# AI 模型配置
+# ---- LiteLLM Provider 的模型配置（静态注册表） ----
 AI_MODELS: dict[str, dict] = {
     "openai-gpt4o": {
         "model": "gpt-4o",
@@ -63,6 +64,28 @@ AI_MODELS: dict[str, dict] = {
         "provider": "google",
     },
 }
+
+# ---- GitHub Copilot 模型配置（仅在 Copilot 认证成功后可用） ----
+COPILOT_MODELS: dict[str, dict] = {
+    "copilot-gpt4o": {
+        "model": "gpt-4o",
+        "display_name": "Copilot GPT-4o",
+        "provider": "github_copilot",
+    },
+    "copilot-gpt4o-mini": {
+        "model": "gpt-4o-mini",
+        "display_name": "Copilot GPT-4o Mini",
+        "provider": "github_copilot",
+    },
+    "copilot-claude-sonnet": {
+        "model": "claude-3.5-sonnet",
+        "display_name": "Copilot Claude Sonnet",
+        "provider": "github_copilot",
+    },
+}
+
+# 合并所有模型的完整注册表（用于 model_id 查找）
+ALL_MODELS: dict[str, dict] = {**AI_MODELS, **COPILOT_MODELS}
 
 # AI 性格预设名称列表
 AI_PERSONALITIES = [
@@ -98,5 +121,37 @@ def get_settings() -> Settings:
 
 
 def get_available_models() -> list[dict]:
-    """获取可用的 AI 模型列表"""
-    return [{"id": model_id, **model_info} for model_id, model_info in AI_MODELS.items()]
+    """获取可用的 AI 模型列表
+
+    动态过滤：只返回已配置 API Key 的 Provider 的模型。
+    - LiteLLM Provider (openai/anthropic/google): 需要对应 API Key 已配置
+    - GitHub Copilot: 需要 Copilot 认证成功
+    """
+    from app.services.provider_manager import get_provider_manager
+    from app.services.copilot_auth import get_copilot_auth
+
+    provider_manager = get_provider_manager()
+    copilot_auth = get_copilot_auth()
+
+    models = []
+
+    # LiteLLM Provider 的模型
+    for model_id, model_info in AI_MODELS.items():
+        provider = model_info["provider"]
+        if provider_manager.has_key(provider):
+            models.append({"id": model_id, **model_info})
+
+    # Copilot 模型
+    if copilot_auth.is_connected:
+        for model_id, model_info in COPILOT_MODELS.items():
+            models.append({"id": model_id, **model_info})
+
+    return models
+
+
+def get_model_config(model_id: str) -> dict | None:
+    """根据 model_id 获取模型配置
+
+    从完整注册表（ALL_MODELS）中查找，不受 Provider 配置状态影响。
+    """
+    return ALL_MODELS.get(model_id)

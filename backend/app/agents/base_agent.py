@@ -16,7 +16,7 @@ from typing import Any
 
 import litellm
 
-from app.config import AI_MODELS, get_settings
+from app.config import AI_MODELS, ALL_MODELS, get_settings
 from app.models.game import (
     ActionRecord,
     GameAction,
@@ -182,7 +182,7 @@ class BaseAgent:
             self.personality_description = f"{personality}型玩家"
 
         # 验证 model_id 有效
-        if model_id not in AI_MODELS:
+        if model_id not in ALL_MODELS:
             logger.warning("Unknown model_id '%s', falling back to 'openai-gpt4o-mini'", model_id)
             self.model_id = "openai-gpt4o-mini"
 
@@ -194,7 +194,11 @@ class BaseAgent:
         temperature: float | None = None,
         response_format: dict | None = None,
     ) -> str:
-        """封装 LiteLLM 调用，含重试、超时、错误处理
+        """封装 LLM 调用，含重试、超时、错误处理
+
+        根据 model_id 对应的 provider 自动路由:
+        - provider == "github_copilot": 绕过 LiteLLM，直接调用 Copilot API
+        - 其他 Provider: 走原有 LiteLLM 路径
 
         Args:
             messages: OpenAI 格式的消息列表
@@ -208,14 +212,22 @@ class BaseAgent:
             LLMCallError: LLM 调用失败且重试耗尽时抛出
         """
         settings = get_settings()
-        model_config = AI_MODELS[self.model_id]
+        model_config = ALL_MODELS.get(self.model_id) or AI_MODELS.get(self.model_id)
+        if not model_config:
+            raise LLMCallError(f"Unknown model_id: {self.model_id}")
+
         model_name = model_config["model"]
-
-        # 设置 API keys（LiteLLM 会根据模型自动选择对应的 key）
-        _configure_api_keys(settings)
-
+        provider = model_config.get("provider", "")
         temp = temperature if temperature is not None else settings.llm_temperature
         fmt = response_format or {"type": "json_object"}
+
+        # ---- Copilot 路径 ----
+        if provider == "github_copilot":
+            return await self._call_copilot(model_name, messages, temp)
+
+        # ---- LiteLLM 路径 ----
+        # 设置 API keys（LiteLLM 会根据模型自动选择对应的 key）
+        _configure_api_keys(settings)
 
         last_error: Exception | None = None
 
@@ -257,6 +269,71 @@ class BaseAgent:
 
         raise LLMCallError(
             f"LLM call failed after {settings.llm_max_retries} retries: {last_error}"
+        )
+
+    async def _call_copilot(
+        self,
+        model_name: str,
+        messages: list[dict[str, str]],
+        temperature: float,
+    ) -> str:
+        """通过 Copilot API 调用 LLM
+
+        绕过 LiteLLM，直接使用 CopilotAuthManager 调用 Copilot Chat API。
+        包含重试逻辑。
+        """
+        from app.services.copilot_auth import get_copilot_auth, CopilotAuthError, CopilotAPIError
+
+        settings = get_settings()
+        copilot = get_copilot_auth()
+        last_error: Exception | None = None
+
+        for attempt in range(1, settings.llm_max_retries + 1):
+            try:
+                logger.info(
+                    "[%s] Copilot API call attempt %d/%d, model=%s",
+                    self.name,
+                    attempt,
+                    settings.llm_max_retries,
+                    model_name,
+                )
+
+                content = await copilot.call_copilot_api(
+                    model=model_name,
+                    messages=messages,
+                    temperature=temperature,
+                )
+
+                logger.info("[%s] Copilot API call succeeded on attempt %d", self.name, attempt)
+                return content
+
+            except (CopilotAuthError, CopilotAPIError) as e:
+                last_error = e
+                logger.warning(
+                    "[%s] Copilot API call attempt %d failed: %s", self.name, attempt, str(e)
+                )
+                if attempt < settings.llm_max_retries:
+                    import asyncio
+
+                    wait_time = 2**attempt
+                    logger.info("[%s] Retrying in %ds...", self.name, wait_time)
+                    await asyncio.sleep(wait_time)
+            except Exception as e:
+                last_error = e
+                logger.warning(
+                    "[%s] Copilot API call attempt %d failed unexpectedly: %s",
+                    self.name,
+                    attempt,
+                    str(e),
+                )
+                if attempt < settings.llm_max_retries:
+                    import asyncio
+
+                    wait_time = 2**attempt
+                    await asyncio.sleep(wait_time)
+
+        raise LLMCallError(
+            f"Copilot API call failed after {settings.llm_max_retries} retries: {last_error}"
         )
 
     # ---- Prompt 构建 ----

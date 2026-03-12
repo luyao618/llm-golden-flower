@@ -7,13 +7,19 @@ import type {
   AIModelInfo,
   ActionResponse,
   ChatMessage,
+  CopilotDeviceFlowResponse,
+  CopilotPollResponse,
+  CopilotStatusResponse,
   CreateGameRequest,
   CreateGameResponse,
   ExperienceReview,
   GameSummary,
   PlayerActionRequest,
+  ProviderStatus,
   RoundNarrative,
+  SetKeyResponse,
   ThoughtRecord,
+  VerifyKeyResponse,
 } from '../types/game'
 
 const BASE_URL = '/api'
@@ -200,4 +206,64 @@ export async function getRoundChatHistory(
     `/game/${gameId}/chat/round/${roundNum}`
   )
   return res.messages
+}
+
+// ---- Provider 管理 (T8.0) ----
+
+/** 获取所有 Provider 状态 */
+export async function getProviders(): Promise<ProviderStatus[]> {
+  return request<ProviderStatus[]>('/providers')
+}
+
+/** 设置 Provider API Key */
+export async function setProviderKey(
+  provider: string,
+  key: string
+): Promise<SetKeyResponse> {
+  return request<SetKeyResponse>(`/providers/${provider}/key`, {
+    method: 'POST',
+    body: JSON.stringify({ key }),
+  })
+}
+
+/** 验证 Provider API Key */
+export async function verifyProviderKey(
+  provider: string,
+  key?: string
+): Promise<VerifyKeyResponse> {
+  return request<VerifyKeyResponse>(`/providers/${provider}/verify`, {
+    method: 'POST',
+    body: JSON.stringify({ key: key ?? null }),
+  })
+}
+
+/** 移除 Provider API Key */
+export async function removeProviderKey(
+  provider: string
+): Promise<{ message: string; provider: string; configured: boolean }> {
+  return request(`/providers/${provider}/key`, { method: 'DELETE' })
+}
+
+// ---- GitHub Copilot (T8.0) ----
+
+/** 发起 Copilot Device Flow 连接 */
+export async function connectCopilot(): Promise<CopilotDeviceFlowResponse> {
+  return request<CopilotDeviceFlowResponse>('/copilot/connect', {
+    method: 'POST',
+  })
+}
+
+/** 轮询 Copilot 授权状态 */
+export async function pollCopilotAuth(): Promise<CopilotPollResponse> {
+  return request<CopilotPollResponse>('/copilot/poll')
+}
+
+/** 获取 Copilot 连接状态 */
+export async function getCopilotStatus(): Promise<CopilotStatusResponse> {
+  return request<CopilotStatusResponse>('/copilot/status')
+}
+
+/** 断开 Copilot 连接 */
+export async function disconnectCopilot(): Promise<{ message: string }> {
+  return request('/copilot/disconnect', { method: 'POST' })
 }
