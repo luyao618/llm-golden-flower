@@ -12,6 +12,7 @@ from app.agents.chat_engine import (
     create_trigger_event_from_action,
     create_player_message_event,
 )
+from app.agents.experience import ExperienceReviewer
 
 __all__ = [
     "BaseAgent",
@@ -25,4 +26,5 @@ __all__ = [
     "TriggerEventType",
     "create_trigger_event_from_action",
     "create_player_message_event",
+    "ExperienceReviewer",
 ]

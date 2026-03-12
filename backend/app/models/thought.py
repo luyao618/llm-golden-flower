@@ -4,9 +4,13 @@
 - ThoughtRecord: 单次决策的完整思考记录
 - RoundNarrative: 单局叙事总结（第一人称）
 - GameSummary: 整场游戏总结报告
+- ReviewTrigger: 经验回顾触发条件
+- ExperienceReview: 经验回顾记录
 """
 
 from __future__ import annotations
+
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
@@ -117,3 +121,52 @@ class GameSummary(BaseModel):
     chat_strategy_summary: str = ""
     learning_journey: str = ""
     narrative_summary: str = ""
+
+
+# ---- 经验回顾相关 ----
+
+
+class ReviewTrigger(str, Enum):
+    """经验回顾触发条件
+
+    定义 5 种触发经验回顾的情形，按优先级从高到低排列。
+    """
+
+    CHIP_CRISIS = "chip_crisis"  # 筹码危机（< 30% 初始值）
+    CONSECUTIVE_LOSSES = "consecutive_losses"  # 连续输牌（>= 2 局）
+    BIG_LOSS = "big_loss"  # 单局大额损失（> 20% 初始筹码）
+    OPPONENT_SHIFT = "opponent_shift"  # 对手行为突变
+    PERIODIC = "periodic"  # 定期回顾（每 5 局）
+
+
+class ExperienceReview(BaseModel):
+    """经验回顾记录
+
+    当触发条件满足时，AI 回顾最近几局的心路历程，
+    生成自我分析、对手模式总结和策略调整方向。
+
+    Attributes:
+        agent_id: Agent 唯一标识
+        trigger: 触发条件
+        triggered_at_round: 在第几局结束后触发
+        rounds_reviewed: 回顾了哪几局
+        self_analysis: 自我分析
+        opponent_patterns: 对各对手行为模式的总结
+        strategy_adjustment: 策略调整方向
+        confidence_shift: 信心变化（-1 到 1）
+        strategy_context: 注入后续决策 prompt 的策略摘要
+    """
+
+    agent_id: str
+    trigger: ReviewTrigger
+    triggered_at_round: int
+    rounds_reviewed: list[int] = Field(default_factory=list)
+
+    # AI 的回顾输出
+    self_analysis: str = ""
+    opponent_patterns: dict[str, str] = Field(default_factory=dict)
+    strategy_adjustment: str = ""
+    confidence_shift: float = Field(default=0.0, ge=-1.0, le=1.0)
+
+    # 生成的策略注入文本
+    strategy_context: str = ""
