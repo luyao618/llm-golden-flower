@@ -160,7 +160,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   addAIOpponent: () =>
     set((state) => {
       if (state.aiOpponents.length >= 5) return state
-      return { aiOpponents: [...state.aiOpponents, createDefaultAIOpponent()] }
+      // 使用第一个可用模型作为默认值，避免使用不可用的硬编码模型
+      const defaultModelId = state.availableModels.length > 0
+        ? state.availableModels[0].id
+        : DEFAULT_AI_OPPONENT.model_id
+      const newOpponent: AIOpponentConfig = { ...DEFAULT_AI_OPPONENT, model_id: defaultModelId }
+      return { aiOpponents: [...state.aiOpponents, newOpponent] }
     }),
 
   removeAIOpponent: (index) =>
@@ -184,7 +189,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ modelsLoading: true })
     try {
       const models = await getAvailableModels()
-      set({ availableModels: models, modelsLoading: false })
+      // 如果当前 AI 对手的 model_id 不在可用模型列表中，自动修正为第一个可用模型
+      const validIds = new Set(models.map((m) => m.id))
+      const firstModelId = models.length > 0 ? models[0].id : ''
+      const { aiOpponents } = get()
+      const needsUpdate = aiOpponents.some((op) => !validIds.has(op.model_id))
+      if (needsUpdate && firstModelId) {
+        const updatedOpponents = aiOpponents.map((op) =>
+          validIds.has(op.model_id) ? op : { ...op, model_id: firstModelId }
+        )
+        set({ availableModels: models, modelsLoading: false, aiOpponents: updatedOpponents })
+      } else {
+        set({ availableModels: models, modelsLoading: false })
+      }
     } catch (err) {
       console.error('Failed to fetch models:', err)
       set({ modelsLoading: false })
