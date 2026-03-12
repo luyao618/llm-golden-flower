@@ -23,7 +23,7 @@
 │  │            AI Agent Manager                  │   │
 │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐        │   │
 │  │  │ Agent 1 │ │ Agent 2 │ │ Agent N │  ...    │   │
-│  │  │(OpenAI) │ │(Claude) │ │(Gemini) │        │   │
+│  │  │(OpenAI) │ │(Claude) │ │(Copilot)│        │   │
 │  │  └─────────┘ └─────────┘ └─────────┘        │   │
 │  └──────────────────────────────────────────────┘   │
 │  ┌──────────────────────────────────────────────┐   │
@@ -36,10 +36,10 @@
                        │
            ┌───────────┼───────────┐
            │           │           │
-     ┌─────┴─────┐ ┌───┴───┐ ┌────┴────┐
-     │  OpenAI   │ │Claude │ │ Gemini  │
-     │   API     │ │  API  │ │   API   │
-     └───────────┘ └───────┘ └─────────┘
+     ┌─────┴─────┐ ┌───┴───┐ ┌────┴────┐ ┌──────────┐
+     │  OpenAI   │ │Claude │ │ Gemini  │ │ Copilot  │
+     │   API     │ │  API  │ │   API   │ │   API    │
+     └───────────┘ └───────┘ └─────────┘ └──────────┘
 ```
 
 ### 1.1 技术栈
@@ -108,7 +108,11 @@ Golden_Flower_Poker_AI/
 │   │   │   ├── game.py           # 游戏相关接口
 │   │   │   ├── chat.py           # 聊天相关接口
 │   │   │   ├── thought.py        # 心路历程接口
-│   │   │   └── websocket.py      # WebSocket 处理
+│   │   │   ├── websocket.py      # WebSocket 处理
+│   │   │   ├── copilot.py        # GitHub Copilot Device Flow 接口
+│   │   │   └── provider.py       # Provider/API Key 管理接口
+│   │   ├── services/             # 服务层
+│   │   │   └── copilot_auth.py   # Copilot 认证 + Token 管理
 │   │   └── db/                   # 数据库
 │   │       ├── __init__.py
 │   │       ├── database.py       # 数据库连接
@@ -132,6 +136,8 @@ Golden_Flower_Poker_AI/
 │       │   └── uiStore.ts        # UI 状态
 │       ├── components/           # React 组件
 │       │   ├── Lobby/            # 大厅
+│       │   │   └── ModelConfigPanel.tsx  # 模型配置面板
+│       │   │   └── CopilotConnect.tsx   # Copilot Device Flow 连接组件
 │       │   ├── Table/            # 牌桌
 │       │   ├── Cards/            # 扑克牌
 │       │   ├── Player/           # 玩家位
@@ -571,7 +577,7 @@ AI 的响应需要被解析为结构化的决策 + 心路历程：
 - API 超时时，自动弃牌并记录异常
 - 设置 3 次重试，重试失败则默认弃牌
 
-### 4.4 多模型支持 (via LiteLLM)
+### 4.4 多模型支持 (via LiteLLM + Copilot)
 
 ```python
 # 配置示例
@@ -591,18 +597,39 @@ AI_MODELS = {
         "display_name": "Gemini 2.0 Flash",
         "provider": "google",
     },
+    # Copilot 模型（仅在 Copilot 认证成功后可用）
+    "copilot-gpt4o": {
+        "model": "gpt-4o",
+        "display_name": "Copilot GPT-4o",
+        "provider": "github_copilot",
+    },
+    "copilot-claude-sonnet": {
+        "model": "claude-3.5-sonnet",
+        "display_name": "Copilot Claude Sonnet",
+        "provider": "github_copilot",
+    },
 }
 
-# 统一调用接口 (使用 litellm)
+# 统一调用接口 (LiteLLM + Copilot 分支)
 async def call_llm(model_id: str, messages: list[dict]) -> str:
     config = AI_MODELS[model_id]
-    response = await litellm.acompletion(
-        model=config["model"],
-        messages=messages,
-        response_format={"type": "json_object"},
-        temperature=0.7,
-    )
-    return response.choices[0].message.content
+    
+    if config["provider"] == "github_copilot":
+        # Copilot 路径: 直接调用 Copilot Chat API
+        return await copilot_auth.call_copilot_api(
+            model=config["model"],
+            messages=messages,
+            temperature=0.7,
+        )
+    else:
+        # LiteLLM 路径: 原有逻辑
+        response = await litellm.acompletion(
+            model=config["model"],
+            messages=messages,
+            response_format={"type": "json_object"},
+            temperature=0.7,
+        )
+        return response.choices[0].message.content
 ```
 
 ---
@@ -646,7 +673,14 @@ GET    /api/game/{game_id}/chat/round/{round_num}                获取某局聊
 #### 配置
 
 ```
-GET    /api/models                获取可用的 AI 模型列表
+GET    /api/models                获取可用的 AI 模型列表（仅返回已配置 Provider 的模型）
+GET    /api/providers             获取所有 Provider 的连接状态
+POST   /api/providers/{provider}/key     设置 API Key
+POST   /api/providers/{provider}/verify  验证 API Key 有效性
+DELETE /api/providers/{provider}/key     移除 API Key
+POST   /api/copilot/connect       发起 GitHub Copilot Device Flow
+GET    /api/copilot/poll          轮询 Device Flow 授权状态
+GET    /api/copilot/status        查询 Copilot 连接状态
 ```
 
 ### 5.2 WebSocket 协议
@@ -1216,7 +1250,186 @@ CREATE TABLE game_summaries (
 
 ---
 
-## 10. 开发计划
+## 10. 模型配置中心 + GitHub Copilot 集成
+
+### 10.1 架构概览
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   Browser (React)                       │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │            ModelConfigPanel (模型配置面板)          │  │
+│  │  ┌──────────────┐  ┌────────────────────────────┐ │  │
+│  │  │ CopilotConnect│  │ API Key Inputs             │ │  │
+│  │  │ (Device Flow) │  │ (OpenAI/Anthropic/Google) │ │  │
+│  │  └──────────────┘  └────────────────────────────┘ │  │
+│  └───────────────────────────────────────────────────┘  │
+│                      │ REST API                         │
+└──────────────────────┼──────────────────────────────────┘
+                       │
+┌──────────────────────┼──────────────────────────────────┐
+│              FastAPI Backend (Python)                    │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │          Provider Manager (运行时配置)             │   │
+│  │  ┌─────────────────┐  ┌───────────────────────┐  │   │
+│  │  │ CopilotAuth     │  │ API Key Store         │  │   │
+│  │  │ (Device Flow +  │  │ (内存存储, 运行时覆盖  │  │   │
+│  │  │  Token Refresh) │  │  Settings)             │  │   │
+│  │  └─────────────────┘  └───────────────────────┘  │   │
+│  └──────────────────────────────────────────────────┘   │
+│                       │                                  │
+│  ┌────────────────────┼─────────────────────────────┐   │
+│  │             call_llm() 路由                       │   │
+│  │  provider == "github_copilot"?                    │   │
+│  │    → CopilotAuth.call_copilot_api()              │   │
+│  │  else                                             │   │
+│  │    → litellm.acompletion() (原有路径)              │   │
+│  └──────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────┘
+                       │
+       ┌───────────────┼───────────────┐
+       │               │               │
+ ┌─────┴─────┐   ┌────┴────┐   ┌──────┴──────┐
+ │ LiteLLM   │   │ Copilot │   │   GitHub    │
+ │ (OpenAI,  │   │ Chat API│   │   OAuth     │
+ │ Claude,   │   │         │   │ Device Flow │
+ │ Gemini)   │   │         │   │             │
+ └───────────┘   └─────────┘   └─────────────┘
+```
+
+### 10.2 GitHub Copilot 认证流程
+
+```
+Frontend                    Backend                         GitHub
+  │                           │                               │
+  │  1. POST /api/copilot/    │                               │
+  │     connect               │                               │
+  │──────────────────────────>│                               │
+  │                           │  2. POST github.com/          │
+  │                           │     login/device/code         │
+  │                           │     {client_id, scope}        │
+  │                           │──────────────────────────────>│
+  │                           │  {device_code, user_code,     │
+  │                           │   verification_uri}           │
+  │  3. 返回 user_code +     │<──────────────────────────────│
+  │     verification_uri      │                               │
+  │<──────────────────────────│                               │
+  │                           │                               │
+  │  4. 用户在浏览器访问      │                               │
+  │     github.com/login/     │                               │
+  │     device 输入 user_code │                               │
+  │                           │                               │
+  │  5. GET /api/copilot/poll │                               │
+  │     (每5秒轮询)           │                               │
+  │──────────────────────────>│  6. POST github.com/login/    │
+  │                           │     oauth/access_token        │
+  │                           │     {client_id, device_code,  │
+  │                           │      grant_type}              │
+  │                           │──────────────────────────────>│
+  │                           │                               │
+  │                           │  7a. {error: "pending"}       │
+  │  {"status": "pending"}    │<──────────────────────────────│
+  │<──────────────────────────│                               │
+  │                           │                               │
+  │  ... 重复轮询 ...          │                               │
+  │                           │                               │
+  │                           │  7b. {access_token: "gho_XX"} │
+  │                           │<──────────────────────────────│
+  │                           │                               │
+  │                           │  8. GET api.github.com/       │
+  │                           │     copilot_internal/v2/token │
+  │                           │     Authorization: token gho_ │
+  │                           │──────────────────────────────>│
+  │                           │  {token, expires_at,          │
+  │                           │   endpoints}                  │
+  │  {"status": "connected",  │<──────────────────────────────│
+  │   "models": [...]}        │                               │
+  │<──────────────────────────│                               │
+```
+
+### 10.3 Copilot Chat API 调用格式
+
+```python
+# 请求
+POST https://api.githubcopilot.com/chat/completions
+Headers:
+    Authorization: Bearer tid=xxxx;exp=...;sku=...;sig=XXXX
+    Content-Type: application/json
+    Accept: application/json
+    Copilot-Integration-Id: vscode-chat
+    Editor-Version: vscode/1.85.0
+    Editor-Plugin-Version: copilot-chat/0.12.0
+    Openai-Organization: github-copilot
+    User-Agent: GitHubCopilotChat/0.8.0
+    X-Request-Id: <uuid>
+
+Body:
+{
+    "model": "gpt-4o",       # 或 "claude-3.5-sonnet" 等
+    "messages": [...],
+    "temperature": 0.7,
+    "max_tokens": 4096,
+    "stream": false
+}
+
+# 响应 (OpenAI 兼容格式)
+{
+    "id": "chatcmpl-xxx",
+    "choices": [{
+        "index": 0,
+        "message": {"role": "assistant", "content": "..."},
+        "finish_reason": "stop"
+    }],
+    "usage": {"prompt_tokens": 25, "completion_tokens": 150, "total_tokens": 175}
+}
+```
+
+### 10.4 模型配置 API
+
+```
+# Provider 管理
+GET    /api/providers                          获取所有 Provider 状态
+POST   /api/providers/{provider}/key           设置 API Key
+POST   /api/providers/{provider}/verify        验证 API Key 有效性
+DELETE /api/providers/{provider}/key            移除 API Key
+
+# GitHub Copilot 专用
+POST   /api/copilot/connect                    发起 Device Flow
+GET    /api/copilot/poll                       轮询授权状态
+GET    /api/copilot/status                     查询连接状态
+
+# 已有接口（行为变化）
+GET    /api/models                             只返回已配置 Provider 的模型
+```
+
+### 10.5 Copilot 可用模型
+
+| 模型 ID | model 字段 | 显示名称 | 订阅要求 |
+|---------|-----------|---------|---------|
+| `copilot-gpt4o` | `gpt-4o` | Copilot GPT-4o | Pro/Pro+ |
+| `copilot-gpt4o-mini` | `gpt-4o-mini` | Copilot GPT-4o Mini | Free/Pro/Pro+ |
+| `copilot-claude-sonnet` | `claude-3.5-sonnet` | Copilot Claude Sonnet | Pro/Pro+ |
+
+### 10.6 Token 管理策略
+
+- **GitHub Access Token (`gho_XXX`)**: 长期有效，存内存，应用重启需重新授权
+- **Copilot Session Token**: 30 分钟有效，自动刷新（过期前 5 分钟触发刷新）
+- **API Keys (OpenAI/Anthropic/Google)**: 运行时存内存，覆盖 Settings 中的值
+- 所有凭据均不持久化到磁盘（安全考虑）
+
+### 10.7 风险与限制
+
+| 风险 | 说明 |
+|------|------|
+| ToS 违规 | 使用未公开 Copilot API + VS Code Client ID，`copilot-gpt4-service` 因此被封 |
+| API 变更 | 非公开接口随时可能变更，无通知 |
+| 速率限制 | Free: 50次/月, Pro: 无限(包含模型), Pro+: 1500次高级请求/月 |
+| JSON mode | 需验证 Copilot API 是否支持 `response_format: {"type": "json_object"}` |
+| 个人使用 | 作为学习项目风险较低，开源商用风险高 |
+
+---
+
+## 11. 开发计划
 
 ### Phase 1: 游戏引擎 (3-4 天)
 1. 扑克牌模型 + 牌型评估器 + 单元测试
@@ -1261,9 +1474,10 @@ CREATE TABLE game_summaries (
 3. 游戏总结页面
 
 ### Phase 8: 打磨 (2-3 天)
-1. AI 个性系统调优（含聊天风格差异化）
-2. UI/UX 优化
-3. 错误处理与边界情况
-4. 整体联调测试
+1. 模型配置中心 + GitHub Copilot 集成
+2. AI 个性系统调优（含聊天风格差异化）
+3. UI/UX 优化
+4. 错误处理与边界情况
+5. 整体联调测试
 
 **预估总工期: 20-26 天**
