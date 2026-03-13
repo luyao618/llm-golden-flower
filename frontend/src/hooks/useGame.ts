@@ -138,6 +138,7 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
 
   const handleServerEvent = useCallback(
     (event: ServerEvent) => {
+      console.log('[Game] Server event received:', event.type)
       switch (event.type) {
         // ---- game_state: 完整游戏状态（连接时收到）----
         case 'game_state': {
@@ -156,6 +157,10 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
             const currentPlayer = data.players?.[data.current_round.current_player_index]
             if (currentPlayer) {
               setActivePlayer(currentPlayer.id)
+            }
+            // 如果不是我的回合，清空可用操作（防止 stale actions）
+            if (currentPlayer?.id !== playerId) {
+              setAvailableActions([])
             }
           }
           break
@@ -231,6 +236,16 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
         case 'player_acted': {
           const data = event.data as PlayerActedData
           setThinkingPlayer(null) // 清除 AI 思考状态
+
+          // 如果是自己的操作，立即清空可用操作列表
+          // 防止在等待下一个 turn_changed 事件期间，玩家重复点击已失效的按钮
+          if (data.player_id === playerId) {
+            setAvailableActions([])
+            // 如果是看牌操作，自动翻转手牌显示正面
+            if (data.action === 'check_cards') {
+              setHasLookedAtCards(true)
+            }
+          }
 
           // 筹码飞行动画：跟注/加注/比牌 等涉及筹码的操作
           if (data.amount > 0 && ['call', 'raise', 'compare'].includes(data.action)) {

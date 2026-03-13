@@ -149,7 +149,16 @@ export function useWebSocket(config: WebSocketConfig | null): UseWebSocketReturn
     }
 
     ws.onclose = (event) => {
-      wsRef.current = null
+      // Only clear wsRef if this is still the current WebSocket.
+      // In React StrictMode, a newer WebSocket may already have been
+      // created before this onclose fires for the old one.
+      if (wsRef.current === ws) {
+        wsRef.current = null
+      } else {
+        // This onclose is for a stale WebSocket — ignore it entirely
+        console.log('[WebSocket] Ignoring onclose for stale WebSocket instance')
+        return
+      }
 
       if (intentionalClose.current) {
         setStatus('disconnected')
@@ -185,8 +194,10 @@ export function useWebSocket(config: WebSocketConfig | null): UseWebSocketReturn
 
   const sendRaw = useCallback((event: ClientEvent) => {
     const ws = wsRef.current
+    console.log('[WebSocket] sendRaw called:', event.type, 'ws:', ws ? `readyState=${ws.readyState}` : 'null')
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(event))
+      console.log('[WebSocket] Message sent successfully')
     } else {
       console.warn('[WebSocket] Cannot send, not connected')
     }
@@ -213,6 +224,7 @@ export function useWebSocket(config: WebSocketConfig | null): UseWebSocketReturn
   )
 
   const sendStartRound = useCallback(() => {
+    console.log('[WebSocket] sendStartRound called, ws readyState:', wsRef.current?.readyState)
     sendRaw({ type: 'start_round' })
   }, [sendRaw])
 
@@ -245,9 +257,16 @@ export function useWebSocket(config: WebSocketConfig | null): UseWebSocketReturn
     return () => {
       intentionalClose.current = true
       clearReconnectTimer()
-      if (wsRef.current) {
-        wsRef.current.close()
-        wsRef.current = null
+      // Capture the current WebSocket before clearing the ref
+      // so that its onclose handler can detect it's stale.
+      const currentWs = wsRef.current
+      if (currentWs) {
+        currentWs.close()
+        // Do NOT clear wsRef here — let onclose handle it
+        // via the stale check (wsRef.current === ws).
+        // This prevents a race where the cleanup runs before
+        // the new connect() in StrictMode, but the new connect()
+        // has already set wsRef.current to the new WebSocket.
       }
     }
     // Only re-connect when gameId or playerId changes

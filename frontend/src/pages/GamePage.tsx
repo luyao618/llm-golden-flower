@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useCallback } from 'react'
 import TableLayout from '../components/Table/TableLayout'
 import { ActionPanel } from '../components/Actions'
 import ChatPanel from '../components/Table/ChatPanel'
 import ChatInput from '../components/Table/ChatInput'
 import GameLog from '../components/Table/GameLog'
+import CardHand from '../components/Cards/CardHand'
 import { ThoughtDrawer } from '../components/Thought'
 import { useGameStore } from '../stores/gameStore'
 import { useUIStore } from '../stores/uiStore'
@@ -51,6 +52,10 @@ export default function GamePage() {
   const isChatPanelExpanded = useUIStore((s) => s.isChatPanelExpanded)
   const toggleChatPanel = useUIStore((s) => s.toggleChatPanel)
   const toggleThoughtDrawer = useUIStore((s) => s.toggleThoughtDrawer)
+  const showPlayerCards = useUIStore((s) => s.showPlayerCards)
+  const hasLookedAtCards = useUIStore((s) => s.hasLookedAtCards)
+  const setHasLookedAtCards = useUIStore((s) => s.setHasLookedAtCards)
+  const myCards = useGameStore((s) => s.myCards)
 
   // 使用 URL 中的 gameId，如果 store 中有 myPlayerId 就用它
   // 否则等 WebSocket 连接后通过 game_state 事件获取
@@ -95,6 +100,20 @@ export default function GamePage() {
     players.length > 0 &&
     status === 'playing' &&
     !currentRound
+
+  // 看牌回调（点击手牌触发）—— 同时发送 check_cards 操作给后端
+  const handleLookAtCards = useCallback(() => {
+    setHasLookedAtCards(true)
+    sendAction('check_cards')
+  }, [setHasLookedAtCards, sendAction])
+
+  // 人类玩家信息
+  const availableActions = useGameStore((s) => s.availableActions)
+  const myPlayer = players.find((p) => p.id === myPlayerId)
+  const isMyActive = myPlayer && myPlayer.status !== 'folded' && myPlayer.status !== 'out'
+  // 只有当轮到自己且 check_cards 在可用操作中时，才允许点击牌面看牌
+  const canLookAtCards = !hasLookedAtCards && myCards.length > 0 && availableActions.includes('check_cards')
+  const showMyCards = showPlayerCards && currentRound && isMyActive && myCards.length > 0
 
   // 如果没有 myPlayerId，显示加载状态
   if (!myPlayerId) {
@@ -162,7 +181,7 @@ export default function GamePage() {
       {/* 牌桌 + 聊天区域 */}
       <main className="flex-1 relative min-h-0 flex">
         {/* 牌桌区域 */}
-        <div className="flex-1 relative min-w-0">
+        <div className="flex-1 relative min-w-0 overflow-hidden">
           <TableLayout className="w-full h-full" />
 
           {/* 行动日志 - 左上角浮层 */}
@@ -220,28 +239,49 @@ export default function GamePage() {
         </div>
       </main>
 
-      {/* 底部操作区域 */}
-      <footer className="h-20 bg-black/40 border-t border-green-800/50 flex items-center justify-center gap-4">
-        {canStartRound && (
-          <button
-            onClick={sendStartRound}
-            className="px-6 py-2 bg-amber-500 hover:bg-amber-400 text-green-950 font-bold rounded-lg transition-all cursor-pointer text-sm"
-          >
-            {roundHistory.length === 0 ? '开始第一局' : '开始下一局'}
-          </button>
+      {/* 底部操作区域：人类手牌 + 操作按钮 */}
+      <footer className="shrink-0 bg-black/40 border-t border-green-800/50 relative z-20">
+        {/* 人类玩家手牌行（仅在牌局进行中且玩家有牌时显示） */}
+        {showMyCards && (
+          <div className="flex items-center justify-center gap-3 pt-2 pb-1 border-b border-green-800/30">
+            <CardHand
+              cards={myCards}
+              faceUp={hasLookedAtCards}
+              size="sm"
+              clickable={!!canLookAtCards}
+              onClick={canLookAtCards ? handleLookAtCards : undefined}
+              fanAngle={6}
+            />
+            {canLookAtCards && (
+              <span className="text-[10px] text-amber-400/70 animate-pulse">
+                点击看牌
+              </span>
+            )}
+          </div>
         )}
-        {status === 'finished' && (
-          <span className="text-amber-400 text-sm font-medium">游戏已结束</span>
-        )}
-        {!canStartRound && status === 'playing' && currentRound && (
-          <ActionPanel onAction={sendAction} />
-        )}
-        {connectionStatus === 'disconnected' && status !== 'finished' && (
-          <span className="text-red-400 text-sm">连接已断开</span>
-        )}
-        {(connectionStatus === 'connecting' || connectionStatus === 'reconnecting') && (
-          <span className="text-yellow-400 text-sm animate-pulse">正在连接服务器...</span>
-        )}
+        {/* 操作按钮行 */}
+        <div className="h-16 flex items-center justify-center gap-4">
+          {canStartRound && (
+            <button
+              onClick={sendStartRound}
+              className="px-6 py-2 bg-amber-500 hover:bg-amber-400 text-green-950 font-bold rounded-lg transition-all cursor-pointer text-sm"
+            >
+              {roundHistory.length === 0 ? '开始第一局' : '开始下一局'}
+            </button>
+          )}
+          {status === 'finished' && (
+            <span className="text-amber-400 text-sm font-medium">游戏已结束</span>
+          )}
+          {!canStartRound && status === 'playing' && currentRound && (
+            <ActionPanel onAction={sendAction} />
+          )}
+          {connectionStatus === 'disconnected' && status !== 'finished' && (
+            <span className="text-red-400 text-sm">连接已断开</span>
+          )}
+          {(connectionStatus === 'connecting' || connectionStatus === 'reconnecting') && (
+            <span className="text-yellow-400 text-sm animate-pulse">正在连接服务器...</span>
+          )}
+        </div>
       </footer>
 
       {/* 心路历程抽屉 */}

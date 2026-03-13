@@ -223,14 +223,14 @@ export default function PlayerSeat({
           {STATUS_LABELS[player.status]}
         </div>
 
-        {/* 手牌显示 */}
-        {showPlayerCards && !isOut && !isFolded && (
+        {/* 手牌显示 - 人类玩家的手牌在 footer 中显示，桌面上只显示 AI 手牌 */}
+        {showPlayerCards && !isOut && !isFolded && !isMe && (
           <PlayerCards
-            isMe={isMe}
-            myCards={myCards}
-            hasLookedAtCards={hasLookedAtCards}
+            isMe={false}
+            myCards={[]}
+            hasLookedAtCards={false}
             playerStatus={player.status}
-            onLookAtCards={onLookAtCards}
+            onLookAtCards={undefined}
           />
         )}
       </div>
