@@ -574,3 +574,99 @@ body {
   box-shadow: 0 0 25px rgba(139, 92, 246, 0.25);
   color: #ddd6fe;
 }
+
+/* ===== Model Config Panel — 科技蓝紫毛玻璃弹窗 ===== */
+
+.model-config-modal {
+  position: relative;
+  border-radius: 20px;
+  padding: 2px;
+  background: linear-gradient(
+    170deg,
+    rgba(0, 212, 255, 0.7) 0%,
+    rgba(139, 92, 246, 0.5) 30%,
+    rgba(255, 102, 170, 0.4) 60%,
+    rgba(0, 212, 255, 0.6) 100%
+  );
+  box-shadow:
+    0 0 30px rgba(0, 212, 255, 0.25),
+    0 0 60px rgba(139, 92, 246, 0.15),
+    0 0 100px rgba(0, 212, 255, 0.08);
+}
+
+.model-config-modal-inner {
+  border-radius: 18px;
+  background: linear-gradient(
+    180deg,
+    rgba(15, 15, 40, 0.55) 0%,
+    rgba(12, 12, 35, 0.60) 50%,
+    rgba(10, 10, 30, 0.65) 100%
+  );
+  backdrop-filter: blur(24px) saturate(1.3);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+}
+
+/* Inner top reflection highlight */
+.model-config-modal-inner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 5%;
+  right: 5%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.25),
+    transparent
+  );
+}
+
+/* Model config input fields */
+.model-config-input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  color: white;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.model-config-input:hover {
+  border-color: rgba(0, 212, 255, 0.20);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.model-config-input:focus {
+  border-color: rgba(0, 212, 255, 0.40);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.10);
+  outline: none;
+}
+
+/* Model config sidebar item hover */
+.model-config-sidebar-item {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.model-config-sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+
+.model-config-sidebar-item.active {
+  background: rgba(0, 212, 255, 0.08);
+  border-color: rgba(0, 212, 255, 0.30);
+}
+
+/* Model config section card */
+.model-config-section {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+/* Model config divider */
+.model-config-divider {
+  border-color: rgba(0, 212, 255, 0.12);
+}

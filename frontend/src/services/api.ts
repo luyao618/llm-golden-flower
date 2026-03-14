@@ -408,3 +408,22 @@ export async function removeAzureOpenAIModel(
 ): Promise<{ message: string; model_id: string }> {
   return request(`/azure-openai/models/${modelId}`, { method: 'DELETE' })
 }
+
+// ---- 游戏设置 ----
+
+/** 获取当前设置 */
+export async function getSettings(): Promise<{
+  llm_max_tokens: number | null
+}> {
+  return request('/settings')
+}
+
+/** 更新设置 */
+export async function updateSettings(
+  settings: { llm_max_tokens: number | null }
+): Promise<{ llm_max_tokens: number | null }> {
+  return request('/settings', {
+    method: 'POST',
+    body: JSON.stringify(settings),
+  })
+}

@@ -5,6 +5,7 @@
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import type {
   AzureOpenAIAddedModel,
   AzureOpenAIModel,
@@ -152,24 +153,24 @@ function ProviderSidebarItem({
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer
         ${isActive
-          ? `${meta.accentBg} ${meta.accentBorder} border`
-          : 'border border-transparent hover:bg-white/[0.04] hover:border-white/[0.08]'
+          ? `${meta.accentBg} ${meta.accentBorder} border shadow-[0_0_12px_rgba(0,212,255,0.08)]`
+          : 'border border-transparent hover:bg-white/[0.06] hover:border-white/[0.10]'
         }`}
     >
       {/* Icon circle */}
       <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold
-        ${isActive ? meta.accentBg + ' ' + meta.color : 'bg-white/[0.06] text-[#8090a0]'}`}>
+        ${isActive ? meta.accentBg + ' ' + meta.color : 'bg-white/[0.08] text-[#a0b0c8]'}`}>
         {meta.icon}
       </div>
       {/* Name + status */}
       <div className="flex-1 text-left min-w-0">
-        <div className={`text-sm font-medium ${isActive ? meta.color : 'text-[#c8d8e8]'}`}>
+        <div className={`text-sm font-medium ${isActive ? meta.color : 'text-[#d0dce8]'}`}>
           {meta.name}
         </div>
       </div>
       {/* Status dot */}
       {isConfigured && (
-        <div className="w-2 h-2 rounded-full bg-[var(--color-success)] flex-shrink-0" />
+        <div className="w-2 h-2 rounded-full bg-[var(--color-success)] flex-shrink-0 shadow-[0_0_6px_rgba(0,255,136,0.4)]" />
       )}
     </button>
   )
@@ -223,37 +224,37 @@ function ExtraConfigSection({
     <div className="space-y-2">
       {fields.api_host && (
         <div>
-          <label className="text-xs text-[#8090a0] mb-1 block">{fields.api_host.label}</label>
+          <label className="text-xs text-[#a0b0c8] mb-1 block">{fields.api_host.label}</label>
           <input
             type="text"
             value={values.api_host || ''}
             onChange={(e) => setValues((v) => ({ ...v, api_host: e.target.value }))}
             placeholder={fields.api_host.placeholder}
-            className="w-full px-3 py-1.5 bg-white/[0.06] border border-white/[0.10] rounded-lg
-                       text-white text-sm placeholder-[#606a78] focus:outline-none
-                       focus:border-[var(--color-primary)]/40 transition-colors"
+            className="model-config-input w-full px-3 py-1.5
+                       text-sm placeholder-[#6a7a8a]"
           />
         </div>
       )}
       {fields.api_version && (
         <div>
-          <label className="text-xs text-[#8090a0] mb-1 block">{fields.api_version.label}</label>
+          <label className="text-xs text-[#a0b0c8] mb-1 block">{fields.api_version.label}</label>
           <input
             type="text"
             value={values.api_version || ''}
             onChange={(e) => setValues((v) => ({ ...v, api_version: e.target.value }))}
             placeholder={fields.api_version.placeholder}
-            className="w-full px-3 py-1.5 bg-white/[0.06] border border-white/[0.10] rounded-lg
-                       text-white text-sm placeholder-[#606a78] focus:outline-none
-                       focus:border-[var(--color-primary)]/40 transition-colors"
+            className="model-config-input w-full px-3 py-1.5
+                       text-sm placeholder-[#6a7a8a]"
           />
         </div>
       )}
       <button
         onClick={handleSave}
         disabled={saving}
-        className="px-4 py-1.5 bg-white/[0.08] hover:bg-white/[0.12] border border-white/[0.10]
-                   text-white text-xs rounded-lg transition-colors cursor-pointer
+        className="px-4 py-1.5 bg-[rgba(0,212,255,0.08)] hover:bg-[rgba(0,212,255,0.15)]
+                   border border-[rgba(0,212,255,0.25)] hover:border-[rgba(0,212,255,0.4)]
+                   text-[#c0d8f0] hover:text-white text-xs rounded-lg transition-all cursor-pointer
+                   hover:shadow-[0_0_12px_rgba(0,212,255,0.12)]
                    disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {saving ? '保存中...' : '保存配置'}
@@ -329,23 +330,23 @@ function APIKeySection({
 
   return (
     <div className="space-y-2">
-      <label className="text-xs text-[#8090a0] block">API Key</label>
+      <label className="text-xs text-[#a0b0c8] block">API Key</label>
       <div className="flex gap-2">
         <input
           type="password"
           value={keyInput}
           onChange={(e) => setKeyInput(e.target.value)}
           placeholder={isConfigured ? `已配置 ${providerStatus?.key_preview ?? ''}` : meta.placeholder}
-          className="flex-1 px-3 py-1.5 bg-white/[0.06] border border-white/[0.10] rounded-lg
-                     text-white text-sm placeholder-[#606a78] focus:outline-none
-                     focus:border-[var(--color-primary)]/40 transition-colors"
+          className="model-config-input flex-1 px-3 py-1.5
+                     text-sm placeholder-[#6a7a8a]"
         />
         <button
           onClick={handleSave}
           disabled={saving || !keyInput.trim()}
-          className={`px-3 py-1.5 text-white text-xs rounded-lg transition-colors cursor-pointer
+          className={`px-3 py-1.5 text-white text-xs rounded-lg transition-all cursor-pointer
                      disabled:opacity-40 disabled:cursor-not-allowed
-                     ${meta.accentBg} hover:brightness-125 border ${meta.accentBorder}`}
+                     ${meta.accentBg} hover:brightness-125 border ${meta.accentBorder}
+                     hover:shadow-[0_0_12px_rgba(0,212,255,0.1)]`}
         >
           {saving ? '...' : '保存'}
         </button>
@@ -354,8 +355,9 @@ function APIKeySection({
         <button
           onClick={handleVerify}
           disabled={verifying || (!keyInput.trim() && !isConfigured)}
-          className="px-3 py-1.5 bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10]
-                     text-white text-xs rounded-lg transition-colors cursor-pointer
+          className="px-3 py-1.5 bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.10)]
+                     border border-[rgba(255,255,255,0.12)] hover:border-[rgba(0,212,255,0.25)]
+                     text-[#c0d8f0] hover:text-white text-xs rounded-lg transition-all cursor-pointer
                      disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {verifying ? '验证中...' : 'Check'}
@@ -363,8 +365,9 @@ function APIKeySection({
         {isConfigured && (
           <button
             onClick={handleRemove}
-            className="px-3 py-1.5 bg-red-900/30 hover:bg-red-900/50 text-red-300
-                       text-xs rounded-lg transition-colors cursor-pointer border border-red-800/30"
+            className="px-3 py-1.5 bg-red-900/20 hover:bg-red-900/40 text-red-300
+                       text-xs rounded-lg transition-all cursor-pointer border border-red-800/30
+                       hover:border-red-700/40 hover:shadow-[0_0_10px_rgba(255,68,68,0.1)]"
           >
             移除 Key
           </button>
@@ -494,32 +497,32 @@ function ModelManager({
       </div>
 
       {error && (
-        <p className="text-xs text-red-400 bg-red-900/20 px-3 py-1.5 rounded-lg">
+        <p className="text-xs text-red-400 bg-red-900/15 border border-red-800/20 px-3 py-1.5 rounded-lg">
           {error}
         </p>
       )}
 
       {/* 已添加的模型 */}
       {addedModels.length > 0 && (
-        <div className="border border-white/[0.08] rounded-lg p-3 bg-white/[0.02]">
-          <p className="text-xs text-[#8090a0] mb-2">
+        <div className="model-config-section p-3">
+          <p className="text-xs text-[#a0b0c8] mb-2">
             已添加 ({addedModels.length})
           </p>
           <div className="space-y-1.5">
             {addedModels.map((m) => (
               <div
                 key={m.id}
-                className="flex items-center justify-between bg-white/[0.04] px-3 py-1.5 rounded-md"
+                className="flex items-center justify-between bg-white/[0.04] hover:bg-white/[0.06] px-3 py-1.5 rounded-md transition-colors"
               >
                 <div className="flex-1 min-w-0">
-                  <span className="text-white text-xs truncate block">{m.display_name}</span>
-                  <span className="text-[#606a78] text-[10px] truncate block">{m.original_id}</span>
+                  <span className="text-[#e0e8f0] text-xs truncate block">{m.display_name}</span>
+                  <span className="text-[#6a7a8a] text-[10px] truncate block">{m.original_id}</span>
                 </div>
                 <button
                   onClick={() => handleRemove(m.id)}
                   disabled={removing === m.id}
-                  className="ml-2 px-2 py-0.5 text-xs text-red-300 hover:text-red-200 bg-red-900/20
-                             hover:bg-red-900/40 rounded transition-colors cursor-pointer
+                  className="ml-2 px-2 py-0.5 text-xs text-red-300 hover:text-red-200 bg-red-900/15
+                             hover:bg-red-900/30 rounded transition-all cursor-pointer
                              disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                 >
                   {removing === m.id ? '...' : '移除'}
@@ -531,25 +534,24 @@ function ModelManager({
       )}
 
       {/* 搜索和添加模型 */}
-      <div className="border border-white/[0.08] rounded-lg p-3 bg-white/[0.02]">
-        <p className="text-xs text-[#8090a0] mb-2">搜索并添加模型</p>
+      <div className="model-config-section p-3">
+        <p className="text-xs text-[#a0b0c8] mb-2">搜索并添加模型</p>
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="搜索模型名称..."
-          className="w-full px-3 py-1.5 bg-white/[0.06] border border-white/[0.10] rounded-lg
-                     text-white text-sm placeholder-[#606a78] focus:outline-none
-                     focus:border-[var(--color-primary)]/40 transition-colors mb-2"
+          className="model-config-input w-full px-3 py-1.5
+                     text-sm placeholder-[#6a7a8a] mb-2"
         />
         {loading ? (
-          <div className="text-center text-[#606a78] text-xs py-4">
+          <div className="text-center text-[#8090a0] text-xs py-4">
             正在获取模型列表...
           </div>
         ) : (
           <div className="max-h-48 overflow-y-auto space-y-1 model-list-scroll">
             {filteredModels.length === 0 ? (
-              <p className="text-[#606a78] text-xs text-center py-2">
+              <p className="text-[#8090a0] text-xs text-center py-2">
                 {search ? '未找到匹配的模型' : '暂无可用模型'}
               </p>
             ) : (
@@ -562,8 +564,8 @@ function ModelManager({
                                px-3 py-1.5 rounded-md transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <span className="text-white text-xs truncate block">{m.name}</span>
-                      <span className="text-[#606a78] text-[10px] truncate block">
+                      <span className="text-[#e0e8f0] text-xs truncate block">{m.name}</span>
+                      <span className="text-[#6a7a8a] text-[10px] truncate block">
                         {m.id}
                         {m.context_length ? ` | ctx: ${(m.context_length / 1000).toFixed(0)}k` : ''}
                       </span>
@@ -577,7 +579,7 @@ function ModelManager({
                         onClick={() => handleAdd(m)}
                         disabled={adding === m.id}
                         className={`ml-2 px-2 py-0.5 text-xs ${accentColor} hover:brightness-125
-                                   bg-white/[0.06] hover:bg-white/[0.10] rounded transition-colors
+                                   bg-white/[0.06] hover:bg-white/[0.10] rounded transition-all
                                    cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0`}
                       >
                         {adding === m.id ? '...' : '添加'}
@@ -588,7 +590,7 @@ function ModelManager({
               })
             )}
             {filteredModels.length === 50 && (
-              <p className="text-[#606a78] text-[10px] text-center py-1">
+              <p className="text-[#6a7a8a] text-[10px] text-center py-1">
                 {search ? '显示前 50 个结果，请缩小搜索范围' : '显示前 50 个模型，使用搜索查找更多'}
               </p>
             )}
@@ -640,7 +642,7 @@ function RightPanel({
           </div>
           <h3 className={`text-base font-semibold ${meta.color}`}>{meta.name}</h3>
         </div>
-        <p className="text-xs text-[#8090a0] leading-relaxed">
+        <p className="text-xs text-[#a0b0c8] leading-relaxed">
           通过 GitHub Device Flow OAuth 连接 Copilot，无需手动输入 API Key。
           连接成功后可使用 GPT-4o、Claude Sonnet 等模型。
         </p>
@@ -771,7 +773,7 @@ function RightPanel({
         </div>
         <h3 className={`text-base font-semibold ${meta.color}`}>{meta.name}</h3>
         {isConfigured && (
-          <span className="ml-auto text-[10px] text-[var(--color-success)] bg-[var(--color-success)]/10 px-2 py-0.5 rounded-full">
+          <span className="ml-auto text-[10px] text-[var(--color-success)] bg-[var(--color-success)]/10 px-2 py-0.5 rounded-full shadow-[0_0_8px_rgba(0,255,136,0.1)]">
             已配置
           </span>
         )}
@@ -788,7 +790,7 @@ function RightPanel({
       {/* Divider + Model Manager */}
       {isConfigured && (
         <>
-          <div className="border-t border-white/[0.06]" />
+          <div className="border-t model-config-divider" />
           {renderModelManager()}
         </>
       )}
@@ -848,75 +850,102 @@ export default function ModelConfigPanel({ open, onClose }: ModelConfigPanelProp
     }
   }, [open, providers]) // re-check when providers refresh
 
-  if (!open) return null
-
   return (
-    <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="glass-panel-accent w-full max-w-3xl h-[75vh] flex flex-col">
-        {/* Title bar */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] flex-shrink-0">
-          <h2 className="text-lg font-semibold text-white" style={{ fontFamily: 'var(--font-display)' }}>
-            配置模型
-          </h2>
-          <button
+    <AnimatePresence>
+      {open && (
+        <>
+          {/* 遮罩层 */}
+          <motion.div
+            className="fixed inset-0 z-50"
+            style={{ background: 'rgba(0, 0, 0, 0.55)', backdropFilter: 'blur(6px)' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="text-[#8090a0] hover:text-white text-xl transition-colors cursor-pointer leading-none"
-          >
-            ✕
-          </button>
-        </div>
+          />
 
-        {/* Body — split layout */}
-        <div className="flex flex-1 min-h-0">
-          {/* Left sidebar */}
-          <div className="w-52 flex-shrink-0 border-r border-white/[0.06] p-3 space-y-1 overflow-y-auto">
-            {PROVIDERS_META.map((meta) => (
-              <ProviderSidebarItem
-                key={meta.id}
-                meta={meta}
-                isActive={activeTab === meta.id}
-                isConfigured={
-                  meta.id === 'github_copilot'
-                    ? copilotConnected
-                    : configuredSet.has(meta.id)
-                }
-                onClick={() => setActiveTab(meta.id)}
-              />
-            ))}
+          {/* 弹窗 */}
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0, scale: 0.92, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: 16 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+          >
+            <div
+              className="model-config-modal w-full max-w-3xl h-[75vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+        <div className="model-config-modal-inner h-full flex flex-col">
+          {/* Title bar */}
+          <div className="flex items-center justify-between px-5 py-4 border-b model-config-divider flex-shrink-0">
+            <h2 className="text-lg font-semibold text-white" style={{ fontFamily: 'var(--font-display)' }}>
+              配置模型
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-[#a0b0c8] hover:text-white text-xl transition-colors cursor-pointer leading-none"
+            >
+              ✕
+            </button>
           </div>
 
-          {/* Right panel */}
-          <div className="flex-1 p-5 overflow-y-auto model-list-scroll">
-            {loading ? (
-              <div className="flex items-center justify-center h-32 text-[#606a78] text-sm">
-                加载中...
-              </div>
-            ) : (
-              <RightPanel
-                activeTab={activeTab}
-                providers={providers}
-                onUpdate={handleStatusChange}
-              />
-            )}
+          {/* Body — split layout */}
+          <div className="flex flex-1 min-h-0">
+            {/* Left sidebar */}
+            <div className="w-52 flex-shrink-0 border-r model-config-divider p-3 space-y-1 overflow-y-auto">
+              {PROVIDERS_META.map((meta) => (
+                <ProviderSidebarItem
+                  key={meta.id}
+                  meta={meta}
+                  isActive={activeTab === meta.id}
+                  isConfigured={
+                    meta.id === 'github_copilot'
+                      ? copilotConnected
+                      : configuredSet.has(meta.id)
+                  }
+                  onClick={() => setActiveTab(meta.id)}
+                />
+              ))}
+            </div>
+
+            {/* Right panel */}
+            <div className="flex-1 p-5 overflow-y-auto model-list-scroll">
+              {loading ? (
+                <div className="flex items-center justify-center h-32 text-[#8090a0] text-sm">
+                  加载中...
+                </div>
+              ) : (
+                <RightPanel
+                  activeTab={activeTab}
+                  providers={providers}
+                  onUpdate={handleStatusChange}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-5 py-3 border-t model-config-divider flex-shrink-0 flex items-center justify-between">
+            <p className="text-[10px] text-[#8090a0] leading-relaxed">
+              API Key 仅存储在内存中，刷新页面或重启服务后需重新配置。
+            </p>
+            <button
+              onClick={onClose}
+              className="px-5 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer
+                         border border-[rgba(0,212,255,0.3)] text-[#c0d8f0] hover:text-white
+                         hover:border-[rgba(0,212,255,0.5)] bg-[rgba(0,212,255,0.06)]
+                         hover:bg-[rgba(0,212,255,0.12)] hover:shadow-[0_0_15px_rgba(0,212,255,0.15)]"
+            >
+              完成
+            </button>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="px-5 py-3 border-t border-white/[0.06] flex-shrink-0 flex items-center justify-between">
-          <p className="text-[10px] text-[#606a78] leading-relaxed">
-            API Key 仅存储在内存中，刷新页面或重启服务后需重新配置。
-          </p>
-          <button
-            onClick={onClose}
-            className="px-5 py-1.5 rounded text-sm font-medium transition-all cursor-pointer border border-white/[0.12] text-[#8090a0] hover:text-white hover:border-white/[0.25] bg-white/[0.04] hover:bg-white/[0.08]"
-          >
-            完成
-          </button>
-        </div>
-      </div>
-    </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   )
 }

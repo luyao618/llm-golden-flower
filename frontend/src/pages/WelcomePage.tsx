@@ -3,13 +3,15 @@
 // ============================================================
 
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import ModelConfigPanel from '../components/Lobby/ModelConfigPanel'
+import GameSetupModal from '../components/Lobby/GameSetupModal'
+import GameSettingsModal from '../components/Lobby/GameSettingsModal'
 import lobbyBg from '../assets/lobby-bg.jpeg'
 
 export default function WelcomePage() {
-  const navigate = useNavigate()
   const [configOpen, setConfigOpen] = useState(false)
+  const [gameSetupOpen, setGameSetupOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
     <div className="h-screen bg-[var(--bg-deepest)] flex flex-col items-center p-4 relative overflow-hidden">
@@ -71,9 +73,9 @@ export default function WelcomePage() {
           </span>
         </button>
 
-        {/* 开始游戏 — 青色霓虹 */}
+        {/* 开始游戏 — 青色霓虹（改为弹窗模式） */}
         <button
-          onClick={() => navigate('/lobby')}
+          onClick={() => setGameSetupOpen(true)}
           className="welcome-btn py-3.5 flex items-center justify-center gap-3 cursor-pointer active:scale-[0.98]"
           style={{ background: 'rgba(0, 212, 255, 0.08)' }}
         >
@@ -88,9 +90,9 @@ export default function WelcomePage() {
           </span>
         </button>
 
-        {/* 游戏设置 — 金色霓虹 */}
+        {/* 游戏设置 — 金色霓虹（改为弹窗模式） */}
         <button
-          onClick={() => navigate('/demo/cards')}
+          onClick={() => setSettingsOpen(true)}
           className="welcome-btn py-3.5 flex items-center justify-center gap-3 cursor-pointer active:scale-[0.98]"
           style={{ background: 'rgba(255, 185, 0, 0.06)' }}
         >
@@ -112,6 +114,12 @@ export default function WelcomePage() {
 
       {/* 模型配置面板 */}
       <ModelConfigPanel open={configOpen} onClose={() => setConfigOpen(false)} />
+
+      {/* 游戏设置弹窗 */}
+      <GameSetupModal open={gameSetupOpen} onClose={() => setGameSetupOpen(false)} />
+
+      {/* 游戏设置（Max Token 等）弹窗 */}
+      <GameSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   )
 }

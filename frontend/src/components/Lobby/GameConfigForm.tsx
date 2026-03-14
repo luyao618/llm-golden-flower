@@ -84,7 +84,7 @@ export default function GameConfigForm() {
           )}
         </div>
 
-        <div className="ai-opponents-list h-[280px] overflow-y-auto space-y-2 pr-1">
+        <div className="space-y-2">
         {aiOpponents.map((opponent, index) => (
           <div key={index} className="form-row space-y-3">
             {/* Header row with icon + name + remove */}
