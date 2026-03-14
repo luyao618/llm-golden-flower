@@ -243,13 +243,16 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
           const data = event.data as PlayerActedData
           setThinkingPlayer(null) // 清除 AI 思考状态
 
-          // 如果是自己的操作，立即清空可用操作列表
-          // 防止在等待下一个 turn_changed 事件期间，玩家重复点击已失效的按钮
+          // 如果是自己的操作
           if (data.player_id === playerId) {
-            setAvailableActions([])
             // 如果是看牌操作，自动翻转手牌显示正面
+            // 看牌不消耗回合，不清空可用操作列表（等待 turn_changed 更新）
             if (data.action === 'check_cards') {
               setHasLookedAtCards(true)
+            } else {
+              // 非看牌操作：立即清空可用操作列表
+              // 防止在等待下一个 turn_changed 事件期间，玩家重复点击已失效的按钮
+              setAvailableActions([])
             }
           }
 

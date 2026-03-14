@@ -78,7 +78,7 @@ export default function PlayerSeat({
 
   // 是否显示手牌
   const shouldShowCards = showPlayerCards && !isOut && !isFolded
-  const canLookAtCards = isMe && !hasLookedAtCards && _myCards.length > 0 && player.status === 'active_blind'
+  const canLookAtCards = isMe && !hasLookedAtCards && _myCards.length > 0
 
   return (
     <motion.div
@@ -164,12 +164,12 @@ export default function PlayerSeat({
           <div
             className={`
               relative z-10 w-16 h-16 rounded-full flex items-center justify-center
-              text-white font-bold text-xl
+              text-white font-bold text-2xl
               bg-gradient-to-br ${getAvatarColor(player.id)}
               shadow-lg
             `}
           >
-            {player.avatar || getAvatarText(player.name)}
+            {isAI ? '🤖' : '🧑'}
           </div>
 
           {/* 庄家标记 */}

@@ -288,8 +288,10 @@ def apply_action(
         result.round_ended = True
         result.round_result = round_result
     elif not result.round_ended:
-        # 推进到下一个行动玩家（比牌导致局结束的情况已经在上面处理了）
-        advance_turn(game)
+        # 看牌不消耗回合 — 看牌后玩家仍需选择跟注/加注/弃牌等操作
+        if action != GameAction.CHECK_CARDS:
+            # 推进到下一个行动玩家（比牌导致局结束的情况已经在上面处理了）
+            advance_turn(game)
 
     return result
 

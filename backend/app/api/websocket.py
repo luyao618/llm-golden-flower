@@ -48,6 +48,7 @@ from app.models.game import (
     GamePhase,
     GameState,
     Player,
+    PlayerStatus,
     PlayerType,
 )
 from app.models.thought import ThoughtRecord
@@ -1015,13 +1016,54 @@ async def _handle_player_action(
         )
         return
 
-    # 验证是否轮到该玩家
+    # 验证是否轮到该玩家（看牌操作可以在任何时候执行）
     round_state = game.current_round
     if round_state is None:
         await ws_manager.send_to_player(game_id, player_id, event_error("当前没有进行中的局"))
         return
 
     current_player = game.players[round_state.current_player_index]
+
+    # 看牌操作不需要轮到自己
+    if action == GameAction.CHECK_CARDS:
+        player = game.get_player_by_id(player_id)
+        if player is None:
+            return
+        if player.status != PlayerStatus.ACTIVE_BLIND:
+            await ws_manager.send_to_player(game_id, player_id, event_error("已经看过牌了"))
+            return
+        # 直接更改玩家状态，不走 apply_action 流程（因为不是当前行动玩家）
+        player.status = PlayerStatus.ACTIVE_SEEN
+        # 广播看牌事件
+        await _broadcast_action_result(
+            game_id,
+            game,
+            player,
+            action,
+            ActionResult(
+                success=True,
+                action=action,
+                player_id=player_id,
+                amount=0,
+                message=f"{player.name} 看牌",
+            ),
+            ws_manager,
+        )
+        # 如果恰好轮到自己，发送更新后的可用操作
+        if current_player.id == player_id:
+            from app.engine.rules import get_available_actions
+
+            available = get_available_actions(round_state, player, game.players, game.config)
+            await ws_manager.broadcast(
+                game_id,
+                event_turn_changed(
+                    player.name,
+                    player.id,
+                    [a.value for a in available],
+                ),
+            )
+        return
+
     if current_player.id != player_id:
         await ws_manager.send_to_player(
             game_id,

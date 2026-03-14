@@ -270,7 +270,7 @@ export default function GameLog() {
             {/* Action log entries */}
             <div
               ref={scrollRef}
-              className="max-h-40 overflow-y-auto px-3 py-1 space-y-0.5 scrollbar-thin scrollbar-thumb-green-800/30 scrollbar-track-transparent"
+              className="max-h-56 overflow-y-auto px-3 py-1 space-y-0.5 scrollbar-thin scrollbar-thumb-green-800/30 scrollbar-track-transparent"
             >
               {actionLog.length === 0 ? (
                 <div className="text-green-700/40 text-xs text-center py-2">
