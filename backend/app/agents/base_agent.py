@@ -241,13 +241,19 @@ class BaseAgent:
                     model_name,
                 )
 
+                # 使用运行时可配置的 max_tokens，默认 40960
+                from app.api.settings import get_runtime_max_tokens
+
+                runtime_max = get_runtime_max_tokens()
+                effective_max_tokens = runtime_max if runtime_max is not None else 40960
+
                 response = await litellm.acompletion(
                     model=model_name,
                     messages=messages,
                     temperature=temp,
                     response_format=fmt,
                     timeout=settings.llm_timeout,
-                    max_tokens=40960,
+                    max_tokens=effective_max_tokens,
                 )
 
                 content = response.choices[0].message.content
@@ -305,10 +311,17 @@ class BaseAgent:
                     model_name,
                 )
 
+                # 使用运行时可配置的 max_tokens，默认 4096 (Copilot)
+                from app.api.settings import get_runtime_max_tokens
+
+                runtime_max = get_runtime_max_tokens()
+                effective_max_tokens = runtime_max if runtime_max is not None else 4096
+
                 content = await copilot.call_copilot_api(
                     model=model_name,
                     messages=messages,
                     temperature=temperature,
+                    max_tokens=effective_max_tokens,
                     response_format=response_format,
                 )
 

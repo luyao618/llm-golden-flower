@@ -93,6 +93,11 @@ def create_app() -> FastAPI:
     app.include_router(siliconflow_router)  # prefix already set in router
     app.include_router(azure_openai_router)  # prefix already set in router
 
+    # 游戏设置路由
+    from app.api.settings import router as settings_router
+
+    app.include_router(settings_router)  # prefix already set in router
+
     return app
 
 
