@@ -56,7 +56,7 @@ export default function ThoughtDrawer() {
         <>
           {/* 半透明背景遮罩 */}
           <motion.div
-            className="fixed inset-0 bg-black/40 z-40"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -66,28 +66,55 @@ export default function ThoughtDrawer() {
           {/* 抽屉面板 */}
           <motion.div
             className="fixed top-0 right-0 h-full w-[420px] max-w-[90vw] z-50
-              bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950
-              border-l border-green-800/50 shadow-2xl
+              bg-[var(--bg-elevated)]/95 backdrop-blur-xl
+              border-l border-[var(--color-primary)]/15
               flex flex-col"
+            style={{
+              boxShadow: '-20px 0 60px rgba(0,212,255,0.05), -5px 0 30px rgba(0,0,0,0.5)',
+            }}
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
           >
+            {/* 左侧发光边缘装饰线 */}
+            <div
+              className="absolute left-0 top-0 bottom-0 w-[1px] pointer-events-none"
+              style={{
+                background: 'linear-gradient(180deg, rgba(0,212,255,0.5), rgba(139,92,246,0.3), rgba(0,212,255,0.5))',
+                boxShadow: '0 0 8px rgba(0,212,255,0.3), 0 0 20px rgba(0,212,255,0.1)',
+              }}
+            />
+
             {/* 头部 */}
-            <div className="px-4 py-3 border-b border-green-800/40 bg-black/30 flex items-center justify-between shrink-0">
+            <div className="px-4 py-3 border-b border-[var(--border-default)] bg-[var(--bg-deep)]/50 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
-                <span className="text-green-400/80 text-sm font-medium">心路历程</span>
+                {/* AI 头像 */}
                 {activeAgent && (
-                  <span className="text-green-600/50 text-xs">
-                    — {activeAgent.name}
-                  </span>
+                  <div
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold
+                      bg-gradient-to-br ${getAvatarColor(activeAgent.id)}
+                      ring-1 ring-[var(--color-primary)]/30 shadow-[0_0_8px_rgba(0,212,255,0.2)]`}
+                  >
+                    {activeAgent.name.charAt(0)}
+                  </div>
                 )}
+                <div className="flex flex-col">
+                  <span className="text-[var(--color-primary)]/80 text-sm font-medium"
+                    style={{ fontFamily: 'var(--font-display)' }}>
+                    心路历程
+                  </span>
+                  {activeAgent && (
+                    <span className="text-[var(--text-muted)] text-[10px]">
+                      {activeAgent.name}
+                    </span>
+                  )}
+                </div>
               </div>
               <button
                 onClick={() => toggleThoughtDrawer()}
                 className="w-7 h-7 flex items-center justify-center rounded-md
-                  text-green-500/60 hover:text-green-400 hover:bg-green-900/30
+                  text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5
                   transition-colors cursor-pointer text-lg"
                 title="关闭"
               >
@@ -97,8 +124,7 @@ export default function ThoughtDrawer() {
 
             {/* AI Tab 切换 */}
             {aiPlayers.length > 1 && (
-              <div className="flex items-center gap-1 px-3 py-2 border-b border-green-800/30 overflow-x-auto shrink-0
-                scrollbar-thin scrollbar-thumb-green-800/30">
+              <div className="flex items-center gap-1 px-3 py-2 border-b border-[var(--border-default)] overflow-x-auto shrink-0">
                 {aiPlayers.map((ai) => (
                   <AgentTab
                     key={ai.id}
@@ -120,7 +146,7 @@ export default function ThoughtDrawer() {
                   completedRounds={completedRounds}
                 />
               ) : (
-                <div className="flex items-center justify-center h-full text-green-600/50 text-sm">
+                <div className="flex items-center justify-center h-full text-[var(--text-muted)] text-sm">
                   请选择一个 AI 查看
                 </div>
               )}
@@ -151,8 +177,8 @@ function AgentTab({
       className={`
         flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all shrink-0 cursor-pointer
         ${isActive
-          ? 'bg-green-700/30 border border-green-500/50'
-          : 'hover:bg-green-900/30 border border-transparent'
+          ? 'bg-[var(--color-primary)]/15 border border-[var(--color-primary)]/40 shadow-[0_0_10px_rgba(0,212,255,0.1)]'
+          : 'hover:bg-white/5 border border-transparent'
         }
       `}
     >
@@ -165,7 +191,7 @@ function AgentTab({
       </div>
       {/* 名字 */}
       <span
-        className={`text-xs truncate max-w-[60px] ${isActive ? 'text-green-300' : 'text-green-500/60'}`}
+        className={`text-xs truncate max-w-[60px] ${isActive ? 'text-[var(--color-primary)]' : 'text-[var(--text-muted)]'}`}
       >
         {player.name}
       </span>

@@ -5,6 +5,7 @@ import GamePage from './pages/GamePage'
 import ResultPage from './pages/ResultPage'
 import CardDemoPage from './pages/CardDemoPage'
 import ResultPreview from './pages/ResultPreview'
+import ThoughtDemoPage from './pages/ThoughtDemoPage'
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/result/:id" element={<ResultPage />} />
         <Route path="/demo/cards" element={<CardDemoPage />} />
         <Route path="/demo/result" element={<ResultPreview />} />
+        <Route path="/demo/thought" element={<ThoughtDemoPage />} />
       </Routes>
     </BrowserRouter>
   )
