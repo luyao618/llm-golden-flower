@@ -14,6 +14,8 @@ import type {
   CreateGameResponse,
   ExperienceReview,
   GameSummary,
+  OpenRouterAddedModel,
+  OpenRouterModel,
   PlayerActionRequest,
   ProviderStatus,
   RoundNarrative,
@@ -266,4 +268,44 @@ export async function getCopilotStatus(): Promise<CopilotStatusResponse> {
 /** 断开 Copilot 连接 */
 export async function disconnectCopilot(): Promise<{ message: string }> {
   return request('/copilot/disconnect', { method: 'POST' })
+}
+
+// ---- OpenRouter 模型管理 ----
+
+/** 从 OpenRouter API 获取可用模型列表 */
+export async function fetchOpenRouterModels(): Promise<{
+  models: OpenRouterModel[]
+  total: number
+}> {
+  return request('/openrouter/models')
+}
+
+/** 获取已添加到游戏的 OpenRouter 模型列表 */
+export async function getAddedOpenRouterModels(): Promise<{
+  models: OpenRouterAddedModel[]
+}> {
+  return request('/openrouter/models/added')
+}
+
+/** 添加一个 OpenRouter 模型到游戏 */
+export async function addOpenRouterModel(
+  modelId: string,
+  displayName: string
+): Promise<{
+  message: string
+  model_id: string
+  openrouter_id: string
+  display_name: string
+}> {
+  return request('/openrouter/models', {
+    method: 'POST',
+    body: JSON.stringify({ model_id: modelId, display_name: displayName }),
+  })
+}
+
+/** 从游戏中移除一个 OpenRouter 模型 */
+export async function removeOpenRouterModel(
+  modelId: string
+): Promise<{ message: string; model_id: string }> {
+  return request(`/openrouter/models/${modelId}`, { method: 'DELETE' })
 }

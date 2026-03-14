@@ -315,7 +315,7 @@ export interface AIModelInfo {
 
 // ---- Provider / Copilot 配置 (T8.0) ----
 
-export type ProviderName = 'openai' | 'anthropic' | 'google'
+export type ProviderName = 'openai' | 'anthropic' | 'google' | 'openrouter'
 
 export interface ProviderStatus {
   provider: ProviderName
@@ -384,4 +384,24 @@ export type ClientEventType =
 export interface ClientEvent<T = unknown> {
   type: ClientEventType
   data?: T
+}
+
+// ---- OpenRouter 模型管理 ----
+
+export interface OpenRouterModel {
+  id: string
+  name: string
+  context_length: number | null
+  pricing: {
+    prompt: string
+    completion: string
+  }
+}
+
+export interface OpenRouterAddedModel {
+  id: string
+  model: string
+  display_name: string
+  provider: 'openrouter'
+  openrouter_id: string
 }

@@ -1,6 +1,6 @@
 """Provider 管理器
 
-管理各 LLM Provider（OpenAI / Anthropic / Google）的 API Key 配置。
+管理各 LLM Provider（OpenAI / Anthropic / Google / OpenRouter）的 API Key 配置。
 API Key 运行时存储在内存中，不持久化到磁盘（安全考虑）。
 """
 
@@ -29,6 +29,11 @@ PROVIDERS: dict[str, dict[str, str]] = {
         "name": "Google Gemini",
         "env_key": "GEMINI_API_KEY",
         "verify_url": "https://generativelanguage.googleapis.com/v1beta/models",
+    },
+    "openrouter": {
+        "name": "OpenRouter",
+        "env_key": "OPENROUTER_API_KEY",
+        "verify_url": "https://openrouter.ai/api/v1/models",
     },
 }
 
@@ -95,6 +100,8 @@ class ProviderManager:
             return settings.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY") or None
         elif provider == "google":
             return settings.google_api_key or os.environ.get("GEMINI_API_KEY") or None
+        elif provider == "openrouter":
+            return settings.openrouter_api_key or os.environ.get("OPENROUTER_API_KEY") or None
 
         return None
 
@@ -142,6 +149,8 @@ class ProviderManager:
                 return await self._verify_anthropic(api_key)
             elif provider == "google":
                 return await self._verify_google(api_key)
+            elif provider == "openrouter":
+                return await self._verify_openrouter(api_key)
             else:
                 return {"valid": False, "message": f"Verification not supported for {provider}"}
         except Exception as e:
@@ -210,6 +219,24 @@ class ProviderManager:
                 return {"valid": False, "message": "Invalid API Key"}
             else:
                 return {"valid": False, "message": f"HTTP {resp.status_code}"}
+
+    async def _verify_openrouter(self, key: str) -> dict[str, Any]:
+        """验证 OpenRouter API Key
+
+        通过 GET /api/v1/models 接口验证，该接口需要 Bearer Token 认证。
+        """
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://openrouter.ai/api/v1/models",
+                headers={"Authorization": f"Bearer {key}"},
+                timeout=10.0,
+            )
+            if resp.status_code == 200:
+                return {"valid": True, "message": "OpenRouter API Key valid"}
+            elif resp.status_code in (401, 403):
+                return {"valid": False, "message": "Invalid API Key"}
+            else:
+                return {"valid": False, "message": f"HTTP {resp.status_code}: {resp.text[:100]}"}
 
     def _mask_key(self, provider: str) -> str:
         """遮盖 API Key，仅显示前后几位"""

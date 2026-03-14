@@ -83,9 +83,11 @@ def create_app() -> FastAPI:
     # T8.0: 模型配置中心 — Provider + Copilot 路由
     from app.api.provider import router as provider_router
     from app.api.copilot import router as copilot_router
+    from app.api.openrouter import router as openrouter_router
 
     app.include_router(provider_router)  # prefix already set in router
     app.include_router(copilot_router)  # prefix already set in router
+    app.include_router(openrouter_router)  # prefix already set in router
 
     return app
 
