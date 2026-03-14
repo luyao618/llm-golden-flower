@@ -143,6 +143,18 @@ body {
   }
 }
 
+/* Steady neon sign style — constant glow, no flicker (for lobby page) */
+.neon-sign-steady {
+  color: #ffffff;
+  text-shadow:
+    0 0 8px rgba(0, 212, 255, 1),
+    0 0 20px rgba(0, 212, 255, 0.9),
+    0 0 40px rgba(0, 212, 255, 0.7),
+    0 0 80px rgba(0, 212, 255, 0.5),
+    0 0 120px rgba(139, 92, 246, 0.4),
+    0 0 200px rgba(0, 212, 255, 0.25);
+}
+
 /* Flickering neon sign style — realistic neon tube flicker */
 .neon-sign-flicker {
   color: #ffffff;
@@ -428,6 +440,22 @@ body {
     rgba(255, 255, 255, 0.25),
     transparent
   );
+}
+
+/* ===== AI opponents list scrollbar ===== */
+
+.ai-opponents-list::-webkit-scrollbar {
+  width: 4px;
+}
+.ai-opponents-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ai-opponents-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.20);
+  border-radius: 2px;
+}
+.ai-opponents-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 255, 0.40);
 }
 
 /* ===== Form row pill style ===== */
