@@ -6,6 +6,8 @@
 import type {
   AIModelInfo,
   ActionResponse,
+  AzureOpenAIAddedModel,
+  AzureOpenAIModel,
   ChatMessage,
   CopilotDeviceFlowResponse,
   CopilotPollResponse,
@@ -17,9 +19,13 @@ import type {
   OpenRouterAddedModel,
   OpenRouterModel,
   PlayerActionRequest,
+  ProviderExtraConfig,
   ProviderStatus,
   RoundNarrative,
   SetKeyResponse,
+  SetProviderConfigResponse,
+  SiliconFlowAddedModel,
+  SiliconFlowModel,
   ThoughtRecord,
   VerifyKeyResponse,
 } from '../types/game'
@@ -308,4 +314,97 @@ export async function removeOpenRouterModel(
   modelId: string
 ): Promise<{ message: string; model_id: string }> {
   return request(`/openrouter/models/${modelId}`, { method: 'DELETE' })
+}
+
+// ---- Provider 额外配置 (api_host, api_version) ----
+
+/** 设置 Provider 的额外配置 */
+export async function setProviderConfig(
+  provider: string,
+  config: Partial<ProviderExtraConfig>
+): Promise<SetProviderConfigResponse> {
+  return request<SetProviderConfigResponse>(`/providers/${provider}/config`, {
+    method: 'POST',
+    body: JSON.stringify(config),
+  })
+}
+
+// ---- SiliconFlow 模型管理 ----
+
+/** 从 SiliconFlow API 获取可用模型列表 */
+export async function fetchSiliconFlowModels(): Promise<{
+  models: SiliconFlowModel[]
+  total: number
+}> {
+  return request('/siliconflow/models')
+}
+
+/** 获取已添加到游戏的 SiliconFlow 模型列表 */
+export async function getAddedSiliconFlowModels(): Promise<{
+  models: SiliconFlowAddedModel[]
+}> {
+  return request('/siliconflow/models/added')
+}
+
+/** 添加一个 SiliconFlow 模型到游戏 */
+export async function addSiliconFlowModel(
+  modelId: string,
+  displayName: string
+): Promise<{
+  message: string
+  model_id: string
+  siliconflow_id: string
+  display_name: string
+}> {
+  return request('/siliconflow/models', {
+    method: 'POST',
+    body: JSON.stringify({ model_id: modelId, display_name: displayName }),
+  })
+}
+
+/** 从游戏中移除一个 SiliconFlow 模型 */
+export async function removeSiliconFlowModel(
+  modelId: string
+): Promise<{ message: string; model_id: string }> {
+  return request(`/siliconflow/models/${modelId}`, { method: 'DELETE' })
+}
+
+// ---- Azure OpenAI 模型管理 ----
+
+/** 从 Azure OpenAI 获取已部署的模型列表 */
+export async function fetchAzureOpenAIModels(): Promise<{
+  models: AzureOpenAIModel[]
+  total: number
+}> {
+  return request('/azure-openai/models')
+}
+
+/** 获取已添加到游戏的 Azure OpenAI 模型列表 */
+export async function getAddedAzureOpenAIModels(): Promise<{
+  models: AzureOpenAIAddedModel[]
+}> {
+  return request('/azure-openai/models/added')
+}
+
+/** 添加一个 Azure OpenAI 模型到游戏 */
+export async function addAzureOpenAIModel(
+  modelId: string,
+  displayName: string
+): Promise<{
+  message: string
+  model_id: string
+  azure_id: string
+  display_name: string
+}> {
+  return request('/azure-openai/models', {
+    method: 'POST',
+    body: JSON.stringify({ model_id: modelId, display_name: displayName }),
+  })
+}
+
+/** 从游戏中移除一个 Azure OpenAI 模型 */
+export async function removeAzureOpenAIModel(
+  modelId: string
+): Promise<{ message: string; model_id: string }> {
+  return request(`/azure-openai/models/${modelId}`, { method: 'DELETE' })
 }

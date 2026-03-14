@@ -1,6 +1,6 @@
 """Provider 管理器
 
-管理各 LLM Provider（OpenAI / Anthropic / Google / OpenRouter）的 API Key 配置。
+管理各 LLM Provider（OpenRouter / SiliconFlow / Azure OpenAI）的 API Key 和配置。
 API Key 运行时存储在内存中，不持久化到磁盘（安全考虑）。
 """
 
@@ -14,26 +14,24 @@ import httpx
 logger = logging.getLogger(__name__)
 
 # Provider 元数据
+# 注意：azure_openai 和 siliconflow 需要额外配置（api_host 等），在 _extra_config 中管理
 PROVIDERS: dict[str, dict[str, str]] = {
-    "openai": {
-        "name": "OpenAI",
-        "env_key": "OPENAI_API_KEY",
-        "verify_url": "https://api.openai.com/v1/models",
-    },
-    "anthropic": {
-        "name": "Anthropic",
-        "env_key": "ANTHROPIC_API_KEY",
-        "verify_url": "https://api.anthropic.com/v1/messages",
-    },
-    "google": {
-        "name": "Google Gemini",
-        "env_key": "GEMINI_API_KEY",
-        "verify_url": "https://generativelanguage.googleapis.com/v1beta/models",
-    },
     "openrouter": {
         "name": "OpenRouter",
         "env_key": "OPENROUTER_API_KEY",
         "verify_url": "https://openrouter.ai/api/v1/models",
+    },
+    "siliconflow": {
+        "name": "SiliconFlow",
+        "env_key": "SILICONFLOW_API_KEY",
+        "verify_url": "https://api.siliconflow.cn/v1/models",
+        "default_api_host": "https://api.siliconflow.cn",
+    },
+    "azure_openai": {
+        "name": "Azure OpenAI",
+        "env_key": "AZURE_OPENAI_API_KEY",
+        "verify_url": "",  # dynamic: {endpoint}/openai/models?api-version=...
+        "default_api_version": "2024-10-21",
     },
 }
 
@@ -41,13 +39,15 @@ PROVIDERS: dict[str, dict[str, str]] = {
 class ProviderManager:
     """Provider API Key 管理器（单例）
 
-    在运行时管理各 Provider 的 API Key。
+    在运行时管理各 Provider 的 API Key 和额外配置。
     Key 存储在内存中，应用重启后失效。
     """
 
     def __init__(self) -> None:
         # provider_id -> API Key
         self._keys: dict[str, str] = {}
+        # provider_id -> extra config (api_host, api_version, etc.)
+        self._extra_config: dict[str, dict[str, str]] = {}
 
     def set_key(self, provider: str, key: str) -> None:
         """设置某个 Provider 的 API Key
@@ -94,14 +94,12 @@ class ProviderManager:
 
         settings = get_settings()
 
-        if provider == "openai":
-            return settings.openai_api_key or os.environ.get("OPENAI_API_KEY") or None
-        elif provider == "anthropic":
-            return settings.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY") or None
-        elif provider == "google":
-            return settings.google_api_key or os.environ.get("GEMINI_API_KEY") or None
-        elif provider == "openrouter":
+        if provider == "openrouter":
             return settings.openrouter_api_key or os.environ.get("OPENROUTER_API_KEY") or None
+        elif provider == "siliconflow":
+            return os.environ.get("SILICONFLOW_API_KEY") or None
+        elif provider == "azure_openai":
+            return os.environ.get("AZURE_OPENAI_API_KEY") or None
 
         return None
 
@@ -110,19 +108,55 @@ class ProviderManager:
         key = self.get_key(provider)
         return bool(key and key.strip())
 
+    # ---- 额外配置管理 (api_host, api_version) ----
+
+    def set_extra_config(self, provider: str, config: dict[str, str]) -> None:
+        """设置 Provider 的额外配置"""
+        if provider not in PROVIDERS:
+            raise ValueError(f"Unknown provider: {provider}")
+        if provider not in self._extra_config:
+            self._extra_config[provider] = {}
+        self._extra_config[provider].update(config)
+
+        # Azure OpenAI: 同步环境变量
+        import os
+
+        if provider == "azure_openai":
+            if "api_host" in config:
+                os.environ["AZURE_API_BASE"] = config["api_host"]
+            if "api_version" in config:
+                os.environ["AZURE_API_VERSION"] = config["api_version"]
+
+        logger.info("Extra config set for provider: %s -> %s", provider, list(config.keys()))
+
+    def get_extra_config(self, provider: str) -> dict[str, str]:
+        """获取 Provider 的额外配置"""
+        base = {}
+        meta = PROVIDERS.get(provider, {})
+        if "default_api_host" in meta:
+            base["api_host"] = meta["default_api_host"]
+        if "default_api_version" in meta:
+            base["api_version"] = meta["default_api_version"]
+        # 运行时配置覆盖默认值
+        base.update(self._extra_config.get(provider, {}))
+        return base
+
     def get_all_status(self) -> list[dict[str, Any]]:
         """获取所有 Provider 的状态"""
         result = []
         for provider_id, meta in PROVIDERS.items():
             has_key = self.has_key(provider_id)
-            result.append(
-                {
-                    "provider": provider_id,
-                    "name": meta["name"],
-                    "configured": has_key,
-                    "key_preview": self._mask_key(provider_id) if has_key else None,
-                }
-            )
+            extra = self.get_extra_config(provider_id)
+            status: dict[str, Any] = {
+                "provider": provider_id,
+                "name": meta["name"],
+                "configured": has_key,
+                "key_preview": self._mask_key(provider_id) if has_key else None,
+            }
+            # 包含额外配置信息
+            if extra:
+                status["extra_config"] = extra
+            result.append(status)
         return result
 
     async def verify_key(self, provider: str, key: str | None = None) -> dict[str, Any]:
@@ -143,14 +177,12 @@ class ProviderManager:
             return {"valid": False, "message": "No API key provided"}
 
         try:
-            if provider == "openai":
-                return await self._verify_openai(api_key)
-            elif provider == "anthropic":
-                return await self._verify_anthropic(api_key)
-            elif provider == "google":
-                return await self._verify_google(api_key)
-            elif provider == "openrouter":
+            if provider == "openrouter":
                 return await self._verify_openrouter(api_key)
+            elif provider == "siliconflow":
+                return await self._verify_siliconflow(api_key)
+            elif provider == "azure_openai":
+                return await self._verify_azure_openai(api_key)
             else:
                 return {"valid": False, "message": f"Verification not supported for {provider}"}
         except Exception as e:
@@ -159,72 +191,8 @@ class ProviderManager:
 
     # ---- 验证各 Provider ----
 
-    async def _verify_openai(self, key: str) -> dict[str, Any]:
-        """验证 OpenAI API Key"""
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                "https://api.openai.com/v1/models",
-                headers={"Authorization": f"Bearer {key}"},
-                timeout=10.0,
-            )
-            if resp.status_code == 200:
-                return {"valid": True, "message": "OpenAI API Key valid"}
-            elif resp.status_code == 401:
-                return {"valid": False, "message": "Invalid API Key"}
-            else:
-                return {"valid": False, "message": f"HTTP {resp.status_code}: {resp.text[:100]}"}
-
-    async def _verify_anthropic(self, key: str) -> dict[str, Any]:
-        """验证 Anthropic API Key"""
-        async with httpx.AsyncClient() as client:
-            # 用一个最小的请求来验证
-            resp = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": key,
-                    "anthropic-version": "2023-06-01",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "claude-sonnet-4-20250514",
-                    "max_tokens": 1,
-                    "messages": [{"role": "user", "content": "hi"}],
-                },
-                timeout=10.0,
-            )
-            if resp.status_code == 200:
-                return {"valid": True, "message": "Anthropic API Key valid"}
-            elif resp.status_code == 401:
-                return {"valid": False, "message": "Invalid API Key"}
-            elif resp.status_code == 400:
-                # 400 但不是 auth 错误说明 key 是有效的
-                data = resp.json()
-                error_type = data.get("error", {}).get("type", "")
-                if error_type == "authentication_error":
-                    return {"valid": False, "message": "Invalid API Key"}
-                return {"valid": True, "message": "Anthropic API Key valid"}
-            else:
-                return {"valid": False, "message": f"HTTP {resp.status_code}"}
-
-    async def _verify_google(self, key: str) -> dict[str, Any]:
-        """验证 Google Gemini API Key"""
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"https://generativelanguage.googleapis.com/v1beta/models?key={key}",
-                timeout=10.0,
-            )
-            if resp.status_code == 200:
-                return {"valid": True, "message": "Google API Key valid"}
-            elif resp.status_code in (400, 401, 403):
-                return {"valid": False, "message": "Invalid API Key"}
-            else:
-                return {"valid": False, "message": f"HTTP {resp.status_code}"}
-
     async def _verify_openrouter(self, key: str) -> dict[str, Any]:
-        """验证 OpenRouter API Key
-
-        通过 GET /api/v1/models 接口验证，该接口需要 Bearer Token 认证。
-        """
+        """验证 OpenRouter API Key"""
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 "https://openrouter.ai/api/v1/models",
@@ -233,6 +201,52 @@ class ProviderManager:
             )
             if resp.status_code == 200:
                 return {"valid": True, "message": "OpenRouter API Key valid"}
+            elif resp.status_code in (401, 403):
+                return {"valid": False, "message": "Invalid API Key"}
+            else:
+                return {"valid": False, "message": f"HTTP {resp.status_code}: {resp.text[:100]}"}
+
+    async def _verify_siliconflow(self, key: str) -> dict[str, Any]:
+        """验证 SiliconFlow API Key
+
+        SiliconFlow 兼容 OpenAI API 格式，通过 GET /v1/models 验证。
+        """
+        extra = self.get_extra_config("siliconflow")
+        api_host = extra.get("api_host", "https://api.siliconflow.cn")
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{api_host.rstrip('/')}/v1/models",
+                headers={"Authorization": f"Bearer {key}"},
+                timeout=10.0,
+            )
+            if resp.status_code == 200:
+                return {"valid": True, "message": "SiliconFlow API Key valid"}
+            elif resp.status_code in (401, 403):
+                return {"valid": False, "message": "Invalid API Key"}
+            else:
+                return {"valid": False, "message": f"HTTP {resp.status_code}: {resp.text[:100]}"}
+
+    async def _verify_azure_openai(self, key: str) -> dict[str, Any]:
+        """验证 Azure OpenAI API Key
+
+        通过 GET {endpoint}/openai/models?api-version=... 验证。
+        需要先配置 api_host (Azure endpoint)。
+        """
+        extra = self.get_extra_config("azure_openai")
+        api_host = extra.get("api_host", "")
+        api_version = extra.get("api_version", "2024-10-21")
+
+        if not api_host:
+            return {"valid": False, "message": "请先配置 API Host (Azure Endpoint)"}
+
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{api_host.rstrip('/')}/openai/models?api-version={api_version}",
+                headers={"api-key": key},
+                timeout=10.0,
+            )
+            if resp.status_code == 200:
+                return {"valid": True, "message": "Azure OpenAI API Key valid"}
             elif resp.status_code in (401, 403):
                 return {"valid": False, "message": "Invalid API Key"}
             else:

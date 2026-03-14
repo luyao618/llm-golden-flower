@@ -111,7 +111,7 @@ const DEFAULT_GAME_CONFIG: GameConfig = {
 }
 
 const DEFAULT_AI_OPPONENT: AIOpponentConfig = {
-  model_id: 'openai-gpt4o-mini',
+  model_id: '',  // will be auto-set to first available model by fetchModels()
   name: '',
   personality: '',
 }

@@ -2,7 +2,7 @@
 
 管理 AI 模型列表、游戏默认参数、环境变量等配置。
 支持动态模型列表（根据已配置的 Provider 过滤）。
-OpenRouter 模型为动态注册（用户从 OpenRouter 模型列表中选择添加）。
+OpenRouter / SiliconFlow / Azure OpenAI 模型为动态注册（用户从 API 模型列表中选择添加）。
 """
 
 from __future__ import annotations
@@ -29,9 +29,6 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./golden_flower.db"
 
     # ---- AI API Keys ----
-    openai_api_key: str = ""
-    anthropic_api_key: str = ""
-    google_api_key: str = ""
     openrouter_api_key: str = ""
 
     # ---- 游戏默认配置 ----
@@ -47,30 +44,6 @@ class Settings(BaseSettings):
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
-
-# ---- LiteLLM Provider 的模型配置（静态注册表） ----
-AI_MODELS: dict[str, dict] = {
-    "openai-gpt4o": {
-        "model": "gpt-4o",
-        "display_name": "GPT-4o",
-        "provider": "openai",
-    },
-    "openai-gpt4o-mini": {
-        "model": "gpt-4o-mini",
-        "display_name": "GPT-4o Mini",
-        "provider": "openai",
-    },
-    "anthropic-claude-sonnet": {
-        "model": "claude-sonnet-4-20250514",
-        "display_name": "Claude Sonnet",
-        "provider": "anthropic",
-    },
-    "google-gemini-flash": {
-        "model": "gemini/gemini-2.0-flash",
-        "display_name": "Gemini 2.0 Flash",
-        "provider": "google",
-    },
-}
 
 # ---- GitHub Copilot 模型配置（仅在 Copilot 认证成功后可用） ----
 COPILOT_MODELS: dict[str, dict] = {
@@ -91,12 +64,13 @@ COPILOT_MODELS: dict[str, dict] = {
     },
 }
 
-# ---- OpenRouter 动态模型注册表（运行时由用户添加/移除） ----
+# ---- 动态模型注册表（运行时由用户添加/移除） ----
 OPENROUTER_MODELS: dict[str, dict] = {}
+SILICONFLOW_MODELS: dict[str, dict] = {}
+AZURE_OPENAI_MODELS: dict[str, dict] = {}
 
 # 合并所有模型的完整注册表（用于 model_id 查找）
-# 注意: ALL_MODELS 需要在运行时动态合并，因为 OPENROUTER_MODELS 是可变的
-ALL_MODELS: dict[str, dict] = {**AI_MODELS, **COPILOT_MODELS}
+ALL_MODELS: dict[str, dict] = {**COPILOT_MODELS}
 
 # AI 性格预设名称列表
 AI_PERSONALITIES = [
@@ -133,17 +107,18 @@ def get_settings() -> Settings:
 
 
 def _get_all_models() -> dict[str, dict]:
-    """获取包含 OpenRouter 动态模型在内的完整模型注册表"""
-    return {**AI_MODELS, **COPILOT_MODELS, **OPENROUTER_MODELS}
+    """获取包含动态模型在内的完整模型注册表"""
+    return {**COPILOT_MODELS, **OPENROUTER_MODELS, **SILICONFLOW_MODELS, **AZURE_OPENAI_MODELS}
 
 
 def get_available_models() -> list[dict]:
     """获取可用的 AI 模型列表
 
     动态过滤：只返回已配置 API Key 的 Provider 的模型。
-    - LiteLLM Provider (openai/anthropic/google): 需要对应 API Key 已配置
     - GitHub Copilot: 需要 Copilot 认证成功
     - OpenRouter: 需要 OpenRouter API Key 已配置，且模型由用户动态添加
+    - SiliconFlow: 需要 SiliconFlow API Key 已配置，且模型由用户动态添加
+    - Azure OpenAI: 需要 Azure OpenAI API Key 已配置，且模型由用户动态添加
     """
     from app.services.provider_manager import get_provider_manager
     from app.services.copilot_auth import get_copilot_auth
@@ -152,12 +127,6 @@ def get_available_models() -> list[dict]:
     copilot_auth = get_copilot_auth()
 
     models = []
-
-    # LiteLLM Provider 的模型
-    for model_id, model_info in AI_MODELS.items():
-        provider = model_info["provider"]
-        if provider_manager.has_key(provider):
-            models.append({"id": model_id, **model_info})
 
     # Copilot 模型
     if copilot_auth.is_connected:
@@ -169,14 +138,21 @@ def get_available_models() -> list[dict]:
         for model_id, model_info in OPENROUTER_MODELS.items():
             models.append({"id": model_id, **model_info})
 
+    # SiliconFlow 动态模型
+    if provider_manager.has_key("siliconflow"):
+        for model_id, model_info in SILICONFLOW_MODELS.items():
+            models.append({"id": model_id, **model_info})
+
+    # Azure OpenAI 动态模型
+    if provider_manager.has_key("azure_openai"):
+        for model_id, model_info in AZURE_OPENAI_MODELS.items():
+            models.append({"id": model_id, **model_info})
+
     return models
 
 
 def get_model_config(model_id: str) -> dict | None:
-    """根据 model_id 获取模型配置
-
-    从完整注册表（包含 OpenRouter 动态模型）中查找，不受 Provider 配置状态影响。
-    """
+    """根据 model_id 获取模型配置"""
     return _get_all_models().get(model_id)
 
 
@@ -184,16 +160,7 @@ def get_model_config(model_id: str) -> dict | None:
 
 
 def add_openrouter_model(openrouter_model_id: str, display_name: str) -> str:
-    """添加一个 OpenRouter 模型到可用列表
-
-    Args:
-        openrouter_model_id: OpenRouter 原始模型 ID，如 "openai/gpt-4o"
-        display_name: 模型显示名称，如 "GPT-4o"
-
-    Returns:
-        应用内使用的 model_id，如 "openrouter-openai-gpt-4o"
-    """
-    # 生成应用内 model_id: 将 "/" 替换为 "-"
+    """添加一个 OpenRouter 模型到可用列表"""
     model_id = "openrouter-" + openrouter_model_id.replace("/", "-")
 
     if model_id in OPENROUTER_MODELS:
@@ -201,13 +168,11 @@ def add_openrouter_model(openrouter_model_id: str, display_name: str) -> str:
         return model_id
 
     OPENROUTER_MODELS[model_id] = {
-        "model": f"openrouter/{openrouter_model_id}",  # LiteLLM 格式
+        "model": f"openrouter/{openrouter_model_id}",
         "display_name": display_name,
         "provider": "openrouter",
-        "openrouter_id": openrouter_model_id,  # 保留原始 ID
+        "openrouter_id": openrouter_model_id,
     }
-
-    # 同步更新 ALL_MODELS（向后兼容直接引用 ALL_MODELS 的代码）
     ALL_MODELS[model_id] = OPENROUTER_MODELS[model_id]
 
     logger.info("OpenRouter model added: %s -> %s", model_id, openrouter_model_id)
@@ -215,20 +180,11 @@ def add_openrouter_model(openrouter_model_id: str, display_name: str) -> str:
 
 
 def remove_openrouter_model(model_id: str) -> bool:
-    """从可用列表中移除一个 OpenRouter 模型
-
-    Args:
-        model_id: 应用内 model_id，如 "openrouter-openai-gpt-4o"
-
-    Returns:
-        是否成功移除
-    """
+    """从可用列表中移除一个 OpenRouter 模型"""
     if model_id not in OPENROUTER_MODELS:
         return False
-
     del OPENROUTER_MODELS[model_id]
     ALL_MODELS.pop(model_id, None)
-
     logger.info("OpenRouter model removed: %s", model_id)
     return True
 
@@ -236,3 +192,79 @@ def remove_openrouter_model(model_id: str) -> bool:
 def get_openrouter_models() -> list[dict]:
     """获取当前已添加的 OpenRouter 模型列表"""
     return [{"id": mid, **info} for mid, info in OPENROUTER_MODELS.items()]
+
+
+# ---- SiliconFlow 动态模型管理 ----
+
+
+def add_siliconflow_model(siliconflow_model_id: str, display_name: str) -> str:
+    """添加一个 SiliconFlow 模型到可用列表"""
+    model_id = "siliconflow-" + siliconflow_model_id.replace("/", "-")
+
+    if model_id in SILICONFLOW_MODELS:
+        logger.info("SiliconFlow model already added: %s", model_id)
+        return model_id
+
+    SILICONFLOW_MODELS[model_id] = {
+        "model": f"openai/{siliconflow_model_id}",  # SiliconFlow 兼容 OpenAI 格式，通过 LiteLLM openai/ 前缀调用
+        "display_name": display_name,
+        "provider": "siliconflow",
+        "siliconflow_id": siliconflow_model_id,
+    }
+    ALL_MODELS[model_id] = SILICONFLOW_MODELS[model_id]
+
+    logger.info("SiliconFlow model added: %s -> %s", model_id, siliconflow_model_id)
+    return model_id
+
+
+def remove_siliconflow_model(model_id: str) -> bool:
+    """从可用列表中移除一个 SiliconFlow 模型"""
+    if model_id not in SILICONFLOW_MODELS:
+        return False
+    del SILICONFLOW_MODELS[model_id]
+    ALL_MODELS.pop(model_id, None)
+    logger.info("SiliconFlow model removed: %s", model_id)
+    return True
+
+
+def get_siliconflow_models() -> list[dict]:
+    """获取当前已添加的 SiliconFlow 模型列表"""
+    return [{"id": mid, **info} for mid, info in SILICONFLOW_MODELS.items()]
+
+
+# ---- Azure OpenAI 动态模型管理 ----
+
+
+def add_azure_openai_model(azure_model_id: str, display_name: str) -> str:
+    """添加一个 Azure OpenAI 模型到可用列表"""
+    model_id = "azure-" + azure_model_id.replace("/", "-")
+
+    if model_id in AZURE_OPENAI_MODELS:
+        logger.info("Azure OpenAI model already added: %s", model_id)
+        return model_id
+
+    AZURE_OPENAI_MODELS[model_id] = {
+        "model": f"azure/{azure_model_id}",  # LiteLLM azure/ 前缀
+        "display_name": display_name,
+        "provider": "azure_openai",
+        "azure_id": azure_model_id,
+    }
+    ALL_MODELS[model_id] = AZURE_OPENAI_MODELS[model_id]
+
+    logger.info("Azure OpenAI model added: %s -> %s", model_id, azure_model_id)
+    return model_id
+
+
+def remove_azure_openai_model(model_id: str) -> bool:
+    """从可用列表中移除一个 Azure OpenAI 模型"""
+    if model_id not in AZURE_OPENAI_MODELS:
+        return False
+    del AZURE_OPENAI_MODELS[model_id]
+    ALL_MODELS.pop(model_id, None)
+    logger.info("Azure OpenAI model removed: %s", model_id)
+    return True
+
+
+def get_azure_openai_models() -> list[dict]:
+    """获取当前已添加的 Azure OpenAI 模型列表"""
+    return [{"id": mid, **info} for mid, info in AZURE_OPENAI_MODELS.items()]
