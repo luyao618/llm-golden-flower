@@ -458,6 +458,22 @@ body {
   background: rgba(0, 212, 255, 0.40);
 }
 
+/* ===== Model config panel scrollbar ===== */
+
+.model-list-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.model-list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.model-list-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+}
+.model-list-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
 /* ===== Form row pill style ===== */
 
 .form-row {

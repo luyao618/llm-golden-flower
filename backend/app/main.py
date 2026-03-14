@@ -80,14 +80,18 @@ def create_app() -> FastAPI:
     app.include_router(thought_router, prefix="/api/game", tags=["thought"])
     app.include_router(chat_router, prefix="/api/game", tags=["chat"])
 
-    # T8.0: 模型配置中心 — Provider + Copilot 路由
+    # T8.0: 模型配置中心 — Provider + Copilot + 各 Provider 模型管理路由
     from app.api.provider import router as provider_router
     from app.api.copilot import router as copilot_router
     from app.api.openrouter import router as openrouter_router
+    from app.api.siliconflow import router as siliconflow_router
+    from app.api.azure_openai import router as azure_openai_router
 
     app.include_router(provider_router)  # prefix already set in router
     app.include_router(copilot_router)  # prefix already set in router
     app.include_router(openrouter_router)  # prefix already set in router
+    app.include_router(siliconflow_router)  # prefix already set in router
+    app.include_router(azure_openai_router)  # prefix already set in router
 
     return app
 

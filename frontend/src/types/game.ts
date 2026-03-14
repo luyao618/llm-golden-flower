@@ -315,13 +315,19 @@ export interface AIModelInfo {
 
 // ---- Provider / Copilot 配置 (T8.0) ----
 
-export type ProviderName = 'openai' | 'anthropic' | 'google' | 'openrouter'
+export type ProviderName = 'openrouter' | 'siliconflow' | 'azure_openai'
+
+export interface ProviderExtraConfig {
+  api_host?: string
+  api_version?: string
+}
 
 export interface ProviderStatus {
   provider: ProviderName
   name: string
   configured: boolean
   key_preview: string | null
+  extra_config?: ProviderExtraConfig
 }
 
 export interface CopilotDeviceFlowResponse {
@@ -404,4 +410,52 @@ export interface OpenRouterAddedModel {
   display_name: string
   provider: 'openrouter'
   openrouter_id: string
+}
+
+// ---- SiliconFlow 模型管理 ----
+
+export interface SiliconFlowModel {
+  id: string
+  name: string
+  context_length: number | null
+  pricing: {
+    prompt: string
+    completion: string
+  }
+}
+
+export interface SiliconFlowAddedModel {
+  id: string
+  model: string
+  display_name: string
+  provider: 'siliconflow'
+  siliconflow_id: string
+}
+
+// ---- Azure OpenAI 模型管理 ----
+
+export interface AzureOpenAIModel {
+  id: string
+  name: string
+  context_length: number | null
+  pricing: {
+    prompt: string
+    completion: string
+  }
+}
+
+export interface AzureOpenAIAddedModel {
+  id: string
+  model: string
+  display_name: string
+  provider: 'azure_openai'
+  azure_id: string
+}
+
+// ---- Provider Config 设置响应 ----
+
+export interface SetProviderConfigResponse {
+  message: string
+  provider: string
+  extra_config: ProviderExtraConfig
 }

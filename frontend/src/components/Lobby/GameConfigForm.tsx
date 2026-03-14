@@ -7,11 +7,10 @@ import { useGameStore } from '../../stores/gameStore'
 
 /** Provider 对应的图标/颜色 */
 const PROVIDER_STYLES: Record<string, { color: string; label: string }> = {
-  openai: { color: 'text-green-400', label: 'OpenAI' },
-  anthropic: { color: 'text-orange-400', label: 'Anthropic' },
-  google: { color: 'text-blue-400', label: 'Google' },
-  github_copilot: { color: 'text-purple-400', label: 'Copilot' },
   openrouter: { color: 'text-cyan-400', label: 'OpenRouter' },
+  siliconflow: { color: 'text-emerald-400', label: 'SiliconFlow' },
+  azure_openai: { color: 'text-blue-400', label: 'Azure' },
+  github_copilot: { color: 'text-purple-400', label: 'Copilot' },
 }
 
 /** Icon circle colors for opponent rows */

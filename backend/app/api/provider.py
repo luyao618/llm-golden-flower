@@ -1,10 +1,11 @@
 """Provider / API Key 管理 API 路由
 
-提供端点管理各 LLM Provider 的 API Key:
-- GET    /api/providers                  — 获取所有 Provider 状态
-- POST   /api/providers/{provider}/key   — 设置 API Key
-- POST   /api/providers/{provider}/verify — 验证 API Key 有效性
-- DELETE /api/providers/{provider}/key   — 移除 API Key
+提供端点管理各 LLM Provider 的 API Key 和配置:
+- GET    /api/providers                       — 获取所有 Provider 状态
+- POST   /api/providers/{provider}/key        — 设置 API Key
+- POST   /api/providers/{provider}/verify     — 验证 API Key 有效性
+- DELETE /api/providers/{provider}/key        — 移除 API Key
+- POST   /api/providers/{provider}/config     — 设置额外配置 (api_host, api_version)
 """
 
 from __future__ import annotations
@@ -29,6 +30,13 @@ class VerifyKeyRequest(BaseModel):
     key: str | None = None
 
 
+class SetExtraConfigRequest(BaseModel):
+    """设置额外配置请求体"""
+
+    api_host: str | None = None
+    api_version: str | None = None
+
+
 @router.get("")
 async def get_providers():
     """获取所有 Provider 的连接状态
@@ -39,6 +47,7 @@ async def get_providers():
         - name: 显示名称
         - configured: 是否已配置 API Key
         - key_preview: 遮盖后的 Key 预览
+        - extra_config: 额外配置 (api_host, api_version 等)
     """
     manager = get_provider_manager()
     return manager.get_all_status()
@@ -100,4 +109,32 @@ async def remove_provider_key(provider: str):
         "message": f"API Key removed for {PROVIDERS[provider]['name']}",
         "provider": provider,
         "configured": False,
+    }
+
+
+@router.post("/{provider}/config")
+async def set_provider_config(provider: str, req: SetExtraConfigRequest):
+    """设置 Provider 的额外配置（api_host, api_version 等）
+
+    用于 Azure OpenAI（需要 endpoint + api_version）和 SiliconFlow（可自定义 api_host）。
+    """
+    if provider not in PROVIDERS:
+        raise HTTPException(status_code=404, detail=f"Unknown provider: {provider}")
+
+    manager = get_provider_manager()
+    config = {}
+    if req.api_host is not None:
+        config["api_host"] = req.api_host.strip()
+    if req.api_version is not None:
+        config["api_version"] = req.api_version.strip()
+
+    if not config:
+        raise HTTPException(status_code=400, detail="No config provided")
+
+    manager.set_extra_config(provider, config)
+
+    return {
+        "message": f"Config updated for {PROVIDERS[provider]['name']}",
+        "provider": provider,
+        "extra_config": manager.get_extra_config(provider),
     }

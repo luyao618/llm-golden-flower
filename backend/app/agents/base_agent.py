@@ -16,7 +16,7 @@ from typing import Any
 
 import litellm
 
-from app.config import AI_MODELS, ALL_MODELS, _get_all_models, get_settings
+from app.config import ALL_MODELS, _get_all_models, get_settings
 from app.models.game import (
     ActionRecord,
     GameAction,
@@ -212,7 +212,7 @@ class BaseAgent:
             LLMCallError: LLM 调用失败且重试耗尽时抛出
         """
         settings = get_settings()
-        model_config = _get_all_models().get(self.model_id) or AI_MODELS.get(self.model_id)
+        model_config = _get_all_models().get(self.model_id)
         if not model_config:
             raise LLMCallError(f"Unknown model_id: {self.model_id}")
 

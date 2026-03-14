@@ -26,13 +26,13 @@ export default function LobbyPage() {
           src={lobbyBg}
           alt=""
           className="w-full h-full object-cover"
-          style={{ objectPosition: 'center 80%', filter: 'brightness(1.1) contrast(1.12) saturate(1.1)' }}
+          style={{ objectPosition: 'center 80%', filter: 'brightness(1.0) contrast(1.12) saturate(1.1)' }}
         />
         {/* 暗色叠加层 — 与欢迎页一致的极轻压暗 */}
         <div className="absolute inset-0"
           style={{
             background: `
-              linear-gradient(to bottom, rgba(5,5,15,0.05) 0%, rgba(5,5,15,0.08) 50%, rgba(5,5,15,0.25) 100%)
+              linear-gradient(to bottom, rgba(5,5,15,0.06) 0%, rgba(5,5,15,0.10) 50%, rgba(5,5,15,0.25) 100%)
             `
           }}
         />
