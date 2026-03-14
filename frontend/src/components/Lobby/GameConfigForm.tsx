@@ -3,7 +3,11 @@
 // ============================================================
 
 import { useEffect, useRef } from 'react'
-import { useGameStore } from '../../stores/gameStore'
+import {
+  useGameStore,
+  type AIOpponentConfig,
+  getUniqueShortName,
+} from '../../stores/gameStore'
 
 /** Provider 对应的图标/颜色 */
 const PROVIDER_STYLES: Record<string, { color: string; label: string }> = {
@@ -115,9 +119,18 @@ export default function GameConfigForm() {
             <div className="grid grid-cols-2 gap-2 pl-11">
               <select
                 value={opponent.model_id}
-                onChange={(e) =>
-                  updateAIOpponent(index, { model_id: e.target.value })
-                }
+                onChange={(e) => {
+                  const newModelId = e.target.value
+                  const newModel = availableModels.find((m) => m.id === newModelId)
+                  const update: Partial<AIOpponentConfig> = { model_id: newModelId }
+                  // 切换模型时，始终用新模型的去重短名称覆盖
+                  if (newModel) {
+                    const updatedOpponents = [...aiOpponents]
+                    updatedOpponents[index] = { ...updatedOpponents[index], model_id: newModelId }
+                    update.name = getUniqueShortName(newModel.display_name, index, updatedOpponents)
+                  }
+                  updateAIOpponent(index, update)
+                }}
                 className="w-full px-3 py-1.5 bg-white/[0.06] border border-white/[0.10] rounded-lg
                            text-white text-xs focus:outline-none focus:border-[var(--color-primary)]/30 cursor-pointer
                            appearance-none"
@@ -147,7 +160,7 @@ export default function GameConfigForm() {
                   updateAIOpponent(index, { name: e.target.value })
                 }
                 placeholder="自定义名称"
-                maxLength={12}
+                maxLength={32}
                 className="w-full px-3 py-1.5 bg-white/[0.06] border border-white/[0.10] rounded-lg
                            text-white text-xs placeholder-[#8090a0] focus:outline-none
                            focus:border-[var(--color-primary)]/30 transition-colors"

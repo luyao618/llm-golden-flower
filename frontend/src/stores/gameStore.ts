@@ -120,6 +120,44 @@ function createDefaultAIOpponent(): AIOpponentConfig {
   return { ...DEFAULT_AI_OPPONENT }
 }
 
+// ---- 模型短名称工具函数 ----
+
+/** 自动名称最大长度 */
+const MAX_NAME_LENGTH = 32
+
+/** 从 display_name 提取模型核心短名称 */
+export function getShortModelName(displayName: string): string {
+  let name = displayName
+  const colonIdx = name.indexOf(':')
+  if (colonIdx !== -1) name = name.slice(colonIdx + 1)
+  name = name.replace(/\s*\([^)]*\)/g, '').trim()
+  if (name.length > MAX_NAME_LENGTH) name = name.slice(0, MAX_NAME_LENGTH).trimEnd()
+  return name || displayName.slice(0, MAX_NAME_LENGTH)
+}
+
+/** 生成不与现有对手名称重复的短名称 */
+export function getUniqueShortName(
+  displayName: string,
+  currentIndex: number,
+  opponents: AIOpponentConfig[],
+): string {
+  const baseName = getShortModelName(displayName)
+  const otherNames = new Set(
+    opponents.filter((_, i) => i !== currentIndex).map((op) => op.name),
+  )
+  if (!otherNames.has(baseName)) return baseName
+  // 有重名，加序号后缀 -1, -2, ...
+  // 必要时缩短 baseName，确保总长 <= MAX_NAME_LENGTH
+  for (let n = 1; n <= 10; n++) {
+    const suffix = `-${n}`
+    const maxBase = MAX_NAME_LENGTH - suffix.length
+    const truncatedBase = baseName.length > maxBase ? baseName.slice(0, maxBase).trimEnd() : baseName
+    const candidate = `${truncatedBase}${suffix}`
+    if (!otherNames.has(candidate)) return candidate
+  }
+  return baseName
+}
+
 // ---- Store ----
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -164,8 +202,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const defaultModelId = state.availableModels.length > 0
         ? state.availableModels[0].id
         : DEFAULT_AI_OPPONENT.model_id
+      const defaultModel = state.availableModels.find((m) => m.id === defaultModelId)
       const newOpponent: AIOpponentConfig = { ...DEFAULT_AI_OPPONENT, model_id: defaultModelId }
-      return { aiOpponents: [...state.aiOpponents, newOpponent] }
+      // 自动生成去重短名称
+      const newIndex = state.aiOpponents.length
+      const tempOpponents = [...state.aiOpponents, newOpponent]
+      if (defaultModel) {
+        newOpponent.name = getUniqueShortName(defaultModel.display_name, newIndex, tempOpponents)
+      }
+      return { aiOpponents: tempOpponents }
     }),
 
   removeAIOpponent: (index) =>
@@ -195,9 +240,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const { aiOpponents } = get()
       const needsUpdate = aiOpponents.some((op) => !validIds.has(op.model_id))
       if (needsUpdate && firstModelId) {
+        const firstModel = models.find((m) => m.id === firstModelId)
         const updatedOpponents = aiOpponents.map((op) =>
           validIds.has(op.model_id) ? op : { ...op, model_id: firstModelId }
         )
+        // 为名称为空的对手自动填入短名称
+        if (firstModel) {
+          for (let i = 0; i < updatedOpponents.length; i++) {
+            if (!updatedOpponents[i].name) {
+              updatedOpponents[i] = {
+                ...updatedOpponents[i],
+                name: getUniqueShortName(firstModel.display_name, i, updatedOpponents),
+              }
+            }
+          }
+        }
         set({ availableModels: models, modelsLoading: false, aiOpponents: updatedOpponents })
       } else {
         set({ availableModels: models, modelsLoading: false })
