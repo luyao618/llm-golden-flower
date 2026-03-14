@@ -16,12 +16,21 @@ const TRIGGER_LABELS: Record<string, string> = {
 }
 
 const TRIGGER_COLORS: Record<string, string> = {
-  chip_crisis: 'text-red-400 bg-red-500/20 border-red-500/40',
-  consecutive_losses: 'text-orange-400 bg-orange-500/20 border-orange-500/40',
-  big_loss: 'text-rose-400 bg-rose-500/20 border-rose-500/40',
-  opponent_shift: 'text-cyan-400 bg-cyan-500/20 border-cyan-500/40',
-  periodic: 'text-purple-400 bg-purple-500/20 border-purple-500/40',
+  chip_crisis: 'text-red-400 bg-red-500/10 border-red-500/30',
+  consecutive_losses: 'text-orange-400 bg-orange-500/10 border-orange-500/30',
+  big_loss: 'text-rose-400 bg-rose-500/10 border-rose-500/30',
+  opponent_shift: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30',
+  periodic: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
 }
+
+// ---- 时间线节点颜色轮换 ----
+
+const NODE_COLORS = [
+  { ring: 'rgba(0, 212, 255, 0.6)', glow: 'rgba(0, 212, 255, 0.3)', text: '#00d4ff' },   // cyan
+  { ring: 'rgba(139, 92, 246, 0.6)', glow: 'rgba(139, 92, 246, 0.3)', text: '#8b5cf6' },  // purple
+  { ring: 'rgba(255, 102, 170, 0.6)', glow: 'rgba(255, 102, 170, 0.3)', text: '#ff66aa' }, // pink
+  { ring: 'rgba(0, 170, 255, 0.6)', glow: 'rgba(0, 170, 255, 0.3)', text: '#00aaff' },    // blue
+]
 
 // ---- Props ----
 
@@ -108,7 +117,7 @@ export default function ThoughtTimeline({
   // 没有已完成的局
   if (completedRounds.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-green-600/50 text-sm">
+      <div className="flex items-center justify-center h-full text-[var(--text-muted)] text-sm">
         暂无已完成的局
       </div>
     )
@@ -117,20 +126,21 @@ export default function ThoughtTimeline({
   return (
     <div className="flex flex-col h-full">
       {/* 顶部：局选择 + 视图切换 */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-green-800/30">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-default)]">
         {/* 局选择器 */}
-        <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-green-800/30">
+        <div className="flex items-center gap-1 overflow-x-auto">
           {completedRounds.map((roundNum) => (
             <button
               key={roundNum}
               onClick={() => setSelectedRound(roundNum)}
               className={`
-                px-2 py-0.5 rounded text-[11px] font-mono transition-colors shrink-0 cursor-pointer
+                px-2 py-0.5 rounded text-[11px] transition-all shrink-0 cursor-pointer
                 ${selectedRound === roundNum
-                  ? 'bg-green-600/30 text-green-300 border border-green-500/50'
-                  : 'text-green-600/60 hover:text-green-400 hover:bg-green-900/30 border border-transparent'
+                  ? 'bg-[var(--color-primary)]/15 text-[var(--color-primary)] border border-[var(--color-primary)]/40 shadow-[0_0_8px_rgba(0,212,255,0.15)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-white/5 border border-transparent'
                 }
               `}
+              style={{ fontFamily: 'var(--font-mono)' }}
             >
               R{roundNum}
             </button>
@@ -138,14 +148,14 @@ export default function ThoughtTimeline({
         </div>
 
         {/* 视图切换 */}
-        <div className="flex items-center gap-0.5 bg-black/30 rounded-md p-0.5 shrink-0 ml-2">
+        <div className="flex items-center gap-0.5 bg-[var(--bg-deep)]/60 rounded-md p-0.5 shrink-0 ml-2 border border-[var(--border-default)]">
           <button
             onClick={() => setViewMode('timeline')}
             className={`
-              px-2 py-0.5 rounded text-[10px] transition-colors cursor-pointer
+              px-2 py-0.5 rounded text-[10px] transition-all cursor-pointer
               ${viewMode === 'timeline'
-                ? 'bg-green-700/40 text-green-300'
-                : 'text-green-600/50 hover:text-green-400'
+                ? 'bg-[var(--color-primary)]/15 text-[var(--color-primary)] shadow-[0_0_6px_rgba(0,212,255,0.15)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }
             `}
           >
@@ -154,10 +164,10 @@ export default function ThoughtTimeline({
           <button
             onClick={() => setViewMode('narrative')}
             className={`
-              px-2 py-0.5 rounded text-[10px] transition-colors cursor-pointer
+              px-2 py-0.5 rounded text-[10px] transition-all cursor-pointer
               ${viewMode === 'narrative'
-                ? 'bg-green-700/40 text-green-300'
-                : 'text-green-600/50 hover:text-green-400'
+                ? 'bg-[var(--color-secondary)]/15 text-[var(--color-secondary)] shadow-[0_0_6px_rgba(139,92,246,0.15)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }
             `}
             disabled={!narrative}
@@ -169,18 +179,18 @@ export default function ThoughtTimeline({
       </div>
 
       {/* 内容区域 */}
-      <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-green-800/30 scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="inline-block w-5 h-5 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
-            <span className="text-green-500/60 text-xs ml-2">加载中...</span>
+            <div className="inline-block w-5 h-5 border-2 border-[var(--color-primary)]/30 border-t-[var(--color-primary)] rounded-full animate-spin" />
+            <span className="text-[var(--text-muted)] text-xs ml-2">加载中...</span>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-8 gap-2">
-            <span className="text-red-400/70 text-xs">{error}</span>
+            <span className="text-[var(--color-danger)]/70 text-xs">{error}</span>
             <button
               onClick={fetchRoundData}
-              className="text-green-500/60 text-[10px] hover:text-green-400 underline cursor-pointer"
+              className="text-[var(--text-muted)] text-[10px] hover:text-[var(--color-primary)] underline cursor-pointer"
             >
               重试
             </button>
@@ -193,22 +203,86 @@ export default function ThoughtTimeline({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="p-3 space-y-2"
+                className="p-3"
               >
                 {/* 经验回顾节点（如果本局触发了） */}
                 {reviews.map((review, i) => (
                   <ReviewNode key={`review-${i}`} review={review} />
                 ))}
 
-                {/* 思考记录卡片 */}
+                {/* 思考记录 — 垂直时间线 */}
                 {thoughts.length === 0 ? (
-                  <div className="text-green-600/50 text-xs text-center py-4">
+                  <div className="text-[var(--text-muted)] text-xs text-center py-4">
                     该局暂无思考记录
                   </div>
                 ) : (
-                  thoughts.map((thought, i) => (
-                    <ThoughtCard key={`t-${thought.turn_number}`} thought={thought} index={i} />
-                  ))
+                  <div className="relative">
+                    {/* 垂直时间线主线 */}
+                    <div
+                      className="absolute left-[22px] top-4 bottom-4 w-[2px] pointer-events-none"
+                      style={{
+                        background: 'linear-gradient(180deg, rgba(0,212,255,0.4), rgba(139,92,246,0.3), rgba(0,212,255,0.4))',
+                        boxShadow: '0 0 6px rgba(0,212,255,0.15)',
+                      }}
+                    />
+
+                    {/* 时间线节点 + 思考卡片 */}
+                    {thoughts.map((thought, i) => {
+                      const nodeColor = NODE_COLORS[i % NODE_COLORS.length]
+                      return (
+                        <div key={`t-${thought.turn_number}`} className="relative flex gap-3 mb-3">
+                          {/* 时间线圆形节点 */}
+                          <div className="shrink-0 z-10 flex items-start pt-2">
+                            <div
+                              className="w-[44px] h-[44px] rounded-full flex items-center justify-center relative"
+                              style={{
+                                background: `rgba(${nodeColor.ring === 'rgba(0, 212, 255, 0.6)' ? '6,6,15' : nodeColor.ring === 'rgba(139, 92, 246, 0.6)' ? '6,6,15' : '6,6,15'}, 1)`,
+                              }}
+                            >
+                              {/* 环形进度条 (SVG) */}
+                              <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 44 44">
+                                {/* 背景环 */}
+                                <circle
+                                  cx="22" cy="22" r="18"
+                                  fill="none"
+                                  stroke="rgba(255,255,255,0.06)"
+                                  strokeWidth="3"
+                                />
+                                {/* 进度环 — 置信度 */}
+                                <circle
+                                  cx="22" cy="22" r="18"
+                                  fill="none"
+                                  stroke={nodeColor.ring}
+                                  strokeWidth="3"
+                                  strokeDasharray={`${thought.confidence * 113} 113`}
+                                  strokeLinecap="round"
+                                  style={{
+                                    filter: `drop-shadow(0 0 4px ${nodeColor.glow})`,
+                                  }}
+                                />
+                              </svg>
+                              {/* 中心置信度数字 */}
+                              <span
+                                className="relative text-xs font-bold"
+                                style={{
+                                  fontFamily: 'var(--font-mono)',
+                                  color: nodeColor.text,
+                                  textShadow: `0 0 6px ${nodeColor.glow}`,
+                                }}
+                              >
+                                {Math.round(thought.confidence * 100)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* 思考卡片 */}
+                          <div className="flex-1 min-w-0">
+                            <ThoughtCard thought={thought} index={i} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 )}
               </motion.div>
             ) : (
@@ -222,7 +296,7 @@ export default function ThoughtTimeline({
                 {narrative ? (
                   <NarrativeView narrative={narrative} />
                 ) : (
-                  <div className="text-green-600/50 text-xs text-center py-4">
+                  <div className="text-[var(--text-muted)] text-xs text-center py-4">
                     叙事尚未生成
                   </div>
                 )}
@@ -241,21 +315,24 @@ function ReviewNode({ review }: { review: ExperienceReview }) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   const triggerLabel = TRIGGER_LABELS[review.trigger] ?? review.trigger
-  const triggerColor = TRIGGER_COLORS[review.trigger] ?? 'text-purple-400 bg-purple-500/20 border-purple-500/40'
+  const triggerColor = TRIGGER_COLORS[review.trigger] ?? 'text-purple-400 bg-purple-500/10 border-purple-500/30'
 
   return (
     <motion.div
-      className="bg-purple-900/20 border border-purple-700/40 rounded-lg overflow-hidden"
+      className="bg-[var(--color-secondary)]/5 border border-[var(--color-secondary)]/25 rounded-lg overflow-hidden mb-3"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      style={{
+        boxShadow: '0 0 15px rgba(139,92,246,0.06)',
+      }}
     >
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-purple-900/20 transition-colors cursor-pointer text-left"
+        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--color-secondary)]/5 transition-colors cursor-pointer text-left"
       >
         {/* 策略调整标记 */}
-        <span className="text-purple-400 text-[10px] font-medium shrink-0">
+        <span className="text-[var(--color-secondary)] text-[10px] font-medium shrink-0">
           策略调整
         </span>
 
@@ -265,17 +342,18 @@ function ReviewNode({ review }: { review: ExperienceReview }) {
         </span>
 
         {/* 策略摘要 */}
-        <span className="text-purple-300/60 text-xs truncate flex-1">
+        <span className="text-[var(--text-secondary)]/60 text-xs truncate flex-1">
           {review.strategy_adjustment}
         </span>
 
         {/* 置信度变化 */}
-        <span className={`text-[10px] font-mono shrink-0 ${review.confidence_shift >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+        <span className={`text-[10px] shrink-0 ${review.confidence_shift >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}
+          style={{ fontFamily: 'var(--font-mono)' }}>
           {review.confidence_shift >= 0 ? '+' : ''}{Math.round(review.confidence_shift * 100)}%
         </span>
 
         <motion.span
-          className="text-purple-600/50 text-xs shrink-0"
+          className="text-[var(--text-muted)] text-xs shrink-0"
           animate={{ rotate: isExpanded ? 180 : 0 }}
           transition={{ duration: 0.15 }}
         >
@@ -292,22 +370,25 @@ function ReviewNode({ review }: { review: ExperienceReview }) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-3 pb-3 space-y-2 border-t border-purple-700/30 pt-2">
+            <div className="px-3 pb-3 space-y-2 border-t border-[var(--color-secondary)]/15 pt-2">
               {/* 自我分析 */}
               <div>
-                <span className="text-purple-500/60 text-[10px] font-medium">自我分析</span>
-                <p className="text-purple-300/70 text-xs leading-relaxed mt-0.5">{review.self_analysis}</p>
+                <span className="text-[var(--color-secondary)]/60 text-[10px] font-medium">自我分析</span>
+                <p className="text-[var(--text-secondary)] text-xs leading-relaxed mt-0.5"
+                  style={{ fontFamily: 'var(--font-mono)' }}>
+                  {review.self_analysis}
+                </p>
               </div>
 
               {/* 对手模式分析 */}
               {Object.keys(review.opponent_patterns).length > 0 && (
                 <div>
-                  <span className="text-purple-500/60 text-[10px] font-medium">对手模式</span>
+                  <span className="text-[var(--color-secondary)]/60 text-[10px] font-medium">对手模式</span>
                   <div className="mt-0.5 space-y-0.5">
                     {Object.entries(review.opponent_patterns).map(([name, pattern]) => (
                       <div key={name} className="text-xs">
-                        <span className="text-purple-400/70">{name}:</span>
-                        <span className="text-purple-300/60 ml-1">{pattern}</span>
+                        <span className="text-[var(--color-primary)]/70">{name}:</span>
+                        <span className="text-[var(--text-secondary)]/60 ml-1">{pattern}</span>
                       </div>
                     ))}
                   </div>
@@ -316,12 +397,15 @@ function ReviewNode({ review }: { review: ExperienceReview }) {
 
               {/* 策略调整 */}
               <div>
-                <span className="text-purple-500/60 text-[10px] font-medium">策略调整</span>
-                <p className="text-purple-300/70 text-xs leading-relaxed mt-0.5">{review.strategy_adjustment}</p>
+                <span className="text-[var(--color-secondary)]/60 text-[10px] font-medium">策略调整</span>
+                <p className="text-[var(--text-secondary)] text-xs leading-relaxed mt-0.5"
+                  style={{ fontFamily: 'var(--font-mono)' }}>
+                  {review.strategy_adjustment}
+                </p>
               </div>
 
               {/* 回顾了哪些局 */}
-              <div className="text-purple-600/50 text-[10px]">
+              <div className="text-[var(--text-muted)] text-[10px]">
                 回顾了第 {review.rounds_reviewed.join(', ')} 局
               </div>
             </div>

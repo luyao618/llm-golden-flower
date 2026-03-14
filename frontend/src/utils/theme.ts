@@ -10,6 +10,25 @@ export const AVATAR_COLORS = [
   'from-amber-500 to-orange-600',
 ]
 
+/** Cyberpunk avatar accent colors — subtle neon tints for border/glow */
+const AVATAR_ACCENT_COLORS = [
+  { border: 'rgba(255, 100, 130, 0.45)', glow: 'rgba(255, 100, 130, 0.15)', text: 'rgba(255, 160, 180, 0.9)' },
+  { border: 'rgba(160, 120, 255, 0.45)', glow: 'rgba(160, 120, 255, 0.15)', text: 'rgba(190, 170, 255, 0.9)' },
+  { border: 'rgba(80, 140, 255, 0.45)',  glow: 'rgba(80, 140, 255, 0.15)',  text: 'rgba(140, 180, 255, 0.9)' },
+  { border: 'rgba(0, 212, 255, 0.45)',   glow: 'rgba(0, 212, 255, 0.15)',   text: 'rgba(120, 220, 255, 0.9)' },
+  { border: 'rgba(80, 220, 160, 0.45)',  glow: 'rgba(80, 220, 160, 0.15)',  text: 'rgba(140, 230, 190, 0.9)' },
+  { border: 'rgba(255, 185, 50, 0.45)',  glow: 'rgba(255, 185, 50, 0.15)',  text: 'rgba(255, 210, 120, 0.9)' },
+]
+
+/** Get cyberpunk avatar accent style by hashing player ID */
+export function getAvatarAccent(id: string): { border: string; glow: string; text: string } {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0
+  }
+  return AVATAR_ACCENT_COLORS[Math.abs(hash) % AVATAR_ACCENT_COLORS.length]
+}
+
 /** Get avatar gradient class by hashing player ID */
 export function getAvatarColor(id: string): string {
   let hash = 0

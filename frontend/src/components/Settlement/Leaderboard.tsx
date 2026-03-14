@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import type { Player } from '../../types/game'
-import { getAvatarColor } from '../../utils/theme'
+import { getAvatarAccent } from '../../utils/theme'
 
 // ---- 排名徽章 ----
 
@@ -20,8 +20,8 @@ function RankBadge({ rank }: { rank: number }) {
     )
   }
   return (
-    <div className="w-8 h-8 rounded-full bg-green-900/60 border border-green-700/40 flex items-center justify-center">
-      <span className="text-xs font-bold text-green-500/80">{rank}th</span>
+    <div className="w-8 h-8 rounded-full bg-[var(--bg-surface)] border border-[var(--border-default)] flex items-center justify-center">
+      <span className="text-xs font-bold text-[var(--text-muted)]">{rank}th</span>
     </div>
   )
 }
@@ -41,7 +41,10 @@ interface LeaderboardProps {
 export default function Leaderboard({ rankings }: LeaderboardProps) {
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <h2 className="text-xl font-bold text-amber-400 mb-4 text-center">最终排名</h2>
+      <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4 text-center"
+          style={{ fontFamily: 'var(--font-display)' }}>
+        最终排名
+      </h2>
 
       <div className="space-y-2">
         {rankings.map((entry, index) => {
@@ -50,6 +53,7 @@ export default function Leaderboard({ rankings }: LeaderboardProps) {
           const chipDiff = entry.player.chips - entry.initialChips
           const isPositive = chipDiff > 0
           const isNegative = chipDiff < 0
+          const accent = getAvatarAccent(entry.player.id)
 
           return (
             <motion.div
@@ -58,22 +62,29 @@ export default function Leaderboard({ rankings }: LeaderboardProps) {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.12, duration: 0.4, ease: 'easeOut' }}
               className={`
-                flex items-center gap-4 px-5 py-3 rounded-xl border transition-colors
+                flex items-center gap-4 px-5 py-3 rounded-xl border transition-all backdrop-blur-sm
                 ${isFirst
-                  ? 'bg-amber-500/10 border-amber-500/40 shadow-lg shadow-amber-500/10'
-                  : 'bg-green-900/30 border-green-700/30 hover:bg-green-900/50'
+                  ? 'bg-[var(--color-gold)]/5 border-[var(--color-gold)]/30'
+                  : 'bg-[var(--bg-surface)]/30 border-[var(--border-default)] hover:bg-[var(--bg-hover)]/30'
                 }
               `}
+              style={isFirst ? { boxShadow: '0 0 20px rgba(255, 215, 0, 0.1)' } : undefined}
             >
               {/* 排名 */}
               <RankBadge rank={rank} />
 
-              {/* 头像 */}
+              {/* 头像 — 赛博朋克风格：暗底 + 细边框发光 */}
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm
-                  bg-gradient-to-br ${getAvatarColor(entry.player.id)}
-                  ${isFirst ? 'ring-2 ring-amber-400/50' : ''}
-                `}
+                className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm shrink-0"
+                style={{
+                  background: 'rgba(15, 15, 35, 0.6)',
+                  border: `1.5px solid ${isFirst ? 'rgba(255, 215, 0, 0.5)' : accent.border}`,
+                  boxShadow: isFirst
+                    ? '0 0 8px rgba(255, 215, 0, 0.2), inset 0 0 6px rgba(255, 215, 0, 0.05)'
+                    : `0 0 8px ${accent.glow}, inset 0 0 6px ${accent.glow}`,
+                  color: isFirst ? 'rgba(255, 225, 140, 0.9)' : accent.text,
+                  fontFamily: 'var(--font-mono)',
+                }}
               >
                 {entry.player.avatar || entry.player.name.charAt(0)}
               </div>
@@ -81,16 +92,16 @@ export default function Leaderboard({ rankings }: LeaderboardProps) {
               {/* 名字 + 类型 */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className={`font-semibold truncate ${isFirst ? 'text-amber-300' : 'text-green-200'}`}>
+                  <span className={`font-semibold truncate ${isFirst ? 'text-[var(--color-gold)]' : 'text-[var(--text-primary)]'}`}>
                     {entry.player.name}
                   </span>
                   {entry.player.player_type === 'human' && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20">
                       你
                     </span>
                   )}
                   {entry.player.personality && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-800/40 text-green-400/70 border border-green-700/30">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] text-[var(--text-muted)] border border-[var(--border-default)]">
                       {entry.player.personality}
                     </span>
                   )}
@@ -99,13 +110,15 @@ export default function Leaderboard({ rankings }: LeaderboardProps) {
 
               {/* 筹码变化 */}
               <div className="text-right shrink-0">
-                <div className={`text-lg font-bold tabular-nums ${isFirst ? 'text-amber-300' : 'text-green-200'}`}>
+                <div className={`text-lg font-bold tabular-nums ${isFirst ? 'neon-text-gold' : 'text-[var(--text-primary)]'}`}
+                     style={{ fontFamily: 'var(--font-mono)' }}>
                   {entry.player.chips}
                 </div>
                 <div
                   className={`text-xs font-medium tabular-nums ${
-                    isPositive ? 'text-emerald-400' : isNegative ? 'text-red-400' : 'text-green-600'
+                    isPositive ? 'text-[var(--color-success)]' : isNegative ? 'text-[var(--color-danger)]' : 'text-[var(--text-muted)]'
                   }`}
+                  style={{ fontFamily: 'var(--font-mono)' }}
                 >
                   {isPositive ? '+' : ''}{chipDiff}
                 </div>

@@ -13,25 +13,31 @@ const ACTION_LABELS: Record<GameAction, string> = {
 }
 
 const ACTION_COLORS: Record<GameAction, string> = {
-  fold: 'text-gray-400 bg-gray-500/20 border-gray-500/40',
-  call: 'text-green-400 bg-green-500/20 border-green-500/40',
-  raise: 'text-amber-400 bg-amber-500/20 border-amber-500/40',
-  check_cards: 'text-blue-400 bg-blue-500/20 border-blue-500/40',
-  compare: 'text-rose-400 bg-rose-500/20 border-rose-500/40',
+  fold: 'text-red-400 bg-red-500/10 border-red-500/30',
+  call: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30',
+  raise: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30',
+  check_cards: 'text-sky-400 bg-sky-500/10 border-sky-500/30',
+  compare: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
 }
 
 // ---- 置信度颜色 ----
 
 function getConfidenceColor(confidence: number): string {
-  if (confidence >= 0.7) return 'text-green-400'
-  if (confidence >= 0.4) return 'text-amber-400'
-  return 'text-red-400'
+  if (confidence >= 0.7) return 'text-[var(--color-primary)]'
+  if (confidence >= 0.4) return 'text-[var(--color-gold)]'
+  return 'text-[var(--color-danger)]'
 }
 
 function getConfidenceBarColor(confidence: number): string {
-  if (confidence >= 0.7) return 'bg-green-500'
-  if (confidence >= 0.4) return 'bg-amber-500'
-  return 'bg-red-500'
+  if (confidence >= 0.7) return 'bg-[var(--color-primary)]'
+  if (confidence >= 0.4) return 'bg-[var(--color-gold)]'
+  return 'bg-[var(--color-danger)]'
+}
+
+function getConfidenceBarGlow(confidence: number): string {
+  if (confidence >= 0.7) return '0 0 8px rgba(0,212,255,0.4)'
+  if (confidence >= 0.4) return '0 0 8px rgba(255,215,0,0.3)'
+  return '0 0 8px rgba(255,68,68,0.3)'
 }
 
 // ---- Props ----
@@ -55,11 +61,12 @@ export default function ThoughtCard({ thought, index = 0 }: ThoughtCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   const actionLabel = ACTION_LABELS[thought.decision] ?? thought.decision
-  const actionColor = ACTION_COLORS[thought.decision] ?? 'text-gray-400 bg-gray-500/20 border-gray-500/40'
+  const actionColor = ACTION_COLORS[thought.decision] ?? 'text-gray-400 bg-gray-500/10 border-gray-500/30'
 
   return (
     <motion.div
-      className="bg-black/30 border border-green-800/40 rounded-lg overflow-hidden"
+      className="bg-[var(--bg-surface)]/80 border border-[var(--border-default)] rounded-xl overflow-hidden
+        hover:border-[var(--border-hover)] transition-colors"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
@@ -67,11 +74,12 @@ export default function ThoughtCard({ thought, index = 0 }: ThoughtCardProps) {
       {/* 摘要行 - 始终可见 */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-green-900/20 transition-colors cursor-pointer text-left"
+        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/[0.02] transition-colors cursor-pointer text-left"
       >
         {/* 轮次标记 */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-green-600/60 text-[10px] font-mono">
+          <span className="text-[var(--text-muted)] text-[10px]"
+            style={{ fontFamily: 'var(--font-mono)' }}>
             T{thought.turn_number}
           </span>
         </div>
@@ -82,23 +90,18 @@ export default function ThoughtCard({ thought, index = 0 }: ThoughtCardProps) {
         </span>
 
         {/* 推理摘要（截断） */}
-        <span className="text-green-300/70 text-xs truncate flex-1">
+        <span className="text-[var(--text-secondary)]/70 text-xs truncate flex-1">
           {thought.reasoning}
         </span>
 
-        {/* 置信度 */}
-        <span className={`text-[10px] font-mono shrink-0 ${getConfidenceColor(thought.confidence)}`}>
-          {Math.round(thought.confidence * 100)}%
-        </span>
-
         {/* 情绪 */}
-        <span className="text-green-500/50 text-[10px] shrink-0 max-w-[40px] truncate">
+        <span className="text-[var(--text-muted)] text-[10px] shrink-0 max-w-[40px] truncate">
           {thought.emotion}
         </span>
 
         {/* 展开/折叠 */}
         <motion.span
-          className="text-green-600/50 text-xs shrink-0"
+          className="text-[var(--text-muted)] text-xs shrink-0"
           animate={{ rotate: isExpanded ? 180 : 0 }}
           transition={{ duration: 0.15 }}
         >
@@ -116,7 +119,7 @@ export default function ThoughtCard({ thought, index = 0 }: ThoughtCardProps) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-3 pb-3 space-y-2.5 border-t border-green-800/30 pt-2">
+            <div className="px-3 pb-3 space-y-2.5 border-t border-[var(--border-default)] pt-2">
               {/* 手牌评估 */}
               <DetailSection title="手牌评估" icon="cards">
                 {thought.hand_evaluation}
@@ -146,31 +149,36 @@ export default function ThoughtCard({ thought, index = 0 }: ThoughtCardProps) {
 
               {/* 置信度条 */}
               <div className="flex items-center gap-2">
-                <span className="text-green-500/60 text-[10px] shrink-0 w-14">置信度</span>
-                <div className="flex-1 h-1.5 bg-green-900/30 rounded-full overflow-hidden">
+                <span className="text-[var(--text-muted)] text-[10px] shrink-0 w-14">置信度</span>
+                <div className="flex-1 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
                   <motion.div
                     className={`h-full rounded-full ${getConfidenceBarColor(thought.confidence)}`}
                     initial={{ width: 0 }}
                     animate={{ width: `${thought.confidence * 100}%` }}
                     transition={{ duration: 0.5, delay: 0.1 }}
+                    style={{ boxShadow: getConfidenceBarGlow(thought.confidence) }}
                   />
                 </div>
-                <span className={`text-[10px] font-mono shrink-0 ${getConfidenceColor(thought.confidence)}`}>
+                <span className={`text-[10px] shrink-0 ${getConfidenceColor(thought.confidence)}`}
+                  style={{ fontFamily: 'var(--font-mono)' }}>
                   {Math.round(thought.confidence * 100)}%
                 </span>
               </div>
 
               {/* 情绪状态 */}
               <div className="flex items-center gap-2">
-                <span className="text-green-500/60 text-[10px] shrink-0 w-14">情绪</span>
-                <span className="text-green-300/80 text-xs">{thought.emotion}</span>
+                <span className="text-[var(--text-muted)] text-[10px] shrink-0 w-14">情绪</span>
+                <span className="text-[var(--text-secondary)] text-xs">{thought.emotion}</span>
               </div>
 
               {/* 牌桌发言 */}
               {thought.table_talk && (
-                <div className="bg-green-900/20 rounded-md px-2.5 py-1.5 border border-green-800/30">
-                  <span className="text-green-500/60 text-[10px] block mb-0.5">牌桌发言</span>
-                  <span className="text-green-300/80 text-xs italic">"{thought.table_talk}"</span>
+                <div className="bg-[var(--bg-deep)]/60 rounded-md px-2.5 py-1.5 border border-[var(--border-default)]">
+                  <span className="text-[var(--text-muted)] text-[10px] block mb-0.5">牌桌发言</span>
+                  <span className="text-[var(--color-primary)]/80 text-xs italic"
+                    style={{ fontFamily: 'var(--font-mono)' }}>
+                    "{thought.table_talk}"
+                  </span>
                 </div>
               )}
             </div>
@@ -204,9 +212,10 @@ function DetailSection({
     <div>
       <div className="flex items-center gap-1 mb-0.5">
         <span className="text-[10px]">{SECTION_ICONS[icon] ?? '•'}</span>
-        <span className="text-green-500/60 text-[10px] font-medium">{title}</span>
+        <span className="text-[var(--text-muted)] text-[10px] font-medium">{title}</span>
       </div>
-      <p className="text-green-300/70 text-xs leading-relaxed pl-3.5">
+      <p className="text-[var(--text-secondary)] text-xs leading-relaxed pl-3.5"
+        style={{ fontFamily: 'var(--font-mono)' }}>
         {children}
       </p>
     </div>

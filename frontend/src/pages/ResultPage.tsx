@@ -7,6 +7,7 @@ import type { LeaderboardPlayer } from '../components/Settlement/Leaderboard'
 import AgentSummaryCard from '../components/Settlement/AgentSummaryCard'
 import { getGameSummary, getExperienceReviews, getGameState } from '../services/api'
 import type { GameSummary, ExperienceReview, Player } from '../types/game'
+import resultBg from '../assets/result-bg.png'
 
 export default function ResultPage() {
   const { id } = useParams<{ id: string }>()
@@ -128,10 +129,21 @@ export default function ResultPage() {
   // 加载中
   if (pageLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-950 via-green-900 to-green-950 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="inline-block w-8 h-8 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
-          <p className="text-green-400 text-sm">加载游戏结果...</p>
+      <div className="min-h-screen bg-[var(--bg-deepest)] flex items-center justify-center relative overflow-hidden">
+        {/* 背景图 */}
+        <div className="fixed inset-0 pointer-events-none">
+          <img src={resultBg} alt="" className="w-full h-full object-cover" style={{ objectPosition: 'center 20%', filter: 'brightness(0.75) saturate(1.2)' }} />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(5,5,15,0.35) 0%, rgba(5,5,15,0.5) 50%, rgba(5,5,15,0.7) 100%)' }} />
+        </div>
+        {/* 背景光晕 */}
+        <div className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse at 50% 30%, rgba(0,212,255,0.06) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, rgba(139,92,246,0.04) 0%, transparent 50%)'
+          }}
+        />
+        <div className="text-center space-y-4 relative z-10">
+          <div className="inline-block w-8 h-8 border-2 border-[var(--color-primary)]/30 border-t-[var(--color-primary)] rounded-full animate-spin" />
+          <p className="text-[var(--text-muted)] text-sm">加载游戏结果...</p>
         </div>
       </div>
     )
@@ -140,45 +152,98 @@ export default function ResultPage() {
   // 没有数据
   if (players.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-950 via-green-900 to-green-950 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-green-400">未找到游戏数据</p>
-          <button
-            onClick={handleBackToLobby}
-            className="px-6 py-2 bg-amber-500 hover:bg-amber-400 text-green-950 font-bold rounded-lg transition-colors cursor-pointer"
-          >
-            返回大厅
-          </button>
+      <div className="min-h-screen bg-[var(--bg-deepest)] flex items-center justify-center relative overflow-hidden">
+        {/* 背景图 */}
+        <div className="fixed inset-0 pointer-events-none">
+          <img src={resultBg} alt="" className="w-full h-full object-cover" style={{ objectPosition: 'center 20%', filter: 'brightness(0.75) saturate(1.2)' }} />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(5,5,15,0.35) 0%, rgba(5,5,15,0.5) 50%, rgba(5,5,15,0.7) 100%)' }} />
+        </div>
+        <div className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse at 50% 30%, rgba(0,212,255,0.06) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, rgba(139,92,246,0.04) 0%, transparent 50%)'
+          }}
+        />
+        <div className="text-center space-y-4 relative z-10">
+          <p className="text-[var(--text-muted)]">未找到游戏数据</p>
+          <div className="neon-btn-wrapper inline-block">
+            <button
+              onClick={handleBackToLobby}
+              className="relative px-6 py-2 font-bold rounded-xl bg-[var(--bg-surface)] text-[var(--text-primary)] transition-all cursor-pointer hover:bg-[var(--bg-elevated)]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              返回大厅
+            </button>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-950 via-green-900 to-green-950">
+    <div className="min-h-screen bg-[var(--bg-deepest)] relative overflow-hidden">
+      {/* 背景图 — 固定定位，滚动时不动 */}
+      <div className="fixed inset-0 pointer-events-none">
+        <img
+          src={resultBg}
+          alt=""
+           className="w-full h-full object-cover"
+          style={{ objectPosition: 'center 20%', filter: 'brightness(0.75) saturate(1.2)' }}
+        />
+        {/* 暗色叠加层 — 保证文字可读性 */}
+        <div className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(to bottom, rgba(5,5,15,0.35) 0%, rgba(5,5,15,0.5) 50%, rgba(5,5,15,0.7) 100%)'
+          }}
+        />
+      </div>
+      {/* 背景装饰：径向光晕（叠在图片上方） */}
+      <div className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 10%, rgba(0,212,255,0.06) 0%, transparent 50%), radial-gradient(ellipse at 50% 90%, rgba(139,92,246,0.04) 0%, transparent 50%)'
+        }}
+      />
+      {/* 背景装饰：底部透视网格 */}
+      <div className="absolute bottom-0 left-0 right-0 h-1/3 perspective-grid opacity-20 pointer-events-none" />
+
       {/* 顶部栏 */}
-      <header className="sticky top-0 z-10 bg-black/40 backdrop-blur border-b border-green-800/50">
+      <header className="sticky top-0 z-10 bg-[var(--bg-deep)]/80 backdrop-blur-md border-b border-[var(--border-default)]">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <button
             onClick={handleBackToLobby}
-            className="text-green-400 hover:text-green-300 text-sm transition-colors cursor-pointer"
+            className="lobby-back-btn flex items-center gap-2.5 px-5 py-2.5 rounded-2xl
+                       transition-all cursor-pointer group"
           >
-            ← 返回大厅
+            <svg className="w-5 h-5 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                 style={{ color: '#00d4ff', filter: 'drop-shadow(0 0 4px rgba(0,212,255,0.6))' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="text-sm font-semibold tracking-wider"
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    color: '#d5fbff',
+                    textShadow: '0 0 8px rgba(0,212,255,0.5), 0 0 20px rgba(0,212,255,0.25)',
+                  }}>
+              返回大厅
+            </span>
           </button>
-          <div className="text-green-500/60 text-xs font-mono">
+          <div className="text-[var(--text-muted)] text-xs font-mono">
             ID: {gameId.slice(0, 8)}
           </div>
-          <button
-            onClick={handleBackToLobby}
-            className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-green-950 font-bold rounded-lg transition-colors cursor-pointer text-sm"
-          >
-            再来一局
-          </button>
+          {/* 再来一局 — 霓虹边框按钮 */}
+          <div className="neon-btn-wrapper inline-block">
+            <button
+              onClick={handleBackToLobby}
+              className="relative px-4 py-1.5 font-bold rounded-xl text-sm bg-[var(--bg-surface)] text-[var(--text-primary)] transition-all cursor-pointer hover:bg-[var(--bg-elevated)]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              再来一局
+            </button>
+          </div>
         </div>
       </header>
 
       {/* 主内容 */}
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-10">
+      <main className="max-w-4xl mx-auto px-4 py-8 space-y-10 relative z-[1]">
         {/* 标题 */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -186,8 +251,13 @@ export default function ResultPage() {
           transition={{ duration: 0.5 }}
           className="text-center"
         >
-          <h1 className="text-3xl font-bold text-amber-400 mb-2">游戏结束</h1>
-          <p className="text-green-400/60 text-sm">
+          <h1 className="text-4xl font-bold neon-text-hero mb-3"
+              style={{ fontFamily: 'var(--font-display)' }}>
+            GAME OVER
+          </h1>
+          {/* 渐变分隔线 */}
+          <div className="mx-auto w-48 title-deco-line mb-3" />
+          <p className="text-[var(--text-muted)] text-sm">
             共 {rankings.length} 名玩家参与了本场对局
           </p>
         </motion.div>
@@ -209,8 +279,11 @@ export default function ResultPage() {
             transition={{ delay: 0.5, duration: 0.5 }}
             className="space-y-4"
           >
-            <h2 className="text-xl font-bold text-amber-400 text-center">AI 总结报告</h2>
-            <p className="text-green-500/50 text-xs text-center mb-4">
+            <h2 className="text-xl font-bold text-[var(--text-primary)] text-center"
+                style={{ fontFamily: 'var(--font-display)' }}>
+              AI 总结报告
+            </h2>
+            <p className="text-[var(--text-muted)] text-xs text-center mb-4">
               点击卡片查看每个 AI 的详细总结、关键时刻回顾和策略调整历程
             </p>
 
@@ -235,19 +308,22 @@ export default function ResultPage() {
           </motion.section>
         )}
 
-        {/* 底部 */}
+        {/* 底部 — 再来一局霓虹按钮 */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1, duration: 0.5 }}
           className="text-center pb-8"
         >
-          <button
-            onClick={handleBackToLobby}
-            className="px-8 py-3 bg-amber-500 hover:bg-amber-400 text-green-950 font-bold rounded-lg transition-colors cursor-pointer"
-          >
-            再来一局
-          </button>
+          <div className="neon-btn-wrapper inline-block">
+            <button
+              onClick={handleBackToLobby}
+              className="relative px-8 py-3 font-bold rounded-xl text-lg bg-[var(--bg-surface)] text-[var(--text-primary)] transition-all cursor-pointer hover:bg-[var(--bg-elevated)] active:scale-[0.98]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              再来一局
+            </button>
+          </div>
         </motion.div>
       </main>
     </div>

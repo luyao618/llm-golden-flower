@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { GameSummary, ExperienceReview, Player } from '../../types/game'
-import { getAvatarColor } from '../../utils/theme'
+import { getAvatarAccent } from '../../utils/theme'
 
 // ---- 触发条件中文映射 ----
 
@@ -29,16 +29,16 @@ function CollapsibleSection({
   const [isOpen, setIsOpen] = useState(defaultOpen)
 
   return (
-    <div className="border border-green-700/30 rounded-lg overflow-hidden">
+    <div className="border border-[var(--border-default)] rounded-lg overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between px-4 py-2.5
-          bg-green-900/30 hover:bg-green-900/50 transition-colors cursor-pointer"
+          bg-[var(--bg-surface)]/30 hover:bg-[var(--bg-hover)]/30 transition-colors cursor-pointer"
       >
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-green-300">{title}</span>
+          <span className="text-sm font-medium text-[var(--text-secondary)]">{title}</span>
           {badge !== undefined && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-700/40 text-green-400/80">
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-elevated)] text-[var(--text-muted)]">
               {badge}
             </span>
           )}
@@ -46,7 +46,7 @@ function CollapsibleSection({
         <motion.span
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
-          className="text-green-500/60 text-xs"
+          className="text-[var(--text-muted)] text-xs"
         >
           ▼
         </motion.span>
@@ -60,7 +60,7 @@ function CollapsibleSection({
             transition={{ duration: 0.25, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="px-4 py-3 text-sm leading-relaxed text-green-200/80">
+            <div className="px-4 py-3 text-sm leading-relaxed text-[var(--text-secondary)]">
               {children}
             </div>
           </motion.div>
@@ -75,8 +75,9 @@ function CollapsibleSection({
 function StatBar({ label, value, suffix = '' }: { label: string; value: string | number; suffix?: string }) {
   return (
     <div className="flex items-center justify-between py-1">
-      <span className="text-green-400/60 text-xs">{label}</span>
-      <span className="text-green-200 text-sm font-medium tabular-nums">
+      <span className="text-[var(--text-muted)] text-xs">{label}</span>
+      <span className="text-[var(--text-primary)] text-sm font-medium tabular-nums"
+            style={{ fontFamily: 'var(--font-mono)' }}>
         {value}{suffix}
       </span>
     </div>
@@ -104,12 +105,12 @@ export default function AgentSummaryCard({
 
   if (loading) {
     return (
-      <div className="bg-green-900/20 border border-green-700/30 rounded-xl p-6">
+      <div className="bg-[var(--bg-surface)]/20 border border-[var(--border-default)] rounded-xl p-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-green-800/40 animate-pulse" />
+          <div className="w-10 h-10 rounded-full bg-[var(--bg-elevated)]/40 animate-pulse" />
           <div className="space-y-2 flex-1">
-            <div className="h-4 w-24 bg-green-800/40 rounded animate-pulse" />
-            <div className="h-3 w-16 bg-green-800/30 rounded animate-pulse" />
+            <div className="h-4 w-24 bg-[var(--bg-elevated)]/40 rounded animate-pulse" />
+            <div className="h-3 w-16 bg-[var(--bg-elevated)]/30 rounded animate-pulse" />
           </div>
         </div>
       </div>
@@ -122,22 +123,29 @@ export default function AgentSummaryCard({
       : '0.0'
     : '-'
   const foldRate = summary ? (summary.fold_rate * 100).toFixed(1) : '-'
+  const accent = getAvatarAccent(player.id)
 
   return (
     <motion.div
       layout
-      className="bg-green-900/20 border border-green-700/30 rounded-xl overflow-hidden"
+      className="bg-[var(--bg-surface)]/20 border border-[var(--border-default)] rounded-xl overflow-hidden hover:border-[var(--border-hover)] transition-colors backdrop-blur-sm"
     >
       {/* 头部 - 始终可见 */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center gap-4 px-5 py-4
-          hover:bg-green-900/30 transition-colors cursor-pointer"
+          hover:bg-[var(--bg-hover)]/20 transition-colors cursor-pointer"
       >
-        {/* 头像 */}
+        {/* 头像 — 赛博朋克风格：暗底 + 细边框发光 */}
         <div
-          className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm
-            bg-gradient-to-br ${getAvatarColor(player.id)} shrink-0`}
+          className="w-11 h-11 rounded-full flex items-center justify-center font-semibold text-sm shrink-0"
+          style={{
+            background: 'rgba(15, 15, 35, 0.6)',
+            border: `1.5px solid ${accent.border}`,
+            boxShadow: `0 0 8px ${accent.glow}, inset 0 0 6px ${accent.glow}`,
+            color: accent.text,
+            fontFamily: 'var(--font-mono)',
+          }}
         >
           {player.avatar || player.name.charAt(0)}
         </div>
@@ -145,20 +153,20 @@ export default function AgentSummaryCard({
         {/* 基本信息 */}
         <div className="flex-1 min-w-0 text-left">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-green-200 truncate">{player.name}</span>
+            <span className="font-semibold text-[var(--text-primary)] truncate">{player.name}</span>
             {player.personality && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-800/40 text-green-400/70 border border-green-700/30 shrink-0">
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] text-[var(--text-muted)] border border-[var(--border-default)] shrink-0">
                 {player.personality}
               </span>
             )}
           </div>
           {summary && (
             <div className="flex items-center gap-3 mt-0.5">
-              <span className="text-xs text-green-500/60">
+              <span className="text-xs text-[var(--text-muted)]">
                 {summary.rounds_played} 局 / 胜率 {winRate}%
               </span>
-              <span className="text-xs text-green-600/40">|</span>
-              <span className="text-xs text-green-500/60">
+              <span className="text-xs text-[var(--text-disabled)]">|</span>
+              <span className="text-xs text-[var(--text-muted)]">
                 弃牌率 {foldRate}%
               </span>
             </div>
@@ -169,7 +177,7 @@ export default function AgentSummaryCard({
         <motion.span
           animate={{ rotate: isExpanded ? 180 : 0 }}
           transition={{ duration: 0.2 }}
-          className="text-green-500/50 text-sm shrink-0"
+          className="text-[var(--text-muted)] text-sm shrink-0"
         >
           ▼
         </motion.span>
@@ -206,7 +214,7 @@ export default function AgentSummaryCard({
                   <ul className="space-y-2">
                     {summary.key_moments.map((moment, i) => (
                       <li key={i} className="flex gap-2">
-                        <span className="text-amber-400/60 shrink-0">*</span>
+                        <span className="text-[var(--color-gold)]/60 shrink-0">*</span>
                         <span>{moment}</span>
                       </li>
                     ))}
@@ -223,8 +231,8 @@ export default function AgentSummaryCard({
                   <div className="space-y-3">
                     {Object.entries(summary.opponent_impressions).map(([name, impression]) => (
                       <div key={name}>
-                        <span className="text-green-300 font-medium text-xs">{name}:</span>
-                        <p className="mt-0.5 text-green-200/70 pl-2 border-l-2 border-green-700/30">
+                        <span className="text-[var(--color-primary)] font-medium text-xs">{name}:</span>
+                        <p className="mt-0.5 text-[var(--text-secondary)]/70 pl-2 border-l-2 border-[var(--border-default)]">
                           {impression}
                         </p>
                       </div>
@@ -257,7 +265,7 @@ export default function AgentSummaryCard({
               {/* 整体叙事总结 */}
               {summary.narrative_summary && (
                 <CollapsibleSection title="叙事总结">
-                  <p className="whitespace-pre-line italic text-green-200/70">
+                  <p className="whitespace-pre-line italic text-[var(--text-secondary)]/70">
                     {summary.narrative_summary}
                   </p>
                 </CollapsibleSection>
@@ -268,29 +276,29 @@ export default function AgentSummaryCard({
                 <CollapsibleSection title="策略调整记录" badge={reviews.length}>
                   <div className="space-y-4">
                     {reviews.map((review, i) => (
-                      <div key={i} className="border-l-2 border-amber-500/40 pl-3 space-y-1.5">
+                      <div key={i} className="border-l-2 border-[var(--color-gold)]/30 pl-3 space-y-1.5">
                         <div className="flex items-center gap-2">
-                          <span className="text-amber-400/80 text-xs font-medium">
+                          <span className="text-[var(--color-gold)]/80 text-xs font-medium">
                             {TRIGGER_LABELS[review.trigger] || review.trigger}
                           </span>
-                          <span className="text-green-600/40 text-xs">
+                          <span className="text-[var(--text-muted)] text-xs">
                             第 {review.triggered_at_round} 局后触发
                           </span>
                         </div>
                         {review.self_analysis && (
-                          <p className="text-green-200/70 text-xs">{review.self_analysis}</p>
+                          <p className="text-[var(--text-secondary)]/70 text-xs">{review.self_analysis}</p>
                         )}
                         {review.strategy_adjustment && (
-                          <p className="text-amber-300/70 text-xs">
+                          <p className="text-[var(--color-gold)]/70 text-xs">
                             策略调整: {review.strategy_adjustment}
                           </p>
                         )}
                         {Object.keys(review.opponent_patterns).length > 0 && (
-                          <div className="text-xs text-green-400/60">
+                          <div className="text-xs text-[var(--text-muted)]">
                             {Object.entries(review.opponent_patterns).map(([name, pattern]) => (
                               <div key={name} className="mt-1">
-                                <span className="text-green-400/80">{name}:</span>{' '}
-                                <span className="text-green-200/60">{pattern}</span>
+                                <span className="text-[var(--color-primary)]/80">{name}:</span>{' '}
+                                <span className="text-[var(--text-secondary)]/60">{pattern}</span>
                               </div>
                             ))}
                           </div>
@@ -312,7 +320,7 @@ export default function AgentSummaryCard({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="px-5 pb-4 text-sm text-green-600/50">
+            <div className="px-5 pb-4 text-sm text-[var(--text-muted)]">
               暂无总结数据
             </div>
           </motion.div>

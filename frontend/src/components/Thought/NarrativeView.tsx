@@ -21,25 +21,28 @@ export default function NarrativeView({ narrative }: NarrativeViewProps) {
     >
       {/* 标题 */}
       <div className="flex items-center gap-2">
-        <span className="text-green-500/60 text-xs font-medium">
+        <span className="text-[var(--color-secondary)] text-xs font-medium"
+          style={{ fontFamily: 'var(--font-display)' }}>
           第 {narrative.round_number} 局叙事
         </span>
       </div>
 
       {/* 叙事正文 */}
-      <div className="bg-green-900/15 border border-green-800/30 rounded-lg p-4">
+      <div className="bg-[var(--bg-surface)]/50 border border-[var(--border-default)] rounded-xl p-4
+        hover:border-[var(--border-hover)] transition-colors">
         {/* 装饰性引号 */}
-        <div className="text-green-700/30 text-3xl font-serif leading-none mb-1">"</div>
+        <div className="text-[var(--color-primary)]/20 text-3xl font-serif leading-none mb-1">"</div>
 
         {/* 叙事文本 - 按段落分割 */}
-        <div className="space-y-2 pl-2">
+        <div className="space-y-2 pl-2 border-l-2 border-[var(--color-primary)]/15">
           {narrative.narrative
             .split('\n')
             .filter((p) => p.trim())
             .map((paragraph, i) => (
               <p
                 key={i}
-                className="text-green-300/80 text-xs leading-relaxed"
+                className="text-[var(--text-secondary)] text-xs leading-relaxed"
+                style={{ fontFamily: 'var(--font-mono)' }}
               >
                 {paragraph.trim()}
               </p>
@@ -47,14 +50,16 @@ export default function NarrativeView({ narrative }: NarrativeViewProps) {
         </div>
 
         {/* 右下角关闭引号 */}
-        <div className="text-green-700/30 text-3xl font-serif leading-none text-right mt-1">"</div>
+        <div className="text-[var(--color-primary)]/20 text-3xl font-serif leading-none text-right mt-1">"</div>
       </div>
 
       {/* 结局 */}
       {narrative.outcome && (
-        <div className="bg-black/20 border border-green-800/25 rounded-md px-3 py-2">
-          <span className="text-green-500/50 text-[10px] block mb-0.5">结局</span>
-          <p className="text-green-300/70 text-xs leading-relaxed">
+        <div className="bg-[var(--bg-deep)]/60 border border-[var(--border-default)] rounded-lg px-3 py-2
+          hover:border-[var(--border-hover)] transition-colors">
+          <span className="text-[var(--text-muted)] text-[10px] block mb-0.5">结局</span>
+          <p className="text-[var(--text-secondary)] text-xs leading-relaxed"
+            style={{ fontFamily: 'var(--font-mono)' }}>
             {narrative.outcome}
           </p>
         </div>
