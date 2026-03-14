@@ -1,25 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { GameSummary, ExperienceReview, Player } from '../../types/game'
-
-// ---- 头像颜色 ----
-
-const AVATAR_COLORS = [
-  'from-rose-500 to-pink-600',
-  'from-violet-500 to-purple-600',
-  'from-blue-500 to-indigo-600',
-  'from-cyan-500 to-teal-600',
-  'from-emerald-500 to-green-600',
-  'from-amber-500 to-orange-600',
-]
-
-function getAvatarColor(playerId: string): string {
-  let hash = 0
-  for (let i = 0; i < playerId.length; i++) {
-    hash = ((hash << 5) - hash + playerId.charCodeAt(i)) | 0
-  }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
-}
+import { getAvatarColor } from '../../utils/theme'
 
 // ---- 触发条件中文映射 ----
 

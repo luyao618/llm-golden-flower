@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useUIStore } from '../../stores/uiStore'
 import { useGameStore } from '../../stores/gameStore'
 import type { Player } from '../../types/game'
+import { getAvatarColor } from '../../utils/theme'
 import ThoughtTimeline from './ThoughtTimeline'
 
 /**
@@ -132,24 +133,6 @@ export default function ThoughtDrawer() {
 }
 
 // ---- AI Tab 组件 ----
-
-/** 头像背景色 (与 PlayerSeat 保持一致) */
-const AVATAR_COLORS = [
-  'from-rose-500 to-pink-600',
-  'from-violet-500 to-purple-600',
-  'from-blue-500 to-indigo-600',
-  'from-cyan-500 to-teal-600',
-  'from-emerald-500 to-green-600',
-  'from-amber-500 to-orange-600',
-]
-
-function getAvatarColor(playerId: string): string {
-  let hash = 0
-  for (let i = 0; i < playerId.length; i++) {
-    hash = ((hash << 5) - hash + playerId.charCodeAt(i)) | 0
-  }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
-}
 
 function AgentTab({
   player,

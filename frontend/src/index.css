@@ -1,11 +1,152 @@
 @import "tailwindcss";
 
+/* ===== Design System: CSS Custom Properties ===== */
+
+:root {
+  /* -- Background layers -- */
+  --bg-deepest: #06060f;
+  --bg-deep: #0a0a1a;
+  --bg-surface: #12122a;
+  --bg-elevated: #1a1a35;
+  --bg-hover: #222245;
+
+  /* -- Primary theme colors -- */
+  --color-primary: #00d4ff;
+  --color-primary-soft: rgba(0, 212, 255, 0.15);
+  --color-secondary: #8b5cf6;
+  --color-secondary-soft: rgba(139, 92, 246, 0.15);
+  --color-accent: #ff66aa;
+  --color-gold: #ffd700;
+  --color-gold-soft: rgba(255, 215, 0, 0.15);
+
+  /* -- Semantic colors -- */
+  --color-success: #00ff88;
+  --color-danger: #ff4444;
+  --color-warning: #ffaa00;
+  --color-info: #00aaff;
+
+  /* -- Text colors -- */
+  --text-primary: #f0f0f5;
+  --text-secondary: #a0a0c0;
+  --text-muted: #555570;
+  --text-disabled: #333350;
+
+  /* -- Border colors -- */
+  --border-default: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(0, 212, 255, 0.25);
+  --border-active: rgba(0, 212, 255, 0.5);
+  --border-glow: rgba(0, 212, 255, 0.15);
+
+  /* -- Font families -- */
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', 'Noto Sans SC', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* ===== Global body styles ===== */
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  font-family: var(--font-body);
+  background-color: var(--bg-deepest);
+  color: var(--text-primary);
 }
 
 #root {
   min-height: 100vh;
+}
+
+/* ===== Glassmorphism panels ===== */
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-radius: 16px;
+  box-shadow:
+    0 0 20px rgba(0, 212, 255, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.glass-panel-accent {
+  background: rgba(0, 212, 255, 0.04);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 16px;
+  box-shadow:
+    0 0 30px rgba(0, 212, 255, 0.1),
+    0 0 60px rgba(0, 212, 255, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ===== Neon text glow ===== */
+
+.neon-text-primary {
+  color: #00d4ff;
+  text-shadow:
+    0 0 7px rgba(0, 212, 255, 0.6),
+    0 0 20px rgba(0, 212, 255, 0.4),
+    0 0 40px rgba(0, 212, 255, 0.2);
+}
+
+.neon-text-gold {
+  color: #ffd700;
+  text-shadow:
+    0 0 7px rgba(255, 215, 0, 0.5),
+    0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+/* ===== Neon gradient border ===== */
+
+.neon-border-gradient {
+  position: relative;
+  background: var(--bg-surface);
+  border-radius: 12px;
+}
+
+.neon-border-gradient::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #00d4ff, #8b5cf6, #ff66aa);
+  z-index: -1;
+  opacity: 0.8;
+  filter: blur(1px);
+}
+
+/* ===== Glow effects ===== */
+
+.glow-border {
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+}
+
+.glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(0, 212, 255, 0.2); }
+  50% { box-shadow: 0 0 25px rgba(0, 212, 255, 0.5); }
+}
+
+/* ===== Background decorations ===== */
+
+.perspective-grid {
+  background-image:
+    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  perspective: 500px;
+}
+
+.radial-glow {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 100%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+    var(--bg-deepest);
 }

@@ -1,30 +1,6 @@
 import { motion } from 'framer-motion'
 import type { Player } from '../../types/game'
-
-// ---- 头像颜色（复用 PlayerSeat 的逻辑）----
-
-const AVATAR_COLORS = [
-  'from-rose-500 to-pink-600',
-  'from-violet-500 to-purple-600',
-  'from-blue-500 to-indigo-600',
-  'from-cyan-500 to-teal-600',
-  'from-emerald-500 to-green-600',
-  'from-amber-500 to-orange-600',
-]
-
-function getAvatarColor(playerId: string): string {
-  let hash = 0
-  for (let i = 0; i < playerId.length; i++) {
-    hash = ((hash << 5) - hash + playerId.charCodeAt(i)) | 0
-  }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
-}
-
-function getAvatarText(name: string): string {
-  const firstChar = name.charAt(0)
-  if (/[\u4e00-\u9fff]/.test(firstChar)) return firstChar
-  return firstChar.toUpperCase()
-}
+import { getAvatarColor, getAvatarText } from '../../utils/theme'
 
 // ---- 状态标签 ----
 
