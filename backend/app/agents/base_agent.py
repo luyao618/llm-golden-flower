@@ -16,7 +16,7 @@ from typing import Any
 
 import litellm
 
-from app.config import AI_MODELS, ALL_MODELS, get_settings
+from app.config import AI_MODELS, ALL_MODELS, _get_all_models, get_settings
 from app.models.game import (
     ActionRecord,
     GameAction,
@@ -181,8 +181,8 @@ class BaseAgent:
         else:
             self.personality_description = f"{personality}型玩家"
 
-        # 验证 model_id 有效
-        if model_id not in ALL_MODELS:
+        # 验证 model_id 有效（使用动态注册表，包含 OpenRouter 模型）
+        if model_id not in _get_all_models():
             logger.warning("Unknown model_id '%s', falling back to 'openai-gpt4o-mini'", model_id)
             self.model_id = "openai-gpt4o-mini"
 
@@ -212,7 +212,7 @@ class BaseAgent:
             LLMCallError: LLM 调用失败且重试耗尽时抛出
         """
         settings = get_settings()
-        model_config = ALL_MODELS.get(self.model_id) or AI_MODELS.get(self.model_id)
+        model_config = _get_all_models().get(self.model_id) or AI_MODELS.get(self.model_id)
         if not model_config:
             raise LLMCallError(f"Unknown model_id: {self.model_id}")
 
@@ -839,6 +839,8 @@ def _configure_api_keys(settings: Any) -> None:
         os.environ["ANTHROPIC_API_KEY"] = settings.anthropic_api_key
     if settings.google_api_key:
         os.environ["GEMINI_API_KEY"] = settings.google_api_key
+    if settings.openrouter_api_key:
+        os.environ["OPENROUTER_API_KEY"] = settings.openrouter_api_key
 
 
 # ---- 决策上下文格式化函数 ----

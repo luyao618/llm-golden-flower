@@ -21,6 +21,7 @@ const PROVIDER_STYLES: Record<string, { color: string; label: string }> = {
   anthropic: { color: 'text-orange-400', label: 'Anthropic' },
   google: { color: 'text-blue-400', label: 'Google' },
   github_copilot: { color: 'text-purple-400', label: 'Copilot' },
+  openrouter: { color: 'text-cyan-400', label: 'OpenRouter' },
 }
 
 /** Icon circle colors for opponent rows */
