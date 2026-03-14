@@ -169,18 +169,23 @@ export default function TableLayout({ className = '' }: TableLayoutProps) {
     <div className={`relative w-full h-full ${className}`}>
       {/* 椭圆形牌桌 */}
       <div className="absolute inset-[5%]">
-        {/* 外层边框 - 木质色 */}
-        <div className="w-full h-full rounded-[50%] bg-gradient-to-b from-amber-900 to-amber-950 p-[6px] shadow-2xl">
-          {/* 中层 - 牌桌边缘 */}
-          <div className="w-full h-full rounded-[50%] bg-gradient-to-b from-green-800 to-green-900 p-[3px]">
-            {/* 内层 - 牌桌毡面 */}
-            <div className="w-full h-full rounded-[50%] bg-gradient-to-br from-green-700 via-green-800 to-green-900 flex items-center justify-center relative overflow-hidden">
-              {/* 牌桌纹理效果 */}
-              <div className="absolute inset-0 rounded-[50%] opacity-10"
-                style={{
-                  backgroundImage: 'radial-gradient(circle at 30% 40%, rgba(255,255,255,0.1) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(255,255,255,0.05) 0%, transparent 40%)',
-                }}
-              />
+        {/* 牌桌 - 霓虹发光边框 */}
+        <div className="w-full h-full rounded-[50%] p-[2px] shadow-2xl"
+          style={{
+            background: 'linear-gradient(135deg, rgba(0,212,255,0.5), rgba(139,92,246,0.3), rgba(0,212,255,0.5))',
+            boxShadow: '0 0 40px rgba(0,212,255,0.15), 0 0 80px rgba(0,212,255,0.05)'
+          }}>
+          {/* 内层 - 深蓝灰毡面 */}
+          <div className="w-full h-full rounded-[50%] flex items-center justify-center relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, #0d1b2a, #162035, #0d1b2a)'
+            }}>
+            {/* 微妙的桌面纹理/光泽 */}
+            <div className="absolute inset-0 rounded-[50%] opacity-20"
+              style={{
+                backgroundImage: 'radial-gradient(circle at 30% 40%, rgba(0,212,255,0.05) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(139,92,246,0.03) 0%, transparent 40%)'
+              }}
+            />
 
               {/* 牌桌中央内容 - 底池 */}
               <PotDisplay
@@ -190,7 +195,6 @@ export default function TableLayout({ className = '' }: TableLayoutProps) {
               />
             </div>
           </div>
-        </div>
       </div>
 
       {/* 玩家座位 */}
@@ -234,7 +238,7 @@ export default function TableLayout({ className = '' }: TableLayoutProps) {
       {/* 游戏等待提示 */}
       {players.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-green-400/50 text-lg">等待游戏开始...</div>
+          <div className="text-[var(--text-muted)] text-lg">等待游戏开始...</div>
         </div>
       )}
     </div>

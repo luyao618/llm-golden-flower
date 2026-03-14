@@ -18,10 +18,10 @@ import type { ConnectionStatus } from '../hooks/useWebSocket'
  */
 function ConnectionIndicator({ status }: { status: ConnectionStatus }) {
   const colorMap: Record<ConnectionStatus, string> = {
-    connected: 'bg-green-400',
-    connecting: 'bg-yellow-400 animate-pulse',
-    reconnecting: 'bg-amber-400 animate-pulse',
-    disconnected: 'bg-red-400',
+    connected: 'bg-[var(--color-success)]',
+    connecting: 'bg-[var(--color-warning)] animate-pulse',
+    reconnecting: 'bg-[var(--color-warning)] animate-pulse',
+    disconnected: 'bg-[var(--color-danger)]',
   }
   const labelMap: Record<ConnectionStatus, string> = {
     connected: '已连接',
@@ -31,7 +31,7 @@ function ConnectionIndicator({ status }: { status: ConnectionStatus }) {
   }
 
   return (
-    <div className="flex items-center gap-1.5 text-xs text-green-500/60">
+    <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
       <span className={`inline-block w-2 h-2 rounded-full ${colorMap[status]}`} />
       <span>{labelMap[status]}</span>
     </div>
@@ -119,13 +119,13 @@ export default function GamePage() {
   // 如果没有 myPlayerId，显示加载状态
   if (!myPlayerId) {
     return (
-      <div className="h-screen bg-gradient-to-b from-green-950 via-green-900 to-green-950 flex items-center justify-center">
+      <div className="h-screen bg-[var(--bg-deepest)] flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="inline-block w-8 h-8 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
-          <p className="text-green-400 text-sm">正在加载游戏...</p>
+          <div className="inline-block w-8 h-8 border-2 border-[var(--color-primary)]/30 border-t-[var(--color-primary)] rounded-full animate-spin" />
+          <p className="text-[var(--color-primary)] text-sm">正在加载游戏...</p>
           <button
             onClick={handleBackToLobby}
-            className="text-green-600 hover:text-green-400 text-xs underline cursor-pointer"
+            className="text-[var(--text-muted)] hover:text-[var(--color-primary)] text-xs underline cursor-pointer"
           >
             返回大厅
           </button>
@@ -135,17 +135,17 @@ export default function GamePage() {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-b from-green-950 via-green-900 to-green-950 flex flex-col">
+    <div className="h-screen bg-[var(--bg-deepest)] flex flex-col">
       {/* 顶部栏 */}
-      <header className="flex items-center justify-between px-4 py-2 bg-black/30 border-b border-green-800/50">
+      <header className="flex items-center justify-between px-4 py-2 bg-[var(--bg-deep)]/80 backdrop-blur-md border-b border-[var(--border-default)]">
         <button
           onClick={handleBackToLobby}
-          className="text-green-400 hover:text-green-300 text-sm transition-colors cursor-pointer"
+          className="text-[var(--color-primary)] hover:text-[var(--color-primary)] text-sm transition-colors cursor-pointer"
         >
           ← 返回大厅
         </button>
         <div className="flex items-center gap-3">
-          <div className="text-green-500/60 text-xs font-mono">
+          <div className="text-[var(--text-muted)] text-xs font-mono">
             ID: {effectiveGameId.slice(0, 8)}
           </div>
           <ConnectionIndicator status={connectionStatus} />
@@ -155,7 +155,7 @@ export default function GamePage() {
           {roundHistory.length > 0 && (
             <button
               onClick={() => toggleThoughtDrawer()}
-              className="text-green-500/70 hover:text-green-400 text-sm transition-colors cursor-pointer"
+              className="text-[var(--color-secondary)]/70 hover:text-[var(--color-secondary)] text-sm transition-colors cursor-pointer"
               title="查看 AI 心路历程"
             >
               心路历程
@@ -164,14 +164,14 @@ export default function GamePage() {
           {status === 'finished' ? (
             <button
               onClick={() => navigate(`/result/${effectiveGameId}`)}
-              className="text-amber-500 hover:text-amber-400 text-sm transition-colors cursor-pointer"
+              className="text-[var(--color-gold)] hover:text-[var(--color-gold)] text-sm transition-colors cursor-pointer"
             >
               查看结果
             </button>
           ) : (
             <button
               onClick={handleEndGame}
-              className="text-amber-500 hover:text-amber-400 text-sm transition-colors cursor-pointer"
+              className="text-[var(--color-gold)] hover:text-[var(--color-gold)] text-sm transition-colors cursor-pointer"
             >
               结束游戏
             </button>
@@ -194,7 +194,7 @@ export default function GamePage() {
         {/* 聊天面板 */}
         <div
           className={`
-            relative border-l border-green-800/50 bg-black/20
+            relative border-l border-[var(--border-default)] bg-[var(--bg-deep)]/40
             flex flex-col transition-all duration-300
             ${isChatPanelExpanded ? 'w-72' : 'w-8'}
           `}
@@ -203,12 +203,12 @@ export default function GamePage() {
           <button
             onClick={toggleChatPanel}
             className="absolute -left-3 top-1/2 -translate-y-1/2 z-10
-              w-6 h-12 bg-green-900/80 border border-green-700/50
+              w-6 h-12 bg-[var(--bg-surface)] border border-[var(--border-default)]
               rounded-l-md flex items-center justify-center
-              hover:bg-green-800/80 transition-colors cursor-pointer"
+              hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
             title={isChatPanelExpanded ? '收起聊天' : '展开聊天'}
           >
-            <span className="text-green-400 text-xs">
+            <span className="text-[var(--color-primary)] text-xs">
               {isChatPanelExpanded ? '›' : '‹'}
             </span>
           </button>
@@ -216,9 +216,9 @@ export default function GamePage() {
           {isChatPanelExpanded && (
             <>
               {/* 聊天标题栏 */}
-              <div className="px-3 py-2 border-b border-green-800/40 flex items-center justify-between">
-                <h3 className="text-xs font-medium text-green-400/80">牌桌聊天</h3>
-                <span className="text-[10px] text-green-700/50">
+              <div className="px-3 py-2 border-b border-[var(--border-default)] flex items-center justify-between">
+                <h3 className="text-xs font-medium text-[var(--color-primary)]/80">牌桌聊天</h3>
+                <span className="text-[10px] text-[var(--text-muted)]">
                   {chatMessages.length} 条消息
                 </span>
               </div>
@@ -241,10 +241,10 @@ export default function GamePage() {
       </main>
 
       {/* 底部操作区域：人类手牌 + 操作按钮 */}
-      <footer className="shrink-0 bg-black/40 border-t border-green-800/50 relative z-20">
+      <footer className="shrink-0 bg-[var(--bg-deep)]/80 backdrop-blur-md border-t border-[var(--border-default)] relative z-20">
         {/* 人类玩家手牌行（仅在牌局进行中且玩家有牌时显示） */}
         {showMyCards && (
-          <div className="flex items-center justify-center gap-3 pt-2 pb-1 border-b border-green-800/30">
+          <div className="flex items-center justify-center gap-3 pt-2 pb-1 border-b border-[var(--border-default)]">
             <CardHand
               cards={myCards}
               faceUp={hasLookedAtCards}
@@ -254,7 +254,7 @@ export default function GamePage() {
               fanAngle={6}
             />
             {canLookAtCards && (
-              <span className="text-[10px] text-amber-400/70 animate-pulse">
+              <span className="text-[10px] text-[var(--color-gold)]/70 animate-pulse">
                 点击看牌
               </span>
             )}
@@ -265,22 +265,23 @@ export default function GamePage() {
           {canStartRound && (
             <button
               onClick={sendStartRound}
-              className="px-6 py-2 bg-amber-500 hover:bg-amber-400 text-green-950 font-bold rounded-lg transition-all cursor-pointer text-sm"
+              className="relative px-6 py-2 font-bold rounded-lg transition-all cursor-pointer text-sm text-[var(--text-primary)] bg-[var(--bg-surface)] border border-[var(--color-primary)]/40 hover:border-[var(--color-primary)]/70 hover:shadow-[0_0_15px_rgba(0,212,255,0.3)]"
+              style={{ fontFamily: 'var(--font-display)' }}
             >
               {roundHistory.length === 0 ? '开始第一局' : '开始下一局'}
             </button>
           )}
           {status === 'finished' && (
-            <span className="text-amber-400 text-sm font-medium">游戏已结束</span>
+            <span className="text-[var(--color-gold)] text-sm font-medium">游戏已结束</span>
           )}
           {!canStartRound && status === 'playing' && currentRound && (
             <ActionPanel onAction={sendAction} />
           )}
           {connectionStatus === 'disconnected' && status !== 'finished' && (
-            <span className="text-red-400 text-sm">连接已断开</span>
+            <span className="text-[var(--color-danger)] text-sm">连接已断开</span>
           )}
           {(connectionStatus === 'connecting' || connectionStatus === 'reconnecting') && (
-            <span className="text-yellow-400 text-sm animate-pulse">正在连接服务器...</span>
+            <span className="text-[var(--color-warning)] text-sm animate-pulse">正在连接服务器...</span>
           )}
         </div>
       </footer>

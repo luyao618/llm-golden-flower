@@ -89,8 +89,8 @@ export default function ChatBubble({
                 w-0 h-0
                 ${
                   isAbove
-                    ? 'top-full border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[5px] border-t-green-800/90'
-                    : 'bottom-full border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[5px] border-b-green-800/90'
+                    ? 'top-full border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[5px] border-t-[var(--bg-surface)]'
+                    : 'bottom-full border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[5px] border-b-[var(--bg-surface)]'
                 }
               `}
             />
@@ -105,12 +105,12 @@ export default function ChatBubble({
 function getBubbleBg(messageType: string): string {
   switch (messageType) {
     case 'action_talk':
-      return 'bg-gradient-to-br from-blue-800/90 to-blue-900/90 border border-blue-600/30'
+      return 'bg-[var(--bg-surface)]/90 border border-[var(--color-info)]/30'
     case 'bystander_react':
-      return 'bg-gradient-to-br from-purple-800/90 to-purple-900/90 border border-purple-600/30'
+      return 'bg-[var(--bg-surface)]/90 border border-[var(--color-secondary)]/30'
     case 'player_message':
-      return 'bg-gradient-to-br from-green-700/90 to-green-800/90 border border-green-500/30'
+      return 'bg-[var(--bg-surface)]/90 border border-[var(--color-primary)]/30'
     default:
-      return 'bg-green-800/90 border border-green-600/30'
+      return 'bg-[var(--bg-surface)]/90 border border-[var(--border-default)]'
   }
 }

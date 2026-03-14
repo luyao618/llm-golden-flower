@@ -34,11 +34,11 @@ export default function PotDisplay({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="bg-black/60 backdrop-blur-sm rounded-full px-4 py-1.5 border border-amber-500/40"
+            className="bg-[var(--bg-deep)]/80 backdrop-blur-sm rounded-full px-4 py-1.5 border border-[var(--color-gold)]/30 shadow-[0_0_20px_rgba(255,215,0,0.1)]"
           >
             <div className="flex items-center gap-1.5">
-              <ChipIcon className="w-4 h-4 text-amber-400" />
-              <span className="text-amber-400 font-bold text-lg tabular-nums">
+              <ChipIcon className="w-4 h-4 text-[var(--color-gold)]" />
+              <span className="neon-text-gold font-bold text-lg tabular-nums">
                 {pot.toLocaleString()}
               </span>
             </div>
@@ -48,13 +48,13 @@ export default function PotDisplay({
 
       {/* 局信息 */}
       <div className="flex items-center gap-3 text-xs">
-        <span className="text-green-400/70">
-          第 <span className="text-green-300 font-medium">{roundNumber}</span> 局
+        <span className="text-[var(--text-muted)]">
+          第 <span className="text-[var(--text-secondary)] font-medium">{roundNumber}</span> 局
         </span>
-        <span className="text-green-700">|</span>
-        <span className="text-green-400/70">
+        <span className="text-[var(--text-disabled)]">|</span>
+        <span className="text-[var(--text-muted)]">
           注额{' '}
-          <span className="text-amber-400/80 font-medium tabular-nums">
+          <span className="text-[var(--color-gold)]/80 font-medium tabular-nums">
             {currentBet}
           </span>
         </span>

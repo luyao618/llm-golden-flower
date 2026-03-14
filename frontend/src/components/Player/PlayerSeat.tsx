@@ -35,10 +35,10 @@ const STATUS_LABELS: Record<PlayerStatus, string> = {
 
 /** 玩家状态对应的颜色 */
 const STATUS_COLORS: Record<PlayerStatus, string> = {
-  active_blind: 'text-blue-400 bg-blue-500/20 border-blue-500/40',
-  active_seen: 'text-amber-400 bg-amber-500/20 border-amber-500/40',
-  folded: 'text-gray-500 bg-gray-500/20 border-gray-500/40',
-  out: 'text-red-500 bg-red-500/20 border-red-500/40',
+  active_blind: 'text-[var(--color-info)] bg-[var(--color-info)]/10 border-[var(--color-info)]/30',
+  active_seen: 'text-[var(--color-gold)] bg-[var(--color-gold)]/10 border-[var(--color-gold)]/30',
+  folded: 'text-[var(--text-muted)] bg-white/5 border-white/10',
+  out: 'text-[var(--color-danger)] bg-[var(--color-danger)]/10 border-[var(--color-danger)]/30',
 }
 
 /**
@@ -99,12 +99,12 @@ export default function PlayerSeat({
         {/* 行动指示器 - 外部发光环 */}
         {isActive && (
           <motion.div
-            className="absolute -inset-1 rounded-xl border-2 border-amber-400/70 shadow-[0_0_15px_rgba(251,191,36,0.3)]"
+            className="absolute -inset-1 rounded-xl border-2 border-[var(--color-primary)]/70 shadow-[0_0_15px_rgba(0,212,255,0.3)]"
             animate={{
               boxShadow: [
-                '0 0 10px rgba(251,191,36,0.2)',
-                '0 0 20px rgba(251,191,36,0.4)',
-                '0 0 10px rgba(251,191,36,0.2)',
+                '0 0 10px rgba(0,212,255,0.2)',
+                '0 0 25px rgba(0,212,255,0.5)',
+                '0 0 10px rgba(0,212,255,0.2)',
               ],
             }}
             transition={{ duration: 1.5, repeat: Infinity }}
@@ -123,7 +123,7 @@ export default function PlayerSeat({
               text-white font-bold text-lg shadow-lg
               bg-gradient-to-br ${getAvatarColor(player.id)}
               ${isDimmed ? 'grayscale' : ''}
-              border-2 ${isMe ? 'border-amber-400' : 'border-white/20'}
+              ${isMe ? 'ring-2 ring-[var(--color-gold)] shadow-[0_0_12px_rgba(255,215,0,0.3)]' : 'ring-2 ring-white/15'}
             `}
           >
             {player.avatar || getAvatarText(player.name)}
@@ -147,7 +147,7 @@ export default function PlayerSeat({
           {isReviewing && (
             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
               <motion.div
-                className="bg-purple-500/80 rounded-full px-1.5 py-0.5 text-[8px] text-white whitespace-nowrap"
+                className="bg-[var(--color-secondary)]/80 rounded-full px-1.5 py-0.5 text-[8px] text-white whitespace-nowrap"
                 animate={{ opacity: [1, 0.5, 1] }}
                 transition={{ duration: 1, repeat: Infinity }}
               >
@@ -158,29 +158,29 @@ export default function PlayerSeat({
 
           {/* 玩家类型标记 (AI) */}
           {player.player_type === 'ai' && (
-            <div className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-green-600 border border-green-400 flex items-center justify-center">
+            <div className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-[var(--color-primary)]/80 border border-[var(--color-primary)] flex items-center justify-center">
               <span className="text-[8px] font-bold text-white">AI</span>
             </div>
           )}
         </div>
 
         {/* 名字 */}
-        <div className={`text-sm font-medium truncate max-w-[80px] ${isMe ? 'text-amber-300' : 'text-white'}`}>
+        <div className={`text-sm font-medium truncate max-w-[80px] ${isMe ? 'text-[var(--color-gold)]' : 'text-[var(--text-primary)]'}`}>
           {player.name}
-          {isMe && <span className="text-amber-400/60 text-xs"> (你)</span>}
+          {isMe && <span className="text-[var(--color-gold)]/60 text-xs"> (你)</span>}
         </div>
 
         {/* 筹码 */}
         <div className="flex items-center gap-1">
-          <div className="w-2.5 h-2.5 rounded-full bg-amber-500 border border-amber-300/50" />
-          <span className="text-amber-400 text-xs font-mono font-semibold tabular-nums">
+          <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-gold)] border border-[var(--color-gold)]/50" />
+          <span className="text-[var(--color-gold)] text-xs font-mono font-semibold tabular-nums">
             {player.chips.toLocaleString()}
           </span>
         </div>
 
         {/* 本局下注额 */}
         {player.total_bet_this_round > 0 && (
-          <div className="text-green-400/70 text-[10px]">
+          <div className="text-[var(--color-primary)]/60 text-[10px]">
             本局已下 {player.total_bet_this_round}
           </div>
         )}
@@ -253,7 +253,7 @@ function PlayerCards({
           fanAngle={6}
         />
         {canLook && (
-          <div className="text-center text-[9px] text-amber-400/70 mt-0.5 animate-pulse">
+          <div className="text-center text-[9px] text-[var(--color-gold)]/70 mt-0.5 animate-pulse">
             点击看牌
           </div>
         )}
@@ -293,7 +293,7 @@ function ThinkingDots() {
       {[0, 1, 2].map((i) => (
         <motion.div
           key={i}
-          className="w-1 h-1 rounded-full bg-amber-400"
+          className="w-1 h-1 rounded-full bg-[var(--color-primary)]"
           animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
           transition={{
             duration: 0.8,
