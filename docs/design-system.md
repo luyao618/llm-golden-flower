@@ -1,7 +1,10 @@
-# Design System - 暗黑科技风 (Cyberpunk Dark Theme)
+# Design System - 赛博朋克科技风 (Cyberpunk Tech Theme)
 
 > 本文档定义了炸金花 AI 项目前端重设计的完整设计规范。
 > 所有 Task 在实现时必须严格遵循本文档中的设计 Token。
+>
+> **风格基准**：WelcomePage（欢迎页）已完整实现赛博朋克科技风，是所有页面的视觉参考标准。
+> 核心四要素：**霓虹灯发光文字**、**毛玻璃面板**、**渐变光边框**、**多色霓虹分区**。
 
 ## 设计参考图
 

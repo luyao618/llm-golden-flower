@@ -1,4 +1,4 @@
-# Frontend Redesign Tasks - 暗黑科技风
+# Frontend Redesign Tasks - 赛博朋克科技风
 
 > 本文档包含前端 UI 重设计的所有分步骤任务。
 > 每个 Task 可以在独立的 session 中由 AI 完成。
