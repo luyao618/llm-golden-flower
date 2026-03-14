@@ -126,11 +126,11 @@ function ProviderKeyRow({
   }, [provider.provider, onUpdate])
 
   return (
-    <div className="border border-green-700/30 rounded-lg p-3 bg-green-950/20">
+    <div className="border border-[var(--border-default)] rounded-lg p-3 bg-[var(--bg-deep)]/40">
       <div className="flex items-center justify-between mb-2">
         <span className={`font-medium text-sm ${meta.color}`}>{meta.name}</span>
         {provider.configured && (
-          <span className="text-xs text-green-400 bg-green-900/40 px-2 py-0.5 rounded-full">
+          <span className="text-xs text-[var(--color-success)] bg-[var(--color-success)]/10 px-2 py-0.5 rounded-full">
             已配置 {provider.key_preview}
           </span>
         )}
@@ -146,14 +146,15 @@ function ProviderKeyRow({
               ? `已配置 ${provider.key_preview ?? ''}`
               : meta.placeholder
           }
-          className="flex-1 px-3 py-1.5 bg-green-900/40 border border-green-700/40 rounded-md
-                     text-white text-sm placeholder-green-700 focus:outline-none
-                     focus:border-amber-500/40 transition-colors"
+          className="flex-1 px-3 py-1.5 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-md
+                     text-white text-sm placeholder-[var(--text-disabled)] focus:outline-none
+                     focus:border-[var(--color-primary)]/40 transition-colors"
         />
         <button
           onClick={handleSave}
           disabled={saving || !keyInput.trim()}
-          className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:bg-green-800 disabled:text-green-600
+          className="px-3 py-1.5 bg-[var(--color-primary)]/80 hover:bg-[var(--color-primary)]
+                     disabled:bg-[var(--bg-elevated)] disabled:text-[var(--text-disabled)]
                      text-white text-xs rounded-md transition-colors cursor-pointer disabled:cursor-not-allowed"
         >
           {saving ? '...' : '保存'}
@@ -161,7 +162,8 @@ function ProviderKeyRow({
         <button
           onClick={handleVerify}
           disabled={verifying || (!keyInput.trim() && !provider.configured)}
-          className="px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:bg-green-800 disabled:text-green-600
+          className="px-3 py-1.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] border border-[var(--border-default)]
+                     disabled:bg-[var(--bg-elevated)] disabled:text-[var(--text-disabled)]
                      text-white text-xs rounded-md transition-colors cursor-pointer disabled:cursor-not-allowed"
         >
           {verifying ? '...' : '验证'}
@@ -180,7 +182,7 @@ function ProviderKeyRow({
       {message && (
         <p
           className={`text-xs mt-1.5 ${
-            message.type === 'success' ? 'text-green-400' : 'text-red-400'
+            message.type === 'success' ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'
           }`}
         >
           {message.text}
@@ -466,13 +468,13 @@ export default function ModelConfigPanel({
       }}
     >
       {/* 面板 */}
-      <div className="bg-green-900/95 border border-green-700/50 rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
+      <div className="glass-panel-accent w-full max-w-lg max-h-[85vh] overflow-y-auto">
         {/* 标题栏 */}
-        <div className="flex items-center justify-between p-5 border-b border-green-700/30">
+        <div className="flex items-center justify-between p-5 border-b border-[var(--border-default)]">
           <h2 className="text-lg font-semibold text-white">配置模型</h2>
           <button
             onClick={onClose}
-            className="text-green-500 hover:text-white text-xl transition-colors cursor-pointer"
+            className="text-[var(--text-muted)] hover:text-white text-xl transition-colors cursor-pointer"
           >
             ✕
           </button>
@@ -480,7 +482,7 @@ export default function ModelConfigPanel({
 
         <div className="p-5 space-y-5">
           {/* 说明 */}
-          <p className="text-green-400 text-xs leading-relaxed">
+          <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
             配置 API Key 或连接 GitHub Copilot 后，对应的 AI
             模型将出现在对手选择列表中。API Key
             仅存储在内存中，刷新页面或重启服务后需重新配置。
@@ -488,9 +490,9 @@ export default function ModelConfigPanel({
 
           {/* API Key 配置 */}
           <div className="space-y-3">
-            <h3 className="text-green-300 text-sm font-medium">API Key 配置</h3>
+            <h3 className="text-[var(--text-secondary)] text-sm font-medium">API Key 配置</h3>
             {loading ? (
-              <div className="text-center text-green-600 text-sm py-4">
+              <div className="text-center text-[var(--text-muted)] text-sm py-4">
                 加载中...
               </div>
             ) : (
@@ -513,18 +515,18 @@ export default function ModelConfigPanel({
           )}
 
           {/* 分隔线 */}
-          <div className="border-t border-green-700/30" />
+          <div className="border-t border-[var(--border-default)]" />
 
           {/* Copilot 连接 */}
           <CopilotConnect onStatusChange={handleStatusChange} />
         </div>
 
         {/* 底部 */}
-        <div className="p-5 border-t border-green-700/30">
+        <div className="p-5 border-t border-[var(--border-default)]">
           <button
             onClick={onClose}
-            className="w-full py-2.5 bg-green-700 hover:bg-green-600 text-white rounded-lg
-                       transition-colors text-sm cursor-pointer"
+            className="w-full py-2.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] border border-[var(--border-default)]
+                       text-white rounded-lg transition-colors text-sm cursor-pointer"
           >
             完成
           </button>

@@ -17,14 +17,16 @@ export default function StartButton() {
     setLocalError(null)
 
     // 基础验证
-    if (!playerName.trim()) {
-      setLocalError('请输入你的名称')
-      return
-    }
-
     if (aiOpponents.length === 0) {
       setLocalError('至少需要一个 AI 对手')
       return
+    }
+
+    // 如果没有输入名称，使用默认昵称
+    if (!playerName.trim()) {
+      // 临时设置默认名称用于创建游戏
+      const { setPlayerName } = useGameStore.getState()
+      setPlayerName('人类一败涂地')
     }
 
     try {
@@ -43,36 +45,42 @@ export default function StartButton() {
   const displayError = localError || error
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-1">
       {displayError && (
-        <div className="px-4 py-2.5 bg-red-900/30 border border-red-700/40 rounded-lg text-red-300 text-sm">
+        <div className="px-4 py-2 bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/30 rounded-xl text-[var(--color-danger)] text-sm">
           {displayError}
         </div>
       )}
 
-      <button
-        onClick={handleStart}
-        disabled={isCreating}
-        className={`w-full py-3.5 font-bold rounded-lg text-lg transition-all cursor-pointer
-          ${
-            isCreating
-              ? 'bg-amber-500/50 text-green-950/70 cursor-wait'
-              : 'bg-amber-500 hover:bg-amber-400 text-green-950 hover:shadow-lg hover:shadow-amber-500/20 active:scale-[0.98]'
-          }`}
-      >
-        {isCreating ? (
-          <span className="flex items-center justify-center gap-2">
-            <span className="inline-block w-4 h-4 border-2 border-green-900/30 border-t-green-900 rounded-full animate-spin" />
-            创建中...
-          </span>
-        ) : (
-          '开始游戏'
-        )}
-      </button>
-
-      <p className="text-center text-green-600 text-xs">
-        {aiOpponents.length} 个 AI 对手 | 点击开始创建游戏并进入牌桌
-      </p>
+      {/* Neon animated border wrapper */}
+      <div className="neon-btn-wrapper">
+        <button
+          onClick={handleStart}
+          disabled={isCreating}
+          className="relative w-full py-3 font-bold rounded-[11px] text-base tracking-wider
+                     text-white
+                     transition-all cursor-pointer
+                     active:scale-[0.98]
+                     disabled:cursor-wait disabled:opacity-60"
+          style={{
+            fontFamily: 'var(--font-display)',
+            background: 'rgba(15, 15, 40, 0.40)',
+            backdropFilter: 'blur(20px) saturate(1.3)',
+            WebkitBackdropFilter: 'blur(20px) saturate(1.3)',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(15, 15, 40, 0.50)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(15, 15, 40, 0.40)')}
+        >
+          {isCreating ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="inline-block w-5 h-5 border-2 border-[var(--color-primary)]/30 border-t-[var(--color-primary)] rounded-full animate-spin" />
+              创建中...
+            </span>
+          ) : (
+            '开始游戏'
+          )}
+        </button>
+      </div>
     </div>
   )
 }

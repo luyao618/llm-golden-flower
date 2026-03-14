@@ -139,7 +139,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   availableActions: [],
   actionLog: [],
 
-  playerName: '玩家',
+  playerName: '',
   aiOpponents: [createDefaultAIOpponent(), createDefaultAIOpponent()],
   gameConfig: { ...DEFAULT_GAME_CONFIG },
 
@@ -272,7 +272,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       chatMessages: [],
       availableActions: [],
       actionLog: [],
-      playerName: '玩家',
+      playerName: '',
       aiOpponents: [createDefaultAIOpponent(), createDefaultAIOpponent()],
       gameConfig: { ...DEFAULT_GAME_CONFIG },
     }),
