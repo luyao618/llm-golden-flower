@@ -34,7 +34,7 @@ export default function ChipsConfig() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <span className="text-sm font-medium" style={{ color: '#c8d8e8' }}>筹码配置</span>
+        <span className="text-sm font-medium" style={{ fontFamily: 'var(--font-display)', color: '#c8d8e8' }}>筹码</span>
       </div>
 
       {/* 预设选择 — pill buttons */}
@@ -52,7 +52,7 @@ export default function ChipsConfig() {
                 ${
                   isActive
                     ? 'bg-[var(--color-primary)]/10 border-[var(--color-primary)]/40 text-[var(--color-primary)] shadow-[0_0_12px_rgba(0,212,255,0.1)]'
-                    : 'bg-white/[0.04] border-white/[0.10] text-[#c0c8d8] hover:border-white/[0.18] hover:text-[var(--text-primary)]'
+                    : 'bg-white/[0.04] border-white/[0.10] text-[#e0e8f0] hover:border-white/[0.18] hover:text-[var(--text-primary)]'
                 }`}
             >
               <div>{preset.label}</div>
@@ -69,7 +69,7 @@ export default function ChipsConfig() {
         type="button"
         onClick={() => setShowAdvanced(!showAdvanced)}
         className="text-xs hover:text-[var(--text-primary)] transition-colors cursor-pointer flex items-center gap-1 px-1 font-medium"
-        style={{ color: '#9aa8b8' }}
+        style={{ fontFamily: 'var(--font-display)', color: '#c0d0e0' }}
       >
         {showAdvanced ? '收起高级配置' : '高级配置'}
         <span className="text-[10px]">{showAdvanced ? '▲' : '▼'}</span>
@@ -84,7 +84,7 @@ export default function ChipsConfig() {
             { label: '最大轮数', key: 'max_turns' as const, min: 3, max: 50, step: 1, fallback: 10 },
           ].map((field) => (
             <div key={field.key}>
-              <label className="block text-[10px] mb-1" style={{ color: '#9aa8b8' }}>
+              <label className="block text-[10px] mb-1" style={{ color: '#c0d0e0' }}>
                 {field.label}
               </label>
               <input
@@ -110,7 +110,7 @@ export default function ChipsConfig() {
       )}
 
       {/* 当前配置概览 */}
-      <div className="flex items-center gap-3 text-[10px] px-1" style={{ fontFamily: 'var(--font-mono)', color: '#a0b0c0' }}>
+      <div className="flex items-center gap-3 text-[10px] px-1" style={{ fontFamily: 'var(--font-mono)', color: '#c0d0e0' }}>
         <span>筹码:{gameConfig.initial_chips}</span>
         <span>底注:{gameConfig.ante}</span>
         <span>上限:{gameConfig.max_bet}</span>

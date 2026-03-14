@@ -5,16 +5,6 @@
 import { useEffect, useRef } from 'react'
 import { useGameStore } from '../../stores/gameStore'
 
-/** AI 性格选项 */
-const PERSONALITY_OPTIONS = [
-  { value: '', label: '随机分配' },
-  { value: 'aggressive', label: '激进型' },
-  { value: 'conservative', label: '保守型' },
-  { value: 'analytical', label: '分析型' },
-  { value: 'intuitive', label: '直觉型' },
-  { value: 'bluffer', label: '诈唬型' },
-] as const
-
 /** Provider 对应的图标/颜色 */
 const PROVIDER_STYLES: Record<string, { color: string; label: string }> = {
   openai: { color: 'text-green-400', label: 'OpenAI' },
@@ -64,7 +54,7 @@ export default function GameConfigForm() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
         </div>
-        <span className="text-sm flex-shrink-0 font-medium" style={{ color: '#c8d8e8' }}>昵称</span>
+        <span className="text-sm flex-shrink-0 font-medium" style={{ fontFamily: 'var(--font-display)', color: '#c8d8e8' }}>昵称</span>
         <input
           type="text"
           value={playerName}
@@ -80,7 +70,7 @@ export default function GameConfigForm() {
       {/* AI 对手列表 */}
     <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
-          <span className="text-xs font-medium" style={{ color: '#c8d8e8' }}>
+          <span className="text-xs font-medium" style={{ fontFamily: 'var(--font-display)', color: '#c8d8e8' }}>
             AI 对手 ({aiOpponents.length}/5)
           </span>
           {aiOpponents.length < 5 && (
@@ -105,21 +95,24 @@ export default function GameConfigForm() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
-              <span className="text-white text-sm font-medium flex-1">
+              <span className="text-white text-sm font-medium flex-1" style={{ fontFamily: 'var(--font-display)' }}>
                 对手 {index + 1}
               </span>
               {aiOpponents.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeAIOpponent(index)}
-                  className="text-[var(--color-danger)] hover:text-[var(--color-danger)] text-xs font-medium transition-colors cursor-pointer"
+                  className="text-xs font-medium transition-colors cursor-pointer"
+                  style={{ color: '#8090a0' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#f87171')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = '#8090a0')}
                 >
                   移除
                 </button>
               )}
             </div>
 
-            {/* Model + Personality selects */}
+            {/* Model select + Custom name */}
             <div className="grid grid-cols-2 gap-2 pl-11">
               <select
                 value={opponent.model_id}
@@ -148,35 +141,16 @@ export default function GameConfigForm() {
                 )}
               </select>
 
-              <select
-                value={opponent.personality}
-                onChange={(e) =>
-                  updateAIOpponent(index, { personality: e.target.value })
-                }
-                className="w-full px-3 py-1.5 bg-white/[0.06] border border-white/[0.10] rounded-lg
-                           text-white text-xs focus:outline-none focus:border-[var(--color-primary)]/30 cursor-pointer
-                           appearance-none"
-              >
-                {PERSONALITY_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Custom name */}
-            <div className="pl-11">
               <input
                 type="text"
                 value={opponent.name}
                 onChange={(e) =>
                   updateAIOpponent(index, { name: e.target.value })
                 }
-                placeholder="自定义名称 (可选)"
+                placeholder="自定义名称"
                 maxLength={12}
                 className="w-full px-3 py-1.5 bg-white/[0.06] border border-white/[0.10] rounded-lg
-                           text-white text-xs           placeholder-[#8090a0] focus:outline-none
+                           text-white text-xs placeholder-[#8090a0] focus:outline-none
                            focus:border-[var(--color-primary)]/30 transition-colors"
               />
             </div>

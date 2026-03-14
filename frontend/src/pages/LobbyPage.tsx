@@ -2,14 +2,21 @@
 // 游戏大厅页面 - 配置并创建游戏
 // ============================================================
 
+import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import GameConfigForm from '../components/Lobby/GameConfigForm'
 import ChipsConfig from '../components/Lobby/ChipsConfig'
 import StartButton from '../components/Lobby/StartButton'
+import ModelConfigPanel from '../components/Lobby/ModelConfigPanel'
 import lobbyBg from '../assets/lobby-bg.jpeg'
 
 export default function LobbyPage() {
   const navigate = useNavigate()
+  const [modelConfigOpen, setModelConfigOpen] = useState(false)
+
+  const handleNeedModelConfig = useCallback(() => {
+    setModelConfigOpen(true)
+  }, [])
 
   return (
     <div className="h-screen bg-[var(--bg-deepest)] flex flex-col items-center p-4 relative overflow-hidden">
@@ -83,10 +90,13 @@ export default function LobbyPage() {
           <div className="h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
 
           {/* 底部操作区：只有开始游戏 */}
-          <StartButton />
+          <StartButton onNeedModelConfig={handleNeedModelConfig} />
         </div>
         </div>
       </div>
+
+      {/* 模型配置面板 — 由 StartButton 触发打开 */}
+      <ModelConfigPanel open={modelConfigOpen} onClose={() => setModelConfigOpen(false)} />
     </div>
   )
 }
