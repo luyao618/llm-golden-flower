@@ -247,6 +247,7 @@ class BaseAgent:
                     temperature=temp,
                     response_format=fmt,
                     timeout=settings.llm_timeout,
+                    max_tokens=40960,
                 )
 
                 content = response.choices[0].message.content
@@ -828,19 +829,24 @@ class LLMCallError(Exception):
 def _configure_api_keys(settings: Any) -> None:
     """配置 LiteLLM 使用的 API keys
 
-    LiteLLM 通过环境变量或直接设置来获取 API keys。
-    这里通过设置 litellm 模块级变量来传递。
+    优先使用 ProviderManager 中的 key（包含用户通过 UI 运行时设置的），
+    避免被 .env 中的占位符覆盖真实 key。
     """
     import os
 
-    if settings.openai_api_key:
-        os.environ["OPENAI_API_KEY"] = settings.openai_api_key
-    if settings.anthropic_api_key:
-        os.environ["ANTHROPIC_API_KEY"] = settings.anthropic_api_key
-    if settings.google_api_key:
-        os.environ["GEMINI_API_KEY"] = settings.google_api_key
-    if settings.openrouter_api_key:
-        os.environ["OPENROUTER_API_KEY"] = settings.openrouter_api_key
+    from app.services.provider_manager import get_provider_manager
+
+    pm = get_provider_manager()
+
+    for provider, env_key in [
+        ("openai", "OPENAI_API_KEY"),
+        ("anthropic", "ANTHROPIC_API_KEY"),
+        ("google", "GEMINI_API_KEY"),
+        ("openrouter", "OPENROUTER_API_KEY"),
+    ]:
+        key = pm.get_key(provider)
+        if key:
+            os.environ[env_key] = key
 
 
 # ---- 决策上下文格式化函数 ----
