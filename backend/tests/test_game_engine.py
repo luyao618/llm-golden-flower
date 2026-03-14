@@ -315,9 +315,12 @@ class TestApplyAction:
         round_state = _start_test_round(game)
         player = game.players[round_state.current_player_index]
 
-        # 先看牌
+        # 先看牌（看牌不消耗回合，仍然是该玩家的回合）
         apply_action(game, player.id, GameAction.CHECK_CARDS)
-        initial_chips = player.chips
+        assert player.status == PlayerStatus.ACTIVE_SEEN
+
+        # 看牌后该玩家仍需行动，先跟注
+        apply_action(game, player.id, GameAction.CALL)
 
         # 现在轮到下一个玩家，让他跟注
         next_player = game.players[round_state.current_player_index]
@@ -339,8 +342,11 @@ class TestApplyAction:
         round_state = _start_test_round(game)
         player = game.players[round_state.current_player_index]
 
-        # 先看牌（比牌需要已看牌状态）
+        # 先看牌（比牌需要已看牌状态，看牌不消耗回合）
         apply_action(game, player.id, GameAction.CHECK_CARDS)
+
+        # 看牌后仍是 player 的回合，先跟注
+        apply_action(game, player.id, GameAction.CALL)
 
         # 让其他玩家行动一轮
         p2 = game.players[round_state.current_player_index]
@@ -547,8 +553,11 @@ class TestSettleRound:
         round_state = _start_test_round(game)
 
         p1 = game.players[round_state.current_player_index]
-        # 看牌
+        # 看牌（不消耗回合）
         apply_action(game, p1.id, GameAction.CHECK_CARDS)
+
+        # 看牌后 p1 仍需行动，先跟注
+        apply_action(game, p1.id, GameAction.CALL)
 
         p2 = game.players[round_state.current_player_index]
         apply_action(game, p2.id, GameAction.CALL)
@@ -725,8 +734,11 @@ class TestFullGameSimulation:
         p1 = game.players[round_state.current_player_index]
         p2_idx = (round_state.current_player_index + 1) % 2
 
-        # p1 看牌
+        # p1 看牌（不消耗回合）
         apply_action(game, p1.id, GameAction.CHECK_CARDS)
+
+        # p1 仍需行动，跟注
+        apply_action(game, p1.id, GameAction.CALL)
 
         # p2 跟注
         p2 = game.players[round_state.current_player_index]
@@ -766,8 +778,11 @@ class TestFullGameSimulation:
         # 获取两个玩家
         p1 = game.players[round_state.current_player_index]
 
-        # p1 看牌
+        # p1 看牌（不消耗回合）
         apply_action(game, p1.id, GameAction.CHECK_CARDS)
+
+        # p1 仍需行动，先跟注
+        apply_action(game, p1.id, GameAction.CALL)
 
         p2 = game.players[round_state.current_player_index]
         # p2 跟注
@@ -791,7 +806,8 @@ class TestFullGameSimulation:
 
         # 第一轮
         p1 = game.players[round_state.current_player_index]
-        apply_action(game, p1.id, GameAction.CHECK_CARDS)  # 看牌
+        apply_action(game, p1.id, GameAction.CHECK_CARDS)  # 看牌（不消耗回合）
+        apply_action(game, p1.id, GameAction.CALL)  # 看牌后跟注
 
         p2 = game.players[round_state.current_player_index]
         apply_action(game, p2.id, GameAction.CALL)  # 跟注
@@ -806,10 +822,12 @@ class TestFullGameSimulation:
         # p2 弃牌
         apply_action(game, p2.id, GameAction.FOLD)
 
-        # p2 弃牌后轮到 p3，p3 看牌
+        # p2 弃牌后轮到 p3，p3 看牌（不消耗回合）
         apply_action(game, p3.id, GameAction.CHECK_CARDS)
+        # p3 看牌后仍需行动，跟注
+        apply_action(game, p3.id, GameAction.CALL)
 
-        # 看牌后轮到 p1，p1 与 p3 比牌
+        # 现在轮到 p1，p1 与 p3 比牌
         result = apply_action(game, p1.id, GameAction.COMPARE, target_id=p3.id)
         assert result.round_ended
 

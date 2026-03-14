@@ -278,10 +278,10 @@ export default function GamePage() {
 
   return (
     <div className="h-screen bg-[var(--bg-deepest)] flex flex-col overflow-hidden">
-      {/* 牌桌 + 聊天区域 */}
-      <main className="flex-1 relative min-h-0 flex">
-        {/* 牌桌区域 */}
-        <div className="flex-1 relative min-w-0 overflow-hidden">
+      {/* 牌桌 + 侧面板 */}
+      <main className="flex-1 relative min-h-0">
+        {/* 牌桌区域 — 全屏 */}
+        <div className="w-full h-full relative overflow-hidden">
           {/* 环境氛围光效 — 柔和的四角渐变 */}
           <div className="absolute inset-0 pointer-events-none z-0" aria-hidden="true">
             <div
@@ -297,7 +297,7 @@ export default function GamePage() {
             />
           </div>
 
-          <TableLayout className="w-full h-full" />
+          <TableLayout className="w-full h-full" onCheckCards={() => sendAction('check_cards')} />
 
           {/* 浮动顶部栏 */}
           <header className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-1.5 bg-black/40 backdrop-blur-sm border-b border-white/[0.04]">
@@ -341,52 +341,47 @@ export default function GamePage() {
             </div>
           </header>
 
-          {/* 行动日志 - 右上角浮层 */}
-          <div className="absolute top-10 right-2 w-52 z-10">
+          {/* 行动日志 - 左上角浮层（放大） */}
+          <div className="absolute top-10 left-2 w-72 z-10">
             <GameLog />
           </div>
-        </div>
 
-        {/* 聊天面板 */}
-        <div
-          className={`
-            relative border-l border-[var(--border-default)] bg-[var(--bg-deep)]/40
-            flex flex-col transition-all duration-300
-            ${isChatPanelExpanded ? 'w-72' : 'w-8'}
-          `}
-        >
-          <button
-            onClick={toggleChatPanel}
-            className="absolute -left-3 top-1/2 -translate-y-1/2 z-10
-              w-6 h-12 bg-[var(--bg-surface)] border border-[var(--border-default)]
-              rounded-l-md flex items-center justify-center
-              hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
-            title={isChatPanelExpanded ? '收起聊天' : '展开聊天'}
-          >
-            <span className="text-[var(--color-primary)] text-xs">
-              {isChatPanelExpanded ? '›' : '‹'}
-            </span>
-          </button>
-
-          {isChatPanelExpanded && (
-            <>
-              <div className="px-3 py-2 border-b border-[var(--border-default)] flex items-center justify-between">
-                <h3 className="text-xs font-medium text-[var(--color-primary)]/80">牌桌聊天</h3>
-                <span className="text-[10px] text-[var(--text-muted)]">
-                  {chatMessages.length} 条消息
+          {/* 聊天面板 - 左下角浮层 */}
+          <div className="absolute bottom-2 left-2 w-72 z-10">
+            <div className="flex flex-col bg-black/40 border border-[var(--border-default)] rounded-lg overflow-hidden backdrop-blur-sm">
+              <button
+                onClick={toggleChatPanel}
+                className="flex items-center justify-between px-3 py-1.5 bg-black/30 hover:bg-black/50 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-[var(--color-primary)]/80 text-xs font-medium">
+                    牌桌聊天
+                  </span>
+                  {chatMessages.length > 0 && (
+                    <span className="text-[var(--text-muted)] text-[10px]">
+                      {chatMessages.length} 条
+                    </span>
+                  )}
+                </div>
+                <span className={`text-[var(--color-primary)]/60 text-xs transition-transform duration-200 ${isChatPanelExpanded ? 'rotate-180' : ''}`}>
+                  ▴
                 </span>
-              </div>
-              <ChatPanel
-                messages={chatMessages}
-                className="flex-1 min-h-0 py-1"
-              />
-              <ChatInput
-                onSend={sendChatMessage}
-                disabled={connectionStatus !== 'connected'}
-                placeholder={connectionStatus !== 'connected' ? '未连接...' : '说点什么...'}
-              />
-            </>
-          )}
+              </button>
+              {isChatPanelExpanded && (
+                <>
+                  <ChatPanel
+                    messages={chatMessages}
+                    className="h-48 py-1"
+                  />
+                  <ChatInput
+                    onSend={sendChatMessage}
+                    disabled={connectionStatus !== 'connected'}
+                    placeholder={connectionStatus !== 'connected' ? '未连接...' : '说点什么...'}
+                  />
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </main>
 

@@ -9,6 +9,7 @@ import ChipFlyAnimation, { WinChipAnimation } from './ChipFlyAnimation'
 
 interface TableLayoutProps {
   className?: string
+  onCheckCards?: () => void
 }
 
 // ============================================================
@@ -34,9 +35,9 @@ function calculateSeatPositions(
 ): Array<{ x: number; y: number }> {
   // 椭圆参数 — 匹配 CSS 牌桌的边缘
   const cx = 50
-  const cy = 50
+  const cy = 48    // 稍微上移中心点，防止底部玩家太靠下
   const rx = 43  // 水平半径 — 座位在皮革边框上
-  const ry = 40  // 垂直半径
+  const ry = 37  // 垂直半径 — 缩小以防止底部超出
 
   // 人类玩家固定在底部中央（角度 = 90度 = π/2，即椭圆底部）
   const startAngle = Math.PI / 2
@@ -81,7 +82,7 @@ function reorderPlayersHumanFirst(players: Player[]): Player[] {
  * - 当前行动玩家高亮
  * - 庄家标记
  */
-export default function TableLayout({ className = '' }: TableLayoutProps) {
+export default function TableLayout({ className = '', onCheckCards }: TableLayoutProps) {
   const {
     players,
     currentRound,
@@ -151,10 +152,11 @@ export default function TableLayout({ className = '' }: TableLayoutProps) {
     setShowPlayerCards(true)
   }, [stopDealingAnimation, setShowPlayerCards])
 
-  // 看牌回调
+  // 看牌回调 — 翻转手牌并发送看牌操作到后端
   const handleLookAtCards = useCallback(() => {
     setHasLookedAtCards(true)
-  }, [setHasLookedAtCards])
+    onCheckCards?.()
+  }, [setHasLookedAtCards, onCheckCards])
 
   // 赢家动画完成回调
   const handleWinAnimationComplete = useCallback(() => {
