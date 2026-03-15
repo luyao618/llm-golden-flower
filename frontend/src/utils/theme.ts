@@ -53,3 +53,22 @@ export const ACTION_THEME_COLORS: Record<string, { border: string; glow: string;
   compare:     { border: 'rgba(139, 92, 246, 0.4)', glow: 'rgba(139, 92, 246, 0.3)', text: '#8b5cf6' },
   fold:        { border: 'rgba(255, 68, 68, 0.4)', glow: 'rgba(255, 68, 68, 0.3)',  text: '#ff4444' },
 }
+
+// ===== Character Art System =====
+
+import char1 from '../assets/characters/char-1.webp'
+import char2 from '../assets/characters/char-2.webp'
+import char3 from '../assets/characters/char-3.webp'
+import char4 from '../assets/characters/char-4.webp'
+import char5 from '../assets/characters/char-5.webp'
+
+export const CHARACTER_IMAGES = [char1, char2, char3, char4, char5]
+
+/**
+ * 根据座位索引获取角色立绘
+ * @param seatIndex 座位索引（0-based，在 AI 玩家中的顺序）
+ * @returns 角色图片 URL
+ */
+export function getCharacterImage(seatIndex: number): string {
+  return CHARACTER_IMAGES[seatIndex % CHARACTER_IMAGES.length]
+}

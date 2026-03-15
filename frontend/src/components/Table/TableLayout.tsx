@@ -14,47 +14,70 @@ interface TableLayoutProps {
 
 // ============================================================
 // 座位排列算法
-// 椭圆形布局：玩家（人类）固定在底部中央，
-// AI 对手按椭圆弧线均匀分布在其他位置
+// 第一人称视角：人类玩家在屏幕近端（底部），
+// AI 对手坐在牌桌对面（5 个固定位置），水平排列
+// 双坐标系：牌位置（桌面上）+ 角色位置（桌面远边缘，坐姿效果）
 // ============================================================
 
+interface SeatPositionSet {
+  card: { x: number; y: number }       // 牌的位置（桌面上）
+  character: { x: number; y: number }   // 角色的位置（桌面远边缘，坐姿对齐）
+}
+
 /**
- * 计算 2-6 人在椭圆形牌桌上的座位位置
+ * 5 个固定的 AI 座位位置（从左到右）
  *
- * 坐标系：百分比 (0-100)，(50, 50) 为中心
- * 玩家（人类）固定在底部中央
- *
- * 现在牌桌用纯 CSS 画，占据约 90% 的容器空间（padding 5%）
- * 牌桌皮革边框约 5-6% 宽 → 座位应在边框上
- * 椭圆 rx ≈ 42, ry ≈ 40 让座位刚好在边框上
- *
- * 座位从底部（人类）开始，逆时针均匀分布
+ * 角色 y=62：桌面远边缘大约在背景图 60% 高度处，
+ *           角色锚点对齐到这里，配合 translate(-50%, -85%)
+ *           形成角色下半身被桌子遮挡的"坐在桌边"视觉效果
+ * 牌 y=68：  牌放在桌面上，远端位置
+ * x 均匀分布：13%, 30%, 50%, 70%, 87%
+ * y 带微弧度：两侧稍低（透视效果）
  */
+const FIXED_AI_SEATS: SeatPositionSet[] = [
+  { card: { x: 13, y: 69 }, character: { x: 13, y: 63 } },
+  { card: { x: 30, y: 68 }, character: { x: 30, y: 62 } },
+  { card: { x: 50, y: 67 }, character: { x: 50, y: 61 } },  // 中间稍高（透视）
+  { card: { x: 70, y: 68 }, character: { x: 70, y: 62 } },
+  { card: { x: 87, y: 69 }, character: { x: 87, y: 63 } },
+]
+
+/**
+ * 计算座位位置：人类 + AI（从 5 个固定位置中选取）
+ *
+ * 无论有多少 AI，固定位置不变，只是不使用的位置不显示。
+ * AI 玩家按顺序分配到固定位置：
+ *   1 AI → 居中位置 [2]
+ *   2 AI → [1, 3]
+ *   3 AI → [0, 2, 4]
+ *   4 AI → [0, 1, 3, 4]
+ *   5 AI → [0, 1, 2, 3, 4]
+ */
+const AI_SEAT_ASSIGNMENT: Record<number, number[]> = {
+  1: [2],
+  2: [1, 3],
+  3: [0, 2, 4],
+  4: [0, 1, 3, 4],
+  5: [0, 1, 2, 3, 4],
+}
+
 function calculateSeatPositions(
   playerCount: number
-): Array<{ x: number; y: number }> {
-  // 椭圆参数 — 匹配 CSS 牌桌的边缘
-  const cx = 50
-  const cy = 48    // 稍微上移中心点，防止底部玩家太靠下
-  const rx = 43  // 水平半径 — 座位在皮革边框上
-  const ry = 37  // 垂直半径 — 缩小以防止底部超出
+): SeatPositionSet[] {
+  const positions: SeatPositionSet[] = []
 
-  // 人类玩家固定在底部中央（角度 = 90度 = π/2，即椭圆底部）
-  const startAngle = Math.PI / 2
+  // 第一个位置永远是人类玩家（底部中央）
+  positions.push({
+    card: { x: 50, y: 88 },
+    character: { x: 50, y: 95 }, // 人类不使用角色位置
+  })
 
-  const positions: Array<{ x: number; y: number }> = []
+  const aiCount = Math.min(playerCount - 1, 5)
+  if (aiCount <= 0) return positions
 
-  for (let i = 0; i < playerCount; i++) {
-    // 从底部开始，顺时针均匀分布
-    const angle = startAngle + (i * 2 * Math.PI) / playerCount
-
-    const x = cx - rx * Math.cos(angle)
-    const y = cy + ry * Math.sin(angle)
-
-    positions.push({
-      x: Math.round(x * 100) / 100,
-      y: Math.round(y * 100) / 100,
-    })
+  const assignment = AI_SEAT_ASSIGNMENT[aiCount] ?? AI_SEAT_ASSIGNMENT[5]
+  for (const seatIdx of assignment) {
+    positions.push(FIXED_AI_SEATS[seatIdx])
   }
 
   return positions
@@ -72,13 +95,13 @@ function reorderPlayersHumanFirst(players: Player[]): Player[] {
 }
 
 /**
- * 椭圆形牌桌布局组件
+ * 牌桌布局组件 — 第一人称视角
  *
  * 功能：
- * - 3D 牌桌俯视图背景（table-bg.png）
- * - 底池筹码显示（牌桌中央）
- * - 2-6 人环形座位布局
- * - 人类玩家固定在底部
+ * - 背景图提供赛博朋克牌桌场景（无 CSS 绘制牌桌）
+ * - 底池筹码显示（桌面中央）
+ * - AI 对手站在牌桌对面（屏幕上半部分水平排列）
+ * - 人类玩家手牌在屏幕底部
  * - 当前行动玩家高亮
  * - 庄家标记
  */
@@ -129,12 +152,12 @@ export default function TableLayout({ className = '', onCheckCards }: TableLayou
   const currentBet = currentRound?.current_bet ?? 0
   const roundNumber = currentRound?.round_number ?? 0
 
-  // 构建 playerID → 座位位置的映射（供 ChipFlyAnimation 使用）
+  // 构建 playerID → 座位位置的映射（供 ChipFlyAnimation 使用，用牌位置坐标）
   const playerPositions = useMemo(() => {
     const map: Record<string, { x: number; y: number }> = {}
     orderedPlayers.forEach((player, index) => {
       if (seatPositions[index]) {
-        map[player.id] = seatPositions[index]
+        map[player.id] = seatPositions[index].card
       }
     })
     return map
@@ -165,85 +188,56 @@ export default function TableLayout({ className = '', onCheckCards }: TableLayou
 
   return (
     <div className={`relative w-full h-full ${className}`}>
-      {/* ====== CSS 牌桌 ====== */}
-      {/* 外层 — 皮革边框（stadium / oblong 圆角矩形） */}
-      <div
-        className="absolute"
-        style={{
-          left: '4%',
-          right: '4%',
-          top: '4%',
-          bottom: '4%',
-          borderRadius: '9999px',
-          /* 皮革灰色渐变 + 微妙纹理 */
-          background: `
-            radial-gradient(ellipse at 50% 20%, rgba(100,100,110,0.9) 0%, rgba(55,55,65,0.95) 60%, rgba(35,35,45,1) 100%)
-          `,
-          boxShadow: `
-            0 8px 40px rgba(0,0,0,0.7),
-            0 2px 15px rgba(0,0,0,0.5),
-            inset 0 2px 4px rgba(255,255,255,0.08),
-            inset 0 -2px 4px rgba(0,0,0,0.4)
-          `,
-        }}
-      >
-        {/* 内层 — 桌面绒布区域 */}
-        <div
-          className="absolute"
-          style={{
-            left: '5.5%',
-            right: '5.5%',
-            top: '8%',
-            bottom: '8%',
-            borderRadius: '9999px',
-            /* 深蓝色桌面绒布 */
-            background: `
-              radial-gradient(ellipse at 50% 40%, rgba(25,40,60,1) 0%, rgba(15,25,45,1) 50%, rgba(10,18,35,1) 100%)
-            `,
-            /* 霓虹内边线 — 用 border + box-shadow */
-            border: '1.5px solid rgba(0, 212, 255, 0.5)',
-            boxShadow: `
-              0 0 8px rgba(0,212,255,0.25),
-              0 0 20px rgba(0,212,255,0.12),
-              inset 0 0 30px rgba(0,212,255,0.04),
-              inset 0 0 60px rgba(0,0,0,0.3)
-            `,
-          }}
-        />
-      </div>
+      {/* 牌桌由背景图 game-bg.jpg 提供，无需 CSS 绘制 */}
 
-      {/* 牌桌中央内容 - 底池 */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[5]">
-        <PotDisplay
-          pot={pot}
-          currentBet={currentBet}
-          roundNumber={roundNumber}
-        />
+      {/* 底池信息 — 上方正中间，毛玻璃背景 */}
+      <div className="absolute left-1/2 -translate-x-1/2 z-[25] pointer-events-none"
+        style={{ top: '40px' }}
+      >
+        <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl px-6 py-3 shadow-[0_4px_30px_rgba(0,0,0,0.4)]">
+          <PotDisplay
+            pot={pot}
+            currentBet={currentBet}
+            roundNumber={roundNumber}
+          />
+        </div>
       </div>
 
       {/* 玩家座位 */}
-      {orderedPlayers.map((player, index) => (
-        <PlayerSeat
-          key={player.id}
-          player={player}
-          position={seatPositions[index]}
-          isActive={player.id === currentPlayerId}
-          isMe={player.id === myPlayerId}
-          isDealer={player.id === dealerId}
-          latestMessage={latestMessageByPlayer[player.id] ?? null}
-          myCards={player.id === myPlayerId ? myCards : undefined}
-          onLookAtCards={player.id === myPlayerId ? handleLookAtCards : undefined}
-          onClick={
-            isCompareMode
-              ? () => setCompareTarget(player.id)
-              : undefined
-          }
-        />
-      ))}
+      {orderedPlayers.map((player, index) => {
+        const isHuman = player.player_type === 'human'
+        // AI 在 orderedPlayers 中的顺序索引（0-based，跳过 human）
+        const aiOrderIndex = isHuman ? -1 : orderedPlayers.slice(0, index).filter(p => p.player_type !== 'human').length
+        // 映射到固定位置的 slot 索引（用于角色图片分配）
+        const aiCount = Math.min(orderedPlayers.filter(p => p.player_type !== 'human').length, 5)
+        const assignment = aiCount > 0 ? (AI_SEAT_ASSIGNMENT[aiCount] ?? AI_SEAT_ASSIGNMENT[5]) : []
+        const fixedSlotIndex = isHuman ? -1 : (assignment[aiOrderIndex] ?? aiOrderIndex)
 
-      {/* 发牌动画 */}
+        return (
+          <PlayerSeat
+            key={player.id}
+            player={player}
+            cardPosition={seatPositions[index].card}
+            characterPosition={isHuman ? undefined : seatPositions[index].character}
+            seatIndex={fixedSlotIndex}
+            isActive={player.id === currentPlayerId}
+            isMe={player.id === myPlayerId}
+            isDealer={player.id === dealerId}
+            latestMessage={latestMessageByPlayer[player.id] ?? null}
+            myCards={player.id === myPlayerId ? myCards : undefined}
+            onLookAtCards={player.id === myPlayerId ? handleLookAtCards : undefined}
+            onClick={
+              isCompareMode
+                ? () => setCompareTarget(player.id)
+                : undefined
+            }
+          />
+        )
+      })}
+
+      {/* 发牌动画（使用牌位置坐标） */}
       <DealingAnimation
-        seatPositions={seatPositions}
+        seatPositions={seatPositions.map(s => s.card)}
         playerCount={orderedPlayers.length}
         onComplete={handleDealingComplete}
       />

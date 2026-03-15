@@ -12,6 +12,8 @@ import { useUIStore } from '../stores/uiStore'
 import { useGame } from '../hooks/useGame'
 import type { ConnectionStatus } from '../hooks/useWebSocket'
 import type { Player, RoundState, GameConfig, Card, ActionLogEntry } from '../types/game'
+import gameBg from '../assets/game-bg.jpg'
+import { CHARACTER_IMAGES } from '../utils/theme'
 
 // ============================================================
 // DEV MOCK — 仅开发模式下填充假数据以预览 UI
@@ -207,6 +209,14 @@ function ConnectionIndicator({ status }: { status: ConnectionStatus }) {
 export default function GamePage() {
   useDevMock()
 
+  // 预加载角色立绘图片
+  useEffect(() => {
+    CHARACTER_IMAGES.forEach((src) => {
+      const img = new Image()
+      img.src = src
+    })
+  }, [])
+
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const gameId = useGameStore((s) => s.gameId)
@@ -282,6 +292,24 @@ export default function GamePage() {
       <main className="flex-1 relative min-h-0">
         {/* 牌桌区域 — 全屏 */}
         <div className="w-full h-full relative overflow-hidden">
+          {/* 背景图层 — 包含赛博朋克牌桌场景 */}
+          <div
+            className="absolute inset-0 z-0"
+            style={{
+              backgroundImage: `url(${gameBg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center center',
+              backgroundRepeat: 'no-repeat',
+            }}
+          />
+          {/* 底部微弱渐变：保留牌桌可见，仅最底部边缘淡出 */}
+          <div
+            className="absolute inset-0 z-0"
+            style={{
+              background: 'linear-gradient(to bottom, transparent 70%, rgba(6,6,15,0.5) 90%, #06060f 100%)',
+            }}
+          />
+
           {/* 环境氛围光效 — 柔和的四角渐变 */}
           <div className="absolute inset-0 pointer-events-none z-0" aria-hidden="true">
             <div
