@@ -3,7 +3,7 @@ import type { ChatMessage, Player } from '../../types/game'
 import { useGameStore } from '../../stores/gameStore'
 import { useUIStore } from '../../stores/uiStore'
 import PlayerSeat from '../Player/PlayerSeat'
-import PotDisplay from './PotDisplay'
+import GameInfoPanel from './GameInfoPanel'
 import DealingAnimation from './DealingAnimation'
 import ChipFlyAnimation, { WinChipAnimation } from './ChipFlyAnimation'
 
@@ -147,11 +147,6 @@ export default function TableLayout({ className = '', onCheckCards }: TableLayou
   const dealerIndex = currentRound?.dealer_index ?? -1
   const dealerId = players[dealerIndex]?.id ?? null
 
-  // 底池信息
-  const pot = currentRound?.pot ?? 0
-  const currentBet = currentRound?.current_bet ?? 0
-  const roundNumber = currentRound?.round_number ?? 0
-
   // 构建 playerID → 座位位置的映射（供 ChipFlyAnimation 使用，用牌位置坐标）
   const playerPositions = useMemo(() => {
     const map: Record<string, { x: number; y: number }> = {}
@@ -190,17 +185,11 @@ export default function TableLayout({ className = '', onCheckCards }: TableLayou
     <div className={`relative w-full h-full ${className}`}>
       {/* 牌桌由背景图 game-bg.jpg 提供，无需 CSS 绘制 */}
 
-      {/* 底池信息 — 上方正中间，毛玻璃背景 */}
-      <div className="absolute left-1/2 -translate-x-1/2 z-[25] pointer-events-none"
+      {/* 底池 + 行动日志 — 上方正中间合并面板 */}
+      <div className="absolute left-1/2 -translate-x-1/2 z-[25]"
         style={{ top: '40px' }}
       >
-        <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl px-6 py-3 shadow-[0_4px_30px_rgba(0,0,0,0.4)]">
-          <PotDisplay
-            pot={pot}
-            currentBet={currentBet}
-            roundNumber={roundNumber}
-          />
-        </div>
+        <GameInfoPanel />
       </div>
 
       {/* 玩家座位 */}

@@ -1,17 +1,19 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { MessageCircle, ChevronUp } from 'lucide-react'
 import TableLayout from '../components/Table/TableLayout'
 import { ActionPanel } from '../components/Actions'
 import ChatPanel from '../components/Table/ChatPanel'
 import ChatInput from '../components/Table/ChatInput'
-import GameLog from '../components/Table/GameLog'
 import { ThoughtDrawer } from '../components/Thought'
 import CopilotErrorModal from '../components/CopilotErrorModal'
 import { useGameStore } from '../stores/gameStore'
+import type { ActionLogEntry } from '../stores/gameStore'
 import { useUIStore } from '../stores/uiStore'
 import { useGame } from '../hooks/useGame'
 import type { ConnectionStatus } from '../hooks/useWebSocket'
-import type { Player, RoundState, GameConfig, Card, ActionLogEntry } from '../types/game'
+import type { Player, RoundState, GameConfig, Card } from '../types/game'
 import gameBg from '../assets/game-bg.jpg'
 import { CHARACTER_IMAGES } from '../utils/theme'
 
@@ -206,6 +208,107 @@ function ConnectionIndicator({ status }: { status: ConnectionStatus }) {
   )
 }
 
+/**
+ * 底部状态条 — 全宽条带，显示当前行动玩家 / AI 思考 / AI 回顾经验
+ */
+function StatusBar() {
+  const thinkingPlayerId = useUIStore((s) => s.thinkingPlayerId)
+  const reviewingPlayerId = useUIStore((s) => s.reviewingPlayerId)
+  const activePlayerId = useUIStore((s) => s.activePlayerId)
+  const players = useGameStore((s) => s.players)
+  const currentRound = useGameStore((s) => s.currentRound)
+
+  const thinkingPlayer = thinkingPlayerId
+    ? players.find((p) => p.id === thinkingPlayerId)
+    : null
+  const reviewingPlayer = reviewingPlayerId
+    ? players.find((p) => p.id === reviewingPlayerId)
+    : null
+  const activePlayer = activePlayerId
+    ? players.find((p) => p.id === activePlayerId)
+    : null
+
+  const hasAnyStatus = currentRound && (activePlayer || thinkingPlayer || reviewingPlayer)
+
+  return (
+    <div className="w-full h-8 bg-black/60 backdrop-blur-sm border-t border-white/[0.06] flex items-center justify-center gap-6 px-4">
+      <AnimatePresence mode="popLayout">
+        {!hasAnyStatus && (
+          <motion.span
+            key="idle"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="text-[var(--text-disabled)] text-xs"
+          >
+            {currentRound ? '等待中...' : '准备开始'}
+          </motion.span>
+        )}
+
+        {/* 当前行动玩家（仅当没有思考状态时显示） */}
+        {activePlayer && !thinkingPlayer && (
+          <motion.div
+            key="active"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center gap-2"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400" />
+            </span>
+            <span className="text-amber-400/90 text-sm">
+              轮到 <span className="font-semibold text-amber-400">{activePlayer.name}</span> 行动
+            </span>
+          </motion.div>
+        )}
+
+        {/* AI 正在思考 */}
+        {thinkingPlayer && (
+          <motion.div
+            key="thinking"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center gap-2"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-60" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-400" />
+            </span>
+            <span className="text-blue-400/90 text-sm">
+              <span className="font-semibold text-blue-400">{thinkingPlayer.name}</span> 正在思考...
+            </span>
+          </motion.div>
+        )}
+
+        {/* AI 正在回顾经验 */}
+        {reviewingPlayer && (
+          <motion.div
+            key="reviewing"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center gap-2"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-60" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-400" />
+            </span>
+            <span className="text-purple-400/90 text-sm">
+              <span className="font-semibold text-purple-400">{reviewingPlayer.name}</span> 正在回顾经验...
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 export default function GamePage() {
   useDevMock()
 
@@ -369,76 +472,96 @@ export default function GamePage() {
             </div>
           </header>
 
-          {/* 行动日志 - 左上角浮层（放大） */}
-          <div className="absolute top-10 left-2 w-72 z-10">
-            <GameLog />
-          </div>
-
           {/* 聊天面板 - 左下角浮层 */}
           <div className="absolute bottom-2 left-2 w-72 z-10">
-            <div className="flex flex-col bg-black/40 border border-[var(--border-default)] rounded-lg overflow-hidden backdrop-blur-sm">
+            <div className="flex flex-col bg-black/50 backdrop-blur-md border border-[var(--color-primary)]/15 rounded-xl overflow-hidden shadow-[0_4px_30px_rgba(0,0,0,0.4),0_0_15px_rgba(0,212,255,0.04)]">
               <button
                 onClick={toggleChatPanel}
-                className="flex items-center justify-between px-3 py-1.5 bg-black/30 hover:bg-black/50 transition-colors cursor-pointer"
+                className="group flex items-center justify-between px-3 py-2 hover:bg-white/[0.04] transition-all cursor-pointer"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-[var(--color-primary)]/80 text-xs font-medium">
+                  <MessageCircle className="w-3.5 h-3.5 text-[var(--color-secondary)]/50 group-hover:text-[var(--color-secondary)]/80 transition-colors" />
+                  <span className="text-[var(--color-secondary)]/70 group-hover:text-[var(--color-secondary)] text-xs font-medium transition-colors">
                     牌桌聊天
                   </span>
                   {chatMessages.length > 0 && (
-                    <span className="text-[var(--text-muted)] text-[10px]">
-                      {chatMessages.length} 条
+                    <span className="text-[9px] tabular-nums px-1.5 py-0.5 rounded-full bg-[var(--color-secondary)]/10 text-[var(--color-secondary)]/60 border border-[var(--color-secondary)]/10">
+                      {chatMessages.length}
                     </span>
                   )}
                 </div>
-                <span className={`text-[var(--color-primary)]/60 text-xs transition-transform duration-200 ${isChatPanelExpanded ? 'rotate-180' : ''}`}>
-                  ▴
-                </span>
+                <motion.div
+                  animate={{ rotate: isChatPanelExpanded ? 180 : 0 }}
+                  transition={{ duration: 0.25, ease: 'easeInOut' }}
+                >
+                  <ChevronUp className="w-3.5 h-3.5 text-[var(--color-secondary)]/40 group-hover:text-[var(--color-secondary)]/70 transition-colors" />
+                </motion.div>
               </button>
-              {isChatPanelExpanded && (
-                <>
-                  <ChatPanel
-                    messages={chatMessages}
-                    className="h-48 py-1"
-                  />
-                  <ChatInput
-                    onSend={sendChatMessage}
-                    disabled={connectionStatus !== 'connected'}
-                    placeholder={connectionStatus !== 'connected' ? '未连接...' : '说点什么...'}
-                  />
-                </>
+              <AnimatePresence initial={false}>
+                {isChatPanelExpanded && (
+                  <motion.div
+                    key="chat-panel-content"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                    className="overflow-hidden border-t border-white/[0.04]"
+                  >
+                    <ChatPanel
+                      messages={chatMessages}
+                      className="h-48 py-1"
+                    />
+                    <ChatInput
+                      onSend={sendChatMessage}
+                      disabled={connectionStatus !== 'connected'}
+                      placeholder={connectionStatus !== 'connected' ? '未连接...' : '说点什么...'}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* 操作面板 - 右下角浮层 */}
+          <div className="absolute bottom-2 right-2 w-64 z-10">
+            <div className="bg-black/50 backdrop-blur-md border border-[var(--color-primary)]/15 rounded-xl overflow-hidden shadow-[0_4px_30px_rgba(0,0,0,0.4),0_0_15px_rgba(0,212,255,0.04)]">
+              {canStartRound && (
+                <div className="p-3">
+                  <button
+                    onClick={sendStartRound}
+                    className="relative w-full px-4 py-2.5 font-bold rounded-lg transition-all cursor-pointer text-sm text-[var(--text-primary)] bg-[var(--bg-surface)] border border-[var(--color-primary)]/40 hover:border-[var(--color-primary)]/70 hover:shadow-[0_0_15px_rgba(0,212,255,0.3)]"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
+                    {roundHistory.length === 0 ? '开始第一局' : '开始下一局'}
+                  </button>
+                </div>
+              )}
+              {status === 'finished' && (
+                <div className="p-3 text-center">
+                  <span className="text-[var(--color-gold)] text-sm font-medium">游戏已结束</span>
+                </div>
+              )}
+              {!canStartRound && status === 'playing' && currentRound && (
+                <ActionPanel onAction={sendAction} />
+              )}
+              {connectionStatus === 'disconnected' && status !== 'finished' && (
+                <div className="p-3 text-center">
+                  <span className="text-[var(--color-danger)] text-sm">连接已断开</span>
+                </div>
+              )}
+              {(connectionStatus === 'connecting' || connectionStatus === 'reconnecting') && (
+                <div className="p-3 text-center">
+                  <span className="text-[var(--color-warning)] text-sm animate-pulse">正在连接服务器...</span>
+                </div>
               )}
             </div>
           </div>
         </div>
       </main>
 
-      {/* 底部操作区域 — 更紧凑，与牌桌视觉融合 */}
-      <footer className="shrink-0 bg-black/60 backdrop-blur-md border-t border-white/[0.06] relative z-20">
-        {/* 操作按钮行 */}
-        <div className="h-14 flex items-center justify-center gap-4">
-          {canStartRound && (
-            <button
-              onClick={sendStartRound}
-              className="relative px-6 py-2 font-bold rounded-lg transition-all cursor-pointer text-sm text-[var(--text-primary)] bg-[var(--bg-surface)] border border-[var(--color-primary)]/40 hover:border-[var(--color-primary)]/70 hover:shadow-[0_0_15px_rgba(0,212,255,0.3)]"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              {roundHistory.length === 0 ? '开始第一局' : '开始下一局'}
-            </button>
-          )}
-          {status === 'finished' && (
-            <span className="text-[var(--color-gold)] text-sm font-medium">游戏已结束</span>
-          )}
-          {!canStartRound && status === 'playing' && currentRound && (
-            <ActionPanel onAction={sendAction} />
-          )}
-          {connectionStatus === 'disconnected' && status !== 'finished' && (
-            <span className="text-[var(--color-danger)] text-sm">连接已断开</span>
-          )}
-          {(connectionStatus === 'connecting' || connectionStatus === 'reconnecting') && (
-            <span className="text-[var(--color-warning)] text-sm animate-pulse">正在连接服务器...</span>
-          )}
-        </div>
+      {/* 底部状态条 — 全宽条带，显示行动 / 思考 / 回顾信息 */}
+      <footer className="shrink-0 relative z-20">
+        <StatusBar />
       </footer>
 
       <ThoughtDrawer />

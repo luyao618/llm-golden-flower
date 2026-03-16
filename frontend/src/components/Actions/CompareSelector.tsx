@@ -36,7 +36,7 @@ export default function CompareSelector({
 }: CompareSelectorProps) {
   if (targets.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full gap-3">
+      <div className="flex flex-col items-center justify-center gap-2 py-2">
         <span className="text-red-400 text-sm">没有可比牌的对手</span>
         <button
           onClick={onCancel}
@@ -50,13 +50,13 @@ export default function CompareSelector({
 
   return (
     <motion.div
-      className="flex items-center justify-center h-full gap-2 px-4"
+      className="flex flex-col gap-2 w-full"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 10 }}
     >
       {/* 提示文字 */}
-      <div className="flex flex-col items-end mr-1 shrink-0">
+      <div className="flex items-center justify-between">
         <span className="text-purple-300 text-sm font-medium">
           选择比牌对手
         </span>
@@ -66,13 +66,13 @@ export default function CompareSelector({
       </div>
 
       {/* 对手列表 */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-1.5">
         {targets.map((target) => (
           <motion.button
             key={target.id}
             onClick={() => onSelect(target.id)}
             className="
-              flex items-center gap-2 px-3 py-1.5 rounded-lg
+              flex items-center gap-2 px-3 py-2 rounded-lg w-full
               bg-purple-800/40 hover:bg-purple-700/60
               border border-purple-500/30 hover:border-purple-400/50
               transition-all cursor-pointer
@@ -84,7 +84,7 @@ export default function CompareSelector({
             {/* 小头像 */}
             <div
               className={`
-                w-7 h-7 rounded-full flex items-center justify-center
+                w-7 h-7 rounded-full flex items-center justify-center shrink-0
                 text-white text-xs font-bold
                 bg-gradient-to-br ${getAvatarColor(target.id)}
               `}
@@ -92,7 +92,7 @@ export default function CompareSelector({
               {target.avatar || getAvatarText(target.name)}
             </div>
             {/* 名字和状态 */}
-            <div className="flex flex-col items-start">
+            <div className="flex flex-col items-start min-w-0">
               <span className="text-white text-xs font-medium leading-tight">
                 {target.name}
               </span>
@@ -108,7 +108,7 @@ export default function CompareSelector({
       {/* 取消按钮 */}
       <button
         onClick={onCancel}
-        className="px-3 py-1.5 rounded-lg text-sm text-green-400/80 hover:text-green-300 bg-green-800/30 hover:bg-green-800/50 border border-green-600/20 transition-all cursor-pointer ml-1 shrink-0"
+        className="w-full px-3 py-1.5 rounded-lg text-sm text-green-400/80 hover:text-green-300 bg-green-800/30 hover:bg-green-800/50 border border-green-600/20 transition-all cursor-pointer"
       >
         取消
       </button>
