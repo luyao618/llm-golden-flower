@@ -72,4 +72,4 @@ FastAPI Backend
 
 ## License
 
-Private project.
+[MIT](LICENSE)
