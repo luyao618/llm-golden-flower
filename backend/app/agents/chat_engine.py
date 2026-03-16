@@ -2,12 +2,11 @@
 
 负责管理 AI 在牌桌上的聊天行为，包括：
 1. 行动发言（Decision 中的 table_talk，在 make_decision 时生成）
-2. 旁观插嘴（其他玩家操作后，旁观 AI 可能发表评论）
+2. 旁观插嘴（其他玩家操作后，旁观 AI 调用 LLM 决定是否评论）
 3. 玩家消息回应（人类玩家发消息时，确保至少一个 AI 回应）
 
 触发规则：
-- 关键操作（大幅加注、弃牌、比牌）提高触发概率
-- 性格影响基础概率（激进型 talk_frequency=0.8，保守型=0.25）
+- 每个旁观 AI 都调用 LLM 决定是否回应（should_respond 字段）
 - 玩家消息 must_respond=True 确保至少一个 AI 回应
 """
 
@@ -75,20 +74,7 @@ class TriggerEvent:
 
 # ---- 事件概率配置 ----
 
-# 各事件类型的基础触发概率（在性格 talk_frequency 之前）
-EVENT_BASE_PROBABILITIES: dict[TriggerEventType, float] = {
-    TriggerEventType.BIG_RAISE: 0.6,  # 大幅加注 - 高概率触发
-    TriggerEventType.COMPARE: 0.55,  # 比牌 - 较高概率
-    TriggerEventType.COMPARE_WIN: 0.5,  # 比牌赢 - 较高概率
-    TriggerEventType.COMPARE_LOSE: 0.5,  # 比牌输 - 较高概率
-    TriggerEventType.RAISE: 0.35,  # 普通加注
-    TriggerEventType.FOLD: 0.3,  # 弃牌
-    TriggerEventType.CHECK_CARDS: 0.15,  # 看牌 - 低概率
-    TriggerEventType.CALL: 0.1,  # 跟注 - 低概率
-    TriggerEventType.ROUND_START: 0.2,  # 新一局 - 中低概率
-    TriggerEventType.ROUND_END: 0.4,  # 一局结束 - 中概率
-    TriggerEventType.PLAYER_MESSAGE: 1.0,  # 玩家消息 - 必定处理（由 must_respond 控制）
-}
+# （已移除概率机制：每个旁观 AI 都调用 LLM 自行决定是否回应）
 
 
 class ChatEngine:
@@ -117,59 +103,6 @@ class ChatEngine:
     def __init__(self) -> None:
         pass
 
-    def should_respond(
-        self,
-        trigger_event: TriggerEvent,
-        agent: BaseAgent,
-    ) -> bool:
-        """判断某个旁观 AI 是否应该对事件做出反应
-
-        计算方式：最终概率 = 事件基础概率 * 性格发言频率系数
-        然后掷骰子决定是否触发。
-
-        Args:
-            trigger_event: 触发事件
-            agent: 旁观 AI Agent
-
-        Returns:
-            是否应该回应
-        """
-        # must_respond 的事件总是需要处理（但不一定每个 AI 都回应）
-        if trigger_event.must_respond:
-            # must_respond 场景下，用较高的基础概率
-            base_prob = 0.7
-        else:
-            base_prob = EVENT_BASE_PROBABILITIES.get(trigger_event.event_type, 0.2)
-
-        # 获取性格的发言频率参数
-        behavior = agent.get_behavior_params()
-        talk_frequency = behavior.get("talk_frequency", 0.5)
-
-        # 最终概率 = 基础概率 * 性格系数
-        # 性格系数范围 [0.3, 1.7]，使低 talk_frequency 的 AI 仍有小概率说话
-        personality_factor = 0.3 + talk_frequency * 1.4
-        final_prob = min(1.0, base_prob * personality_factor)
-
-        # 不要让自己对自己的行动做出旁观反应
-        if trigger_event.actor_id == agent.agent_id:
-            return False
-
-        roll = random.random()
-        should = roll < final_prob
-        logger.debug(
-            "[ChatEngine] should_respond: agent=%s, event=%s, "
-            "base=%.2f, talk_freq=%.2f, factor=%.2f, final=%.2f, roll=%.2f -> %s",
-            agent.name,
-            trigger_event.event_type.value,
-            base_prob,
-            talk_frequency,
-            personality_factor,
-            final_prob,
-            roll,
-            should,
-        )
-        return should
-
     async def maybe_react_as_bystander(
         self,
         trigger_event: TriggerEvent,
@@ -180,22 +113,22 @@ class ChatEngine:
     ) -> BystanderReaction | None:
         """让一个旁观 AI 对事件做出反应
 
-        先通过 should_respond 判断是否回应，
-        如果 must_respond=True 则跳过概率判断直接生成回应。
-        然后调用 LLM 生成反应内容。
+        每次都调用 LLM，由 LLM 自行决定是否回应（通过 should_respond 字段）。
+        如果 must_respond=True 且 LLM 返回 should_respond=False，仍然尊重 LLM 的判断，
+        但在 collect_bystander_reactions 层面会确保至少一个 AI 回应。
 
         Args:
             trigger_event: 触发事件
             agent: 旁观 AI Agent
             chat_context: 当前聊天上下文
             agent_state: Agent 当前状态信息（看牌状态、筹码等）
-            must_respond: 是否强制回应（跳过概率判断）
+            must_respond: 是否强制回应（LLM 返回不回应时仍强制使用）
 
         Returns:
-            BystanderReaction 实例，或 None（选择不回应时）
+            BystanderReaction 实例，或 None（LLM 调用失败且非 must_respond 时）
         """
-        # 决定是否回应
-        if not must_respond and not self.should_respond(trigger_event, agent):
+        # 不要让自己对自己的行动做出旁观反应
+        if trigger_event.actor_id == agent.agent_id:
             return None
 
         # 构建状态信息
@@ -228,6 +161,20 @@ class ChatEngine:
                 agent=agent,
                 trigger_event=trigger_event,
             )
+
+            # must_respond 场景下：如果 LLM 说不回应，强制回应
+            if must_respond and not reaction.should_respond:
+                logger.debug(
+                    "[ChatEngine] must_respond but LLM said no for %s, forcing response",
+                    agent.name,
+                )
+                # 重新调用一次，明确要求回应
+                reaction.should_respond = True
+                if not reaction.message:
+                    reaction.message = (
+                        reaction.inner_thought[:100] if reaction.inner_thought else "嗯。"
+                    )
+
             return reaction
 
         except Exception as e:
@@ -242,7 +189,7 @@ class ChatEngine:
                     agent_id=agent.agent_id,
                     agent_name=agent.name,
                     should_respond=True,
-                    message=_get_fallback_reaction(trigger_event, agent),
+                    message=_get_fallback_reaction(trigger_event),
                     inner_thought="（LLM 调用失败，使用默认回应）",
                     trigger_event=trigger_event.description,
                 )
@@ -257,8 +204,8 @@ class ChatEngine:
     ) -> list[BystanderReaction]:
         """收集所有旁观 AI 对某事件的反应
 
-        遍历所有旁观 AI，根据概率决定谁回应，
-        并确保 must_respond 事件至少有一个回应。
+        每个旁观 AI 都调用 LLM，由 LLM 自行决定是否回应。
+        must_respond 事件确保至少有一个回应。
 
         Args:
             event: 触发事件
@@ -275,7 +222,7 @@ class ChatEngine:
         states = agent_states or {}
         reactions: list[BystanderReaction] = []
 
-        # 先让所有 AI 各自判断是否回应
+        # 每个旁观 AI 都调用 LLM 决定是否回应
         for agent in bystanders:
             # 跳过事件发起者
             if agent.agent_id == event.actor_id:
@@ -293,13 +240,14 @@ class ChatEngine:
 
         # must_respond 保证：如果需要至少一个回应但没有任何 AI 回应
         if event.must_respond and not reactions and bystanders:
-            # 选一个最可能回应的 AI（talk_frequency 最高的）
-            best_candidate = self._pick_most_talkative(bystanders, event.actor_id)
-            if best_candidate:
-                state = states.get(best_candidate.agent_id)
+            # 随机选一个旁观 AI 强制回应
+            candidates = [a for a in bystanders if a.agent_id != event.actor_id]
+            if candidates:
+                forced_agent = random.choice(candidates)
+                state = states.get(forced_agent.agent_id)
                 reaction = await self.maybe_react_as_bystander(
                     trigger_event=event,
-                    agent=best_candidate,
+                    agent=forced_agent,
                     chat_context=chat_context,
                     agent_state=state,
                     must_respond=True,
@@ -308,33 +256,6 @@ class ChatEngine:
                     reactions.append(reaction)
 
         return reactions
-
-    def calculate_response_probability(
-        self,
-        trigger_event: TriggerEvent,
-        agent: BaseAgent,
-    ) -> float:
-        """计算某个 AI 对事件的回应概率（暴露给测试用）
-
-        Args:
-            trigger_event: 触发事件
-            agent: AI Agent
-
-        Returns:
-            最终回应概率 [0, 1]
-        """
-        if trigger_event.actor_id == agent.agent_id:
-            return 0.0
-
-        if trigger_event.must_respond:
-            base_prob = 0.7
-        else:
-            base_prob = EVENT_BASE_PROBABILITIES.get(trigger_event.event_type, 0.2)
-
-        behavior = agent.get_behavior_params()
-        talk_frequency = behavior.get("talk_frequency", 0.5)
-        personality_factor = 0.3 + talk_frequency * 1.4
-        return min(1.0, base_prob * personality_factor)
 
     # ---- 内部方法 ----
 
@@ -410,20 +331,6 @@ class ChatEngine:
             should_respond=False,
             inner_thought=text[:200] if text else "",
             trigger_event=trigger_event.description,
-        )
-
-    @staticmethod
-    def _pick_most_talkative(
-        agents: list[BaseAgent],
-        exclude_id: str = "",
-    ) -> BaseAgent | None:
-        """选出最健谈的 AI（talk_frequency 最高的，排除指定 ID）"""
-        candidates = [a for a in agents if a.agent_id != exclude_id]
-        if not candidates:
-            return None
-        return max(
-            candidates,
-            key=lambda a: a.get_behavior_params().get("talk_frequency", 0.5),
         )
 
 
@@ -550,42 +457,17 @@ def create_player_message_event(
 
 def _get_fallback_reaction(
     trigger_event: TriggerEvent,
-    agent: BaseAgent,
 ) -> str:
     """获取降级反应文本（LLM 调用失败时使用）
 
-    根据事件类型和性格返回一个简短的默认回应。
+    返回一个通用的简短默认回应。
     """
-    personality = agent.personality
-
-    # 根据事件类型和性格生成默认回应
-    fallback_responses: dict[str, list[str]] = {
-        "aggressive": [
-            "哼，有意思。",
-            "来吧，谁怕谁。",
-            "就这？",
-        ],
-        "conservative": [
-            "嗯...",
-            "我再看看。",
-            "有意思。",
-        ],
-        "analytical": [
-            "有趣的选择。",
-            "值得关注。",
-            "数据在变化。",
-        ],
-        "intuitive": [
-            "感觉有什么要发生了。",
-            "直觉告诉我...",
-            "嗯，有点意思。",
-        ],
-        "bluffer": [
-            "哦？真的吗？",
-            "呵呵，好戏开场了。",
-            "这可不一定哦。",
-        ],
-    }
-
-    responses = fallback_responses.get(personality, ["..."])
-    return random.choice(responses)
+    fallback_responses = [
+        "嗯...",
+        "有意思。",
+        "哦？",
+        "继续。",
+        "看看接下来怎么样。",
+        "好戏还在后头。",
+    ]
+    return random.choice(fallback_responses)

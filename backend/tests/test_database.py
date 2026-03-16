@@ -193,7 +193,6 @@ class TestPlayerDB:
             avatar="avatar_2",
             player_type="ai",
             model_id="openai-gpt4o",
-            personality="aggressive",
             initial_chips=1000,
             current_chips=950,
         )
@@ -204,7 +203,6 @@ class TestPlayerDB:
         assert result is not None
         assert result.player_type == "ai"
         assert result.model_id == "openai-gpt4o"
-        assert result.personality == "aggressive"
         assert result.current_chips == 950
 
     @pytest.mark.asyncio
@@ -633,7 +631,6 @@ class TestCrossTableRelationships:
             name="火焰哥",
             player_type="ai",
             model_id="openai-gpt4o",
-            personality="aggressive",
             initial_chips=1000,
             current_chips=1000,
         )

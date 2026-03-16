@@ -1,7 +1,7 @@
 """Prompt 模板系统
 
 提供 AI Agent 在不同场景下使用的 Prompt 模板：
-1. System Prompt - 角色身份 + 规则 + 性格 + 发言指导
+1. System Prompt - 角色身份 + 规则 + 发言指导（无预设性格，由 LLM 自行决定风格）
 2. Decision Prompt - 决策场景（手牌、局面、历史行动、聊天上下文、经验策略）
 3. Bystander React Prompt - 旁观插嘴场景
 4. Experience Review Prompt - 经验回顾场景
@@ -94,23 +94,26 @@ SYSTEM_PROMPT_TEMPLATE = """\
 
 ## 你的身份
 - 名字: {agent_name}
-- 性格: {personality_name}
 
-## 性格特征
-{personality_description}
+## 你的目标
+赢。你要尽一切办法在牌桌上赢得更多筹码。
+
+## 你的风格
+你自行决定自己的打牌风格和说话方式。你可以激进、保守、善于诈唬、善于分析——
+一切由你自己判断当前局面后决定。没有人给你设定性格，你就是你自己。
 
 ## 炸金花规则摘要
 {rules_summary}
 
 ## 你的决策原则
-- 根据你的性格特征做出符合角色的决策
+- 根据你对局面的判断自主做出最有利的决策
 - 仔细分析对手的行为模式
 - 权衡风险与收益
 - 记录你的真实想法
 
 ## 牌桌交流
 - 你可以在做出操作时说一句话（也可以选择沉默）
-- 你的发言应该符合你的性格特征
+- 你自行决定什么时候说话、说什么、用什么语气
 - 你可以利用言语来施压、虚张声势、试探对手、回应挑衅
 - 注意：你说的话对手能看到，不要泄露自己的真实策略
 - 牌桌上的对话也是博弈的一部分，对手的话可能是真话也可能是烟雾弹
@@ -167,7 +170,7 @@ BYSTANDER_REACT_PROMPT_TEMPLATE = """\
 - 你在这一局的表现: {your_actions_so_far}
 
 你可以选择回应，也可以选择沉默。
-如果回应，请符合你的性格。简短有力，一两句话即可。
+如果回应，简短有力，一两句话即可。
 
 输出格式:
 {output_schema}"""
@@ -209,7 +212,7 @@ EXPERIENCE_REVIEW_PROMPT_TEMPLATE = """\
 ROUND_NARRATIVE_PROMPT_TEMPLATE = """\
 ## 请以第一人称写一段本局的叙事回顾
 
-你是 {agent_name}，性格是{personality_name}。
+你是 {agent_name}。
 
 ### 本局基本信息
 - 第 {round_number} 局
@@ -227,7 +230,6 @@ ROUND_NARRATIVE_PROMPT_TEMPLATE = """\
 
 请用第一人称（"我"）写一段 200-400 字的叙事，生动地描述你这局的心路历程。
 包括你的牌力判断、对对手的分析、关键决策点、以及你在聊天中的策略。
-语气和表达方式应该符合你的性格特征。
 
 输出格式:
 {output_schema}"""
@@ -240,7 +242,7 @@ ROUND_NARRATIVE_PROMPT_TEMPLATE = """\
 GAME_SUMMARY_PROMPT_TEMPLATE = """\
 ## 请写一份整场游戏的总结报告
 
-你是 {agent_name}，性格是{personality_name}。
+你是 {agent_name}。
 
 ### 统计数据
 - 总共打了 {rounds_played} 局
@@ -279,23 +281,17 @@ GAME_SUMMARY_PROMPT_TEMPLATE = """\
 
 def render_system_prompt(
     agent_name: str,
-    personality_name: str,
-    personality_description: str,
 ) -> str:
     """渲染 System Prompt
 
     Args:
         agent_name: Agent 显示名称
-        personality_name: 性格中文名称
-        personality_description: 完整性格描述文本（含打牌风格和发言风格）
 
     Returns:
         渲染后的 system prompt 文本
     """
     return SYSTEM_PROMPT_TEMPLATE.format(
         agent_name=agent_name,
-        personality_name=personality_name,
-        personality_description=personality_description,
         rules_summary=RULES_SUMMARY,
         output_schema=DECISION_OUTPUT_SCHEMA,
     )
@@ -415,7 +411,6 @@ def render_experience_review_prompt(
 
 def render_round_narrative_prompt(
     agent_name: str,
-    personality_name: str,
     round_number: int,
     hand_description: str,
     round_outcome: str,
@@ -427,7 +422,6 @@ def render_round_narrative_prompt(
 
     Args:
         agent_name: Agent 显示名称
-        personality_name: 性格中文名称
         round_number: 局数
         hand_description: 手牌描述
         round_outcome: 本局结果描述
@@ -440,7 +434,6 @@ def render_round_narrative_prompt(
     """
     return ROUND_NARRATIVE_PROMPT_TEMPLATE.format(
         agent_name=agent_name,
-        personality_name=personality_name,
         round_number=round_number,
         hand_description=hand_description,
         round_outcome=round_outcome,
@@ -453,7 +446,6 @@ def render_round_narrative_prompt(
 
 def render_game_summary_prompt(
     agent_name: str,
-    personality_name: str,
     rounds_played: int,
     rounds_won: int,
     total_chips_won: int,
@@ -469,7 +461,6 @@ def render_game_summary_prompt(
 
     Args:
         agent_name: Agent 显示名称
-        personality_name: 性格中文名称
         rounds_played: 总局数
         rounds_won: 赢的局数
         total_chips_won: 总赢得筹码
@@ -486,7 +477,6 @@ def render_game_summary_prompt(
     """
     return GAME_SUMMARY_PROMPT_TEMPLATE.format(
         agent_name=agent_name,
-        personality_name=personality_name,
         rounds_played=rounds_played,
         rounds_won=rounds_won,
         total_chips_won=total_chips_won,

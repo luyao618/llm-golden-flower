@@ -35,7 +35,6 @@ import { createGame as apiCreateGame, getAvailableModels } from '../services/api
 export interface AIOpponentConfig {
   model_id: string
   name: string
-  personality: string
 }
 
 // ---- Store 类型 ----
@@ -113,7 +112,6 @@ const DEFAULT_GAME_CONFIG: GameConfig = {
 const DEFAULT_AI_OPPONENT: AIOpponentConfig = {
   model_id: '',  // will be auto-set to first available model by fetchModels()
   name: '',
-  personality: '',
 }
 
 function createDefaultAIOpponent(): AIOpponentConfig {
@@ -274,7 +272,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const aiConfigs: AIPlayerConfig[] = aiOpponents.map((op) => ({
         model_id: op.model_id,
         ...(op.name ? { name: op.name } : {}),
-        ...(op.personality ? { personality: op.personality } : {}),
       }))
 
       const response = await apiCreateGame({

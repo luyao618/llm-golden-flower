@@ -1095,27 +1095,47 @@ async def _handle_player_action(
 
     # 启动 AI 回合循环（先发送 turn_changed / ai_thinking，避免 UI 卡顿）
     # 旁观反应在 AI 回合循环内部处理
-    await process_ai_turns(
-        game_id=game_id,
-        game=game,
-        ws_manager=ws_manager,
-        agent_manager=agent_mgr,
-        chat_engine=chat_engine,
-    )
+    try:
+        await process_ai_turns(
+            game_id=game_id,
+            game=game,
+            ws_manager=ws_manager,
+            agent_manager=agent_mgr,
+            chat_engine=chat_engine,
+        )
+    except Exception as e:
+        logger.error(
+            "Error during AI turns after player action: game=%s, error=%s",
+            game_id,
+            e,
+            exc_info=True,
+        )
+        await ws_manager.broadcast(
+            game_id,
+            event_error(f"AI 回合处理出错: {e}"),
+        )
 
     # 收集人类行动的旁观反应（在 turn_changed 之后，不阻塞 UI）
     chat_context = ws_manager.get_chat_context(game_id)
-    await _collect_and_broadcast_bystander_reactions(
-        game_id=game_id,
-        game=game,
-        actor=player,
-        action=action,
-        result=result,
-        agent_manager=agent_mgr,
-        chat_engine=chat_engine,
-        chat_context=chat_context,
-        ws_manager=ws_manager,
-    )
+    try:
+        await _collect_and_broadcast_bystander_reactions(
+            game_id=game_id,
+            game=game,
+            actor=player,
+            action=action,
+            result=result,
+            agent_manager=agent_mgr,
+            chat_engine=chat_engine,
+            chat_context=chat_context,
+            ws_manager=ws_manager,
+        )
+    except Exception as e:
+        logger.error(
+            "Error during bystander reactions: game=%s, error=%s",
+            game_id,
+            e,
+            exc_info=True,
+        )
 
 
 async def _handle_start_round(
@@ -1179,10 +1199,22 @@ async def _handle_start_round(
             await ws_manager.send_to_player(game_id, pid, event_cards_dealt(cards_data))
 
     # 启动 AI 回合（如果第一个行动者是 AI）
-    await process_ai_turns(
-        game_id=game_id,
-        game=game,
-        ws_manager=ws_manager,
-        agent_manager=agent_mgr,
-        chat_engine=chat_engine,
-    )
+    try:
+        await process_ai_turns(
+            game_id=game_id,
+            game=game,
+            ws_manager=ws_manager,
+            agent_manager=agent_mgr,
+            chat_engine=chat_engine,
+        )
+    except Exception as e:
+        logger.error(
+            "Error during AI turns after start_round: game=%s, error=%s",
+            game_id,
+            e,
+            exc_info=True,
+        )
+        await ws_manager.broadcast(
+            game_id,
+            event_error(f"AI 回合处理出错: {e}"),
+        )

@@ -125,7 +125,7 @@ class TestCreateGame:
             json={
                 "player_name": "玩家B",
                 "ai_opponents": [
-                    {"model_id": "openai-gpt4o", "name": "AI-1", "personality": "aggressive"},
+                    {"model_id": "openai-gpt4o", "name": "AI-1"},
                     {"model_id": "anthropic-claude-sonnet", "name": "AI-2"},
                     {"model_id": "google-gemini-flash"},
                 ],
@@ -134,10 +134,9 @@ class TestCreateGame:
         assert response.status_code == 200
         data = response.json()
         assert len(data["players"]) == 4
-        # 第一个 AI 使用自定义名称和性格
+        # 第一个 AI 使用自定义名称
         ai1 = data["players"][1]
         assert ai1["name"] == "AI-1"
-        assert ai1["personality"] == "aggressive"
         assert ai1["model_id"] == "openai-gpt4o"
 
     @pytest.mark.asyncio
@@ -196,22 +195,6 @@ class TestCreateGame:
             },
         )
         assert response.status_code == 422  # Pydantic validation error
-
-    @pytest.mark.asyncio
-    async def test_create_game_auto_assign_personality(self, async_client: AsyncClient):
-        """AI 未指定性格时自动分配"""
-        response = await async_client.post(
-            "/api/game/create",
-            json={
-                "player_name": "玩家",
-                "ai_opponents": [{"model_id": "openai-gpt4o"}],
-            },
-        )
-        assert response.status_code == 200
-        data = response.json()
-        ai_player = data["players"][1]
-        assert ai_player["personality"] is not None
-        assert ai_player["personality"] != ""
 
     @pytest.mark.asyncio
     async def test_create_game_auto_assign_name(self, async_client: AsyncClient):

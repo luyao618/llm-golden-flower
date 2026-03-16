@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.game_store import GameStore, get_game_store
 from app.agents.agent_manager import get_agent_manager
-from app.config import AI_AVATARS, AI_NAMES, AI_PERSONALITIES, get_available_models
+from app.config import AI_AVATARS, AI_NAMES, get_available_models
 from app.db.database import get_db
 from app.db.schemas import GameDB, PlayerDB, RoundDB
 from app.engine.game_manager import (
@@ -46,7 +46,6 @@ class AIPlayerConfig(BaseModel):
 
     model_id: str = Field(..., description="AI 模型标识，如 'openai-gpt4o'")
     name: str | None = Field(None, description="自定义名称（留空自动分配）")
-    personality: str | None = Field(None, description="性格类型（留空随机分配）")
 
 
 class CreateGameRequest(BaseModel):
@@ -107,7 +106,7 @@ class GameStateResponse(BaseModel):
 
 
 def _assign_ai_identity(ai_config: AIPlayerConfig, index: int, used_names: set[str]) -> dict:
-    """为 AI 玩家分配名字、性格、头像
+    """为 AI 玩家分配名字、头像
 
     Args:
         ai_config: AI 配置
@@ -117,17 +116,10 @@ def _assign_ai_identity(ai_config: AIPlayerConfig, index: int, used_names: set[s
     Returns:
         完整的 player_config 字典
     """
-    # 性格
-    personality = ai_config.personality
-    if personality is None or personality not in AI_PERSONALITIES:
-        personality = AI_PERSONALITIES[index % len(AI_PERSONALITIES)]
-
     # 名字
     name = ai_config.name
     if name is None:
-        # 从该性格的名字池中选择未使用的
-        candidates = AI_NAMES.get(personality, ["AI"])
-        available = [n for n in candidates if n not in used_names]
+        available = [n for n in AI_NAMES if n not in used_names]
         name = available[0] if available else f"AI-{index + 1}"
     used_names.add(name)
 
@@ -138,7 +130,6 @@ def _assign_ai_identity(ai_config: AIPlayerConfig, index: int, used_names: set[s
         "name": name,
         "player_type": "ai",
         "model_id": ai_config.model_id,
-        "personality": personality,
         "avatar": avatar,
     }
 
@@ -218,7 +209,6 @@ async def create_game_endpoint(
             "agent_id": p.id,
             "name": p.name,
             "model_id": p.model_id or "openai-gpt4o-mini",
-            "personality": p.personality or "analytical",
         }
         for p in ai_players
     ]
@@ -240,7 +230,6 @@ async def create_game_endpoint(
             avatar=player.avatar,
             player_type=player.player_type.value,
             model_id=player.model_id,
-            personality=player.personality,
             initial_chips=player.chips,
             current_chips=player.chips,
         )
@@ -256,7 +245,6 @@ async def create_game_endpoint(
             "player_type": p.player_type.value,
             "chips": p.chips,
             "model_id": p.model_id,
-            "personality": p.personality,
             "avatar": p.avatar,
         }
         for p in game_state.players

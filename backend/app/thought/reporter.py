@@ -16,8 +16,6 @@ import re
 from typing import TYPE_CHECKING
 
 from app.agents.prompts import (
-    GAME_SUMMARY_OUTPUT_SCHEMA,
-    ROUND_NARRATIVE_OUTPUT_SCHEMA,
     render_game_summary_prompt,
     render_round_narrative_prompt,
 )
@@ -65,18 +63,11 @@ class ThoughtReporter:
         Returns:
             RoundNarrative 实例
         """
-        personality_name = (
-            self.agent.personality_profile.name_zh
-            if self.agent.personality_profile
-            else self.agent.personality
-        )
-
         # 格式化思考过程
         thoughts_text = self._format_thoughts(round_thoughts)
 
         prompt = render_round_narrative_prompt(
             agent_name=self.agent.name,
-            personality_name=personality_name,
             round_number=round_number,
             hand_description=hand_description,
             round_outcome=round_outcome,
@@ -104,8 +95,7 @@ class ThoughtReporter:
             else:
                 # JSON 解析失败，将原始文本作为叙事
                 logger.warning(
-                    "[ThoughtReporter:%s] Failed to parse round narrative JSON, "
-                    "using raw text",
+                    "[ThoughtReporter:%s] Failed to parse round narrative JSON, using raw text",
                     self.agent.name,
                 )
                 return RoundNarrative(
@@ -164,15 +154,8 @@ class ThoughtReporter:
         Returns:
             GameSummary 实例
         """
-        personality_name = (
-            self.agent.personality_profile.name_zh
-            if self.agent.personality_profile
-            else self.agent.personality
-        )
-
         prompt = render_game_summary_prompt(
             agent_name=self.agent.name,
-            personality_name=personality_name,
             rounds_played=rounds_played,
             rounds_won=rounds_won,
             total_chips_won=total_chips_won,

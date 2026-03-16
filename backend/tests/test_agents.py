@@ -58,7 +58,6 @@ class TestBaseAgentInit:
         agent = BaseAgent()
         assert agent.name == "AI Player"
         assert agent.model_id == "openai-gpt4o-mini"
-        assert agent.personality == "analytical"
         assert agent.agent_id  # 自动生成 UUID
 
     def test_custom_init(self):
@@ -66,30 +65,20 @@ class TestBaseAgentInit:
             agent_id="test-id",
             name="测试选手",
             model_id="anthropic-claude-sonnet",
-            personality="aggressive",
-            personality_description="一个非常激进的玩家",
         )
         assert agent.agent_id == "test-id"
         assert agent.name == "测试选手"
         assert agent.model_id == "anthropic-claude-sonnet"
-        assert agent.personality == "aggressive"
-        assert agent.personality_description == "一个非常激进的玩家"
 
     def test_invalid_model_id_fallback(self):
         agent = BaseAgent(model_id="nonexistent-model")
         assert agent.model_id == "openai-gpt4o-mini"
 
-    def test_default_personality_description(self):
-        agent = BaseAgent(personality="bluffer")
-        # T2.2: known personality now auto-loads full Chinese profile description
-        assert "虚张声势" in agent.personality_description
-
     def test_repr(self):
-        agent = BaseAgent(name="火焰哥", model_id="openai-gpt4o-mini", personality="aggressive")
+        agent = BaseAgent(name="火焰哥", model_id="openai-gpt4o-mini")
         repr_str = repr(agent)
         assert "火焰哥" in repr_str
         assert "openai-gpt4o-mini" in repr_str
-        assert "aggressive" in repr_str
 
 
 # ============================================================
@@ -101,10 +90,9 @@ class TestBuildSystemPrompt:
     """System prompt 构建测试"""
 
     def test_contains_agent_identity(self):
-        agent = BaseAgent(name="火焰哥", personality_description="激进好斗")
+        agent = BaseAgent(name="火焰哥")
         prompt = agent.build_system_prompt()
         assert "火焰哥" in prompt
-        assert "激进好斗" in prompt
 
     def test_contains_rules(self):
         agent = BaseAgent()
@@ -560,13 +548,12 @@ class TestAgentManager:
             "game-1",
             [
                 {"model_id": "openai-gpt4o-mini"},
-                {"model_id": "anthropic-claude-sonnet", "personality": "aggressive"},
+                {"model_id": "anthropic-claude-sonnet"},
             ],
         )
         assert len(agents) == 2
         assert agents[0].model_id == "openai-gpt4o-mini"
         assert agents[1].model_id == "anthropic-claude-sonnet"
-        assert agents[1].personality == "aggressive"
 
     def test_create_agents_with_custom_names(self):
         manager = AgentManager()
@@ -579,20 +566,6 @@ class TestAgentManager:
         )
         assert agents[0].name == "测试玩家A"
         assert agents[1].name == "测试玩家B"
-
-    def test_create_agents_auto_assigns_personality(self):
-        manager = AgentManager()
-        agents = manager.create_agents_for_game(
-            "game-1",
-            [
-                {},
-                {},
-                {},
-            ],
-        )
-        # 自动分配的性格应该尽量不重复
-        personalities = [a.personality for a in agents]
-        assert len(set(personalities)) == 3  # 3 个不同的性格
 
     def test_create_agents_auto_assigns_names(self):
         manager = AgentManager()
@@ -718,14 +691,11 @@ class TestDecisionFlow:
         agent = BaseAgent(
             name="集成测试Agent",
             model_id="openai-gpt4o-mini",
-            personality="analytical",
-            personality_description="冷静分析型玩家，善于概率计算",
         )
 
         # 构建 system prompt
         system_prompt = agent.build_system_prompt()
         assert "集成测试Agent" in system_prompt
-        assert "冷静分析型" in system_prompt
 
         # mock LLM 响应
         llm_response = json.dumps(
@@ -1079,7 +1049,7 @@ class TestMakeDecision:
     @pytest.mark.asyncio
     async def test_make_decision_call(self):
         """正常决策流程：AI 选择跟注"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="analytical")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         game = _make_game_state()
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
@@ -1116,7 +1086,7 @@ class TestMakeDecision:
     @pytest.mark.asyncio
     async def test_make_decision_fold(self):
         """AI 选择弃牌"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="conservative")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         game = _make_game_state()
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
@@ -1133,7 +1103,7 @@ class TestMakeDecision:
     @pytest.mark.asyncio
     async def test_make_decision_raise(self):
         """AI 选择加注"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="aggressive")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         game = _make_game_state()
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
@@ -1153,7 +1123,7 @@ class TestMakeDecision:
     @pytest.mark.asyncio
     async def test_make_decision_check_cards_blind(self):
         """暗注玩家选择看牌"""
-        agent = BaseAgent(agent_id="p2", name="玩家B", personality="conservative")
+        agent = BaseAgent(agent_id="p2", name="玩家B")
         game = _make_game_state(current_player_index=1)
         player = game.players[1]
         player.status = PlayerStatus.ACTIVE_BLIND
@@ -1169,7 +1139,7 @@ class TestMakeDecision:
     @pytest.mark.asyncio
     async def test_make_decision_compare_with_valid_target(self):
         """AI 选择比牌，指定合法目标"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="aggressive")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         game = _make_game_state()
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
@@ -1190,7 +1160,7 @@ class TestMakeDecision:
     @pytest.mark.asyncio
     async def test_make_decision_compare_auto_select_target(self):
         """AI 选择比牌但未指定目标，自动选择筹码最少的对手"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="aggressive")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         players = [
             _make_player(
                 "玩家A",
@@ -1239,7 +1209,7 @@ class TestMakeDecision:
     @pytest.mark.asyncio
     async def test_make_decision_compare_invalid_target_auto_select(self):
         """AI 比牌指定了无效目标，自动重选"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="aggressive")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         game = _make_game_state()
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
@@ -1258,7 +1228,7 @@ class TestMakeDecision:
     @pytest.mark.asyncio
     async def test_make_decision_compare_target_folded_auto_select(self):
         """AI 比牌指定了已弃牌的目标，自动重选"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="aggressive")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         players = [
             _make_player(
                 "玩家A",
@@ -1310,7 +1280,7 @@ class TestMakeDecisionIllegalActionFallback:
     @pytest.mark.asyncio
     async def test_illegal_action_fallback_to_call(self):
         """LLM 返回不在可用列表中的操作，降级为跟注"""
-        agent = BaseAgent(agent_id="p2", name="玩家B", personality="analytical")
+        agent = BaseAgent(agent_id="p2", name="玩家B")
         game = _make_game_state(current_player_index=1)
         player = game.players[1]
         player.status = PlayerStatus.ACTIVE_BLIND
@@ -1334,7 +1304,7 @@ class TestMakeDecisionIllegalActionFallback:
     @pytest.mark.asyncio
     async def test_illegal_check_cards_when_already_seen(self):
         """已看牌玩家不能再次看牌"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="analytical")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         game = _make_game_state()
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
@@ -1354,7 +1324,7 @@ class TestMakeDecisionLLMFailure:
     @pytest.mark.asyncio
     async def test_llm_failure_fallback(self):
         """LLM 调用失败时降级为安全操作"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="analytical")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         game = _make_game_state()
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
@@ -1383,7 +1353,7 @@ class TestMakeDecisionLLMFailure:
     @pytest.mark.asyncio
     async def test_llm_failure_fallback_fold_when_no_call(self):
         """LLM 失败且筹码不足跟注时，降级为弃牌"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="conservative")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         players = [
             _make_player(
                 "玩家A",
@@ -1432,7 +1402,7 @@ class TestMakeDecisionWithContext:
     @pytest.mark.asyncio
     async def test_chat_context_included_in_prompt(self):
         """验证聊天上下文被传入 LLM"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="analytical")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         game = _make_game_state()
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
@@ -1461,7 +1431,7 @@ class TestMakeDecisionWithContext:
     @pytest.mark.asyncio
     async def test_experience_context_included_in_prompt(self):
         """验证经验策略上下文被传入 LLM"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="analytical")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         agent.set_strategy_context("对手B喜欢诈唬，应该更多跟注")
         game = _make_game_state()
         player = game.players[0]
@@ -1483,7 +1453,7 @@ class TestMakeDecisionWithContext:
     @pytest.mark.asyncio
     async def test_action_history_included_in_prompt(self):
         """验证行动历史被传入 LLM"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="analytical")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         actions = [
             ActionRecord(player_id="p2", player_name="玩家B", action=GameAction.RAISE, amount=20),
             ActionRecord(player_id="p3", player_name="玩家C", action=GameAction.FOLD),
@@ -1511,7 +1481,7 @@ class TestMakeDecisionWithContext:
     @pytest.mark.asyncio
     async def test_blind_player_hand_not_revealed(self):
         """暗注玩家的手牌描述应为'未知'"""
-        agent = BaseAgent(agent_id="p2", name="玩家B", personality="analytical")
+        agent = BaseAgent(agent_id="p2", name="玩家B")
         game = _make_game_state(current_player_index=1)
         player = game.players[1]
         player.status = PlayerStatus.ACTIVE_BLIND
@@ -1533,7 +1503,7 @@ class TestMakeDecisionWithContext:
     @pytest.mark.asyncio
     async def test_available_actions_with_costs_in_prompt(self):
         """验证可用操作及费用信息被传入 LLM"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="analytical")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         game = _make_game_state()
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
@@ -1560,7 +1530,7 @@ class TestMakeDecisionThoughtRecording:
     @pytest.mark.asyncio
     async def test_thought_recorded_after_decision(self):
         """决策后思考数据应被记录到 memory"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="analytical")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         game = _make_game_state()
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
@@ -1590,7 +1560,7 @@ class TestMakeDecisionThoughtRecording:
     @pytest.mark.asyncio
     async def test_multiple_decisions_accumulate_thoughts(self):
         """同一局多次决策应累积思考数据"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="analytical")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
 
         for i in range(3):
             game = _make_game_state()
@@ -1617,7 +1587,7 @@ class TestMakeDecisionThoughtRecording:
     @pytest.mark.asyncio
     async def test_llm_failure_still_records_thought(self):
         """LLM 失败时降级决策也应记录思考"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="analytical")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         game = _make_game_state()
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
@@ -1648,7 +1618,7 @@ class TestMakeDecisionEdgeCases:
     @pytest.mark.asyncio
     async def test_chinese_action_in_llm_response(self):
         """LLM 返回中文操作名称"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="analytical")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         game = _make_game_state()
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
@@ -1669,7 +1639,7 @@ class TestMakeDecisionEdgeCases:
     @pytest.mark.asyncio
     async def test_malformed_json_response(self):
         """LLM 返回格式不规范的 JSON（包含在文本中）"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="intuitive")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         game = _make_game_state()
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
@@ -1688,7 +1658,7 @@ class TestMakeDecisionEdgeCases:
     @pytest.mark.asyncio
     async def test_completely_unparseable_response(self):
         """LLM 返回完全无法解析的响应"""
-        agent = BaseAgent(agent_id="p1", name="玩家A", personality="analytical")
+        agent = BaseAgent(agent_id="p1", name="玩家A")
         game = _make_game_state()
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN

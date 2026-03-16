@@ -72,23 +72,24 @@ AZURE_OPENAI_MODELS: dict[str, dict] = {}
 # 合并所有模型的完整注册表（用于 model_id 查找）
 ALL_MODELS: dict[str, dict] = {**COPILOT_MODELS}
 
-# AI 性格预设名称列表
-AI_PERSONALITIES = [
-    "aggressive",  # 激进型
-    "conservative",  # 保守型
-    "analytical",  # 分析型
-    "intuitive",  # 直觉型
-    "bluffer",  # 诈唬型
+# AI 预设名字（扁平列表）
+AI_NAMES: list[str] = [
+    "火焰哥",
+    "暴风姐",
+    "铁拳王",
+    "稳如山",
+    "老谋子",
+    "静水姐",
+    "数据侠",
+    "概率哥",
+    "精算姐",
+    "第六感",
+    "灵感王",
+    "直觉姐",
+    "千面人",
+    "烟雾弹",
+    "影帝哥",
 ]
-
-# 预设 AI 名字（按性格分组）
-AI_NAMES: dict[str, list[str]] = {
-    "aggressive": ["火焰哥", "暴风姐", "铁拳王"],
-    "conservative": ["稳如山", "老谋子", "静水姐"],
-    "analytical": ["数据侠", "概率哥", "精算姐"],
-    "intuitive": ["第六感", "灵感王", "直觉姐"],
-    "bluffer": ["千面人", "烟雾弹", "影帝哥"],
-}
 
 # 预设头像标识
 AI_AVATARS = [

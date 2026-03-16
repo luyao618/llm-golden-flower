@@ -99,7 +99,6 @@ def create_game(
             - name: 玩家名称
             - player_type: "human" 或 "ai"
             - model_id: AI 模型标识（AI 玩家必填）
-            - personality: AI 性格类型（可选）
             - avatar: 头像标识（可选）
         config: 游戏配置，None 使用默认配置
 
@@ -124,7 +123,6 @@ def create_game(
             chips=game_config.initial_chips,
             status=PlayerStatus.ACTIVE_BLIND,
             model_id=pc.get("model_id"),
-            personality=pc.get("personality"),
         )
         players.append(player)
 

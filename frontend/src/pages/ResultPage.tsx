@@ -54,7 +54,6 @@ export default function ResultPage() {
           hand: null,
           total_bet_this_round: 0,
           model_id: (p.model_id as string) || null,
-          personality: (p.personality as string) || null,
         }))
         setPlayers(loaded)
         const config = state.config as Record<string, unknown>

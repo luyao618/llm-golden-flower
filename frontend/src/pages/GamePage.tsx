@@ -38,7 +38,6 @@ const MOCK_PLAYERS: Player[] = [
     ],
     total_bet_this_round: 40,
     model_id: null,
-    personality: null,
   },
   {
     id: 'ai-1',
@@ -50,7 +49,6 @@ const MOCK_PLAYERS: Player[] = [
     hand: null,
     total_bet_this_round: 20,
     model_id: 'openai-gpt4o',
-    personality: '谨慎',
   },
   {
     id: 'ai-2',
@@ -62,7 +60,6 @@ const MOCK_PLAYERS: Player[] = [
     hand: null,
     total_bet_this_round: 40,
     model_id: 'anthropic-claude',
-    personality: '激进',
   },
   {
     id: 'ai-3',
@@ -74,7 +71,6 @@ const MOCK_PLAYERS: Player[] = [
     hand: null,
     total_bet_this_round: 10,
     model_id: 'google-gemini',
-    personality: '随机',
   },
 ]
 

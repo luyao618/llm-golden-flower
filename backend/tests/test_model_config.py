@@ -20,9 +20,11 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from app.config import (
-    AI_MODELS,
     ALL_MODELS,
+    AZURE_OPENAI_MODELS,
     COPILOT_MODELS,
+    OPENROUTER_MODELS,
+    SILICONFLOW_MODELS,
     get_available_models,
     get_model_config,
 )
@@ -895,7 +897,8 @@ class TestGetAvailableModels:
         with patch("app.services.provider_manager.get_provider_manager", return_value=mock_pm):
             with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_ca):
                 models = get_available_models()
-                assert len(models) == len(AI_MODELS) + len(COPILOT_MODELS)
+                non_copilot = {**OPENROUTER_MODELS, **SILICONFLOW_MODELS, **AZURE_OPENAI_MODELS}
+                assert len(models) == len(non_copilot) + len(COPILOT_MODELS)
 
 
 class TestGetModelConfig:
@@ -926,7 +929,8 @@ class TestAllModelsRegistry:
 
     def test_contains_litellm_models(self):
         """ALL_MODELS 包含所有 LiteLLM 模型"""
-        for model_id in AI_MODELS:
+        non_copilot = {**OPENROUTER_MODELS, **SILICONFLOW_MODELS, **AZURE_OPENAI_MODELS}
+        for model_id in non_copilot:
             assert model_id in ALL_MODELS
 
     def test_contains_copilot_models(self):
@@ -936,7 +940,8 @@ class TestAllModelsRegistry:
 
     def test_total_count(self):
         """ALL_MODELS 总数 = LiteLLM + Copilot"""
-        assert len(ALL_MODELS) == len(AI_MODELS) + len(COPILOT_MODELS)
+        non_copilot = {**OPENROUTER_MODELS, **SILICONFLOW_MODELS, **AZURE_OPENAI_MODELS}
+        assert len(ALL_MODELS) == len(non_copilot) + len(COPILOT_MODELS)
 
 
 # ============================================================
@@ -955,7 +960,6 @@ class TestBaseAgentCopilotRouting:
         agent = BaseAgent(
             agent_id="p1",
             name="TestBot",
-            personality="aggressive",
             model_id="copilot-gpt4o",
         )
 
@@ -974,7 +978,6 @@ class TestBaseAgentCopilotRouting:
         agent = BaseAgent(
             agent_id="p1",
             name="TestBot",
-            personality="aggressive",
             model_id="openai-gpt4o",
         )
 
@@ -1008,7 +1011,6 @@ class TestBaseAgentCopilotRouting:
         agent = BaseAgent(
             agent_id="p1",
             name="TestBot",
-            personality="aggressive",
             model_id="copilot-gpt4o",
         )
 
@@ -1039,7 +1041,6 @@ class TestBaseAgentCopilotRouting:
         agent = BaseAgent(
             agent_id="p1",
             name="TestBot",
-            personality="aggressive",
             model_id="copilot-gpt4o",
         )
 
@@ -1070,7 +1071,6 @@ class TestBaseAgentModelValidation:
         agent = BaseAgent(
             agent_id="p1",
             name="TestBot",
-            personality="aggressive",
             model_id="copilot-claude-sonnet",
         )
         assert agent.model_id == "copilot-claude-sonnet"
@@ -1082,7 +1082,6 @@ class TestBaseAgentModelValidation:
         agent = BaseAgent(
             agent_id="p1",
             name="TestBot",
-            personality="aggressive",
             model_id="nonexistent-model",
         )
         assert agent.model_id == "openai-gpt4o-mini"

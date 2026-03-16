@@ -103,7 +103,6 @@ export interface Player {
   hand: Card[] | null
   total_bet_this_round: number
   model_id: string | null
-  personality: string | null
 }
 
 // ---- 游戏操作 ----
@@ -262,7 +261,6 @@ export interface ExperienceReview {
 export interface AIPlayerConfig {
   model_id: string
   name?: string
-  personality?: string
 }
 
 export interface CreateGameRequest {
@@ -283,7 +281,6 @@ export interface CreateGameResponse {
     player_type: PlayerType
     chips: number
     model_id: string | null
-    personality: string | null
     avatar: string
   }>
 }

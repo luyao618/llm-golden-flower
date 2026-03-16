@@ -45,7 +45,6 @@ export default function GameDemoPage() {
           hand: null,
           total_bet_this_round: 80,
           model_id: null,
-          personality: null,
         },
         {
           id: 'ai-1',
@@ -57,7 +56,6 @@ export default function GameDemoPage() {
           hand: null,
           total_bet_this_round: 80,
           model_id: 'openai-gpt4o',
-          personality: '谨慎',
         },
         {
           id: 'ai-2',
@@ -69,7 +67,6 @@ export default function GameDemoPage() {
           hand: null,
           total_bet_this_round: 80,
           model_id: 'anthropic-claude',
-          personality: '激进',
         },
         {
           id: 'ai-3',
@@ -81,7 +78,6 @@ export default function GameDemoPage() {
           hand: null,
           total_bet_this_round: 10,
           model_id: 'google-gemini',
-          personality: '随机',
         },
       ],
       status: 'playing',

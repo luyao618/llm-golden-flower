@@ -98,7 +98,6 @@ class Player(BaseModel):
     hand: list[Card] | None = None
     total_bet_this_round: int = 0
     model_id: str | None = None
-    personality: str | None = None
 
     @property
     def is_active(self) -> bool:

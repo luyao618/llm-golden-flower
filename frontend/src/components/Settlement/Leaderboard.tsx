@@ -82,11 +82,7 @@ export default function Leaderboard({ rankings }: LeaderboardProps) {
                       你
                     </span>
                   )}
-                  {entry.player.personality && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] text-[var(--text-muted)] border border-[var(--border-default)]">
-                      {entry.player.personality}
-                    </span>
-                  )}
+
                 </div>
               </div>
 

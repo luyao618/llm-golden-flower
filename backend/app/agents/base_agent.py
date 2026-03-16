@@ -1,7 +1,8 @@
 """AI Agent 基类
 
 提供 LLM 调用封装、System Prompt 构建、决策响应解析等核心能力。
-BaseAgent 是所有 AI 玩家的基础，后续的性格系统、聊天引擎等在此基础上扩展。
+BaseAgent 是所有 AI 玩家的基础，聊天引擎、经验回顾等在此基础上扩展。
+AI 的打法和说话风格完全由 LLM 自行决定，不预设任何性格模板。
 """
 
 from __future__ import annotations
@@ -34,12 +35,6 @@ from app.engine.rules import (
     get_raise_cost,
     get_compare_cost,
     validate_action,
-)
-from app.agents.personalities import (
-    PersonalityProfile,
-    get_personality,
-    get_personality_description_for_prompt,
-    PERSONALITY_PROFILES,
 )
 from app.agents.prompts import render_system_prompt, render_decision_prompt
 
@@ -146,13 +141,12 @@ class BaseAgent:
 
     封装 LLM 调用、prompt 构建、响应解析等核心逻辑。
     每个 BaseAgent 实例对应游戏中的一个 AI 玩家。
+    AI 的打法和说话风格完全由 LLM 自行决定。
 
     Attributes:
         agent_id: Agent 唯一标识（对应 Player.id）
         name: Agent 显示名称
         model_id: 使用的 LLM 模型标识（对应 AI_MODELS 中的 key）
-        personality: 性格类型标识
-        personality_description: 性格描述文本（用于 system prompt）
         memory: Agent 的上下文记忆
     """
 
@@ -161,25 +155,11 @@ class BaseAgent:
         agent_id: str | None = None,
         name: str = "AI Player",
         model_id: str = "openai-gpt4o-mini",
-        personality: str = "analytical",
-        personality_description: str = "",
     ) -> None:
         self.agent_id = agent_id or str(uuid.uuid4())
         self.name = name
         self.model_id = model_id
-        self.personality = personality
         self.memory = AgentMemory()
-
-        # 加载性格配置
-        self.personality_profile: PersonalityProfile | None = PERSONALITY_PROFILES.get(personality)
-
-        # 性格描述优先级：显式传入 > 从性格配置自动生成 > 默认占位
-        if personality_description:
-            self.personality_description = personality_description
-        elif self.personality_profile:
-            self.personality_description = get_personality_description_for_prompt(personality)
-        else:
-            self.personality_description = f"{personality}型玩家"
 
         # 验证 model_id 有效（使用动态注册表，包含 OpenRouter 模型）
         if model_id not in _get_all_models():
@@ -366,20 +346,13 @@ class BaseAgent:
     def build_system_prompt(self) -> str:
         """构建 system prompt
 
-        使用 prompts 模块的模板，注入性格系统的完整描述文本。
-        包含：角色身份 + 性格特征 + 炸金花规则 + 决策原则 + 牌桌交流指导 + 输出格式。
+        使用 prompts 模块的模板，不预设任何性格。
+        AI 的打法和说话风格完全由 LLM 自行决定。
 
         Returns:
             完整的 system prompt 文本
         """
-        personality_name = (
-            self.personality_profile.name_zh if self.personality_profile else self.personality
-        )
-        return render_system_prompt(
-            agent_name=self.name,
-            personality_name=personality_name,
-            personality_description=self.personality_description,
-        )
+        return render_system_prompt(agent_name=self.name)
 
     # ---- 响应解析 ----
 
@@ -594,8 +567,6 @@ class BaseAgent:
         )
         return decision
 
-    # ---- 策略上下文 ----
-
     def get_strategy_context(self) -> str:
         """获取经验回顾生成的策略上下文
 
@@ -603,24 +574,6 @@ class BaseAgent:
             策略摘要文本，空字符串表示暂无策略调整
         """
         return self.memory.strategy_context
-
-    def get_behavior_params(self) -> dict[str, float]:
-        """获取性格行为倾向参数
-
-        Returns:
-            行为参数字典（aggression, bluff_tendency 等），
-            如果没有性格配置则返回默认中性值。
-        """
-        if self.personality_profile:
-            return self.personality_profile.get_behavior_params()
-        return {
-            "aggression": 0.5,
-            "bluff_tendency": 0.3,
-            "fold_threshold": 0.5,
-            "talk_frequency": 0.5,
-            "risk_tolerance": 0.5,
-            "see_cards_tendency": 0.5,
-        }
 
     def set_strategy_context(self, context: str) -> None:
         """设置经验回顾生成的策略上下文"""
@@ -813,10 +766,7 @@ class BaseAgent:
         return available_actions[0] if available_actions else GameAction.FOLD
 
     def __repr__(self) -> str:
-        return (
-            f"BaseAgent(id={self.agent_id!r}, name={self.name!r}, "
-            f"model={self.model_id!r}, personality={self.personality!r})"
-        )
+        return f"BaseAgent(id={self.agent_id!r}, name={self.name!r}, model={self.model_id!r})"
 
 
 # ---- 异常 ----

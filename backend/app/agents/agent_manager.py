@@ -15,7 +15,6 @@ from app.config import (
     AI_AVATARS,
     ALL_MODELS,
     AI_NAMES,
-    AI_PERSONALITIES,
     get_settings,
 )
 
@@ -33,7 +32,7 @@ class AgentManager:
         agents = manager.create_agents_for_game(
             game_id="game-1",
             agent_configs=[
-                {"model_id": "openai-gpt4o", "personality": "aggressive"},
+                {"model_id": "openai-gpt4o"},
                 {"model_id": "anthropic-claude-sonnet"},
             ],
         )
@@ -56,10 +55,8 @@ class AgentManager:
             game_id: 游戏 ID
             agent_configs: 每个 Agent 的配置列表，每项可包含:
                 - agent_id: 指定 ID（可选，不指定则自动生成）
-                - name: 显示名称（可选，不指定则根据性格随机）
+                - name: 显示名称（可选，不指定则随机分配）
                 - model_id: 模型标识（可选，默认 openai-gpt4o-mini）
-                - personality: 性格类型（可选，随机分配）
-                - personality_description: 性格描述（可选，后续由 T2.2 填充）
 
         Returns:
             创建的 BaseAgent 列表
@@ -69,23 +66,13 @@ class AgentManager:
             self._agents[game_id] = {}
 
         agents: list[BaseAgent] = []
-        used_personalities: list[str] = []
         used_names: set[str] = set()
 
         for i, config in enumerate(agent_configs):
-            # 分配性格（尽量不重复）
-            personality = config.get("personality")
-            if not personality:
-                remaining = [p for p in AI_PERSONALITIES if p not in used_personalities]
-                if not remaining:
-                    remaining = list(AI_PERSONALITIES)
-                personality = random.choice(remaining)
-            used_personalities.append(personality)
-
             # 分配名字
             name = config.get("name")
             if not name:
-                name = self._pick_name(personality, used_names)
+                name = self._pick_name(used_names)
             used_names.add(name)
 
             # 分配头像
@@ -101,8 +88,6 @@ class AgentManager:
                 agent_id=config.get("agent_id"),
                 name=name,
                 model_id=model_id,
-                personality=personality,
-                personality_description=config.get("personality_description", ""),
             )
 
             if game_id not in self._agents:
@@ -111,10 +96,9 @@ class AgentManager:
             agents.append(agent)
 
             logger.info(
-                "Created agent: %s (model=%s, personality=%s) for game %s",
+                "Created agent: %s (model=%s) for game %s",
                 agent.name,
                 agent.model_id,
-                agent.personality,
                 game_id,
             )
 
@@ -197,16 +181,9 @@ class AgentManager:
         return sum(len(agents) for agents in self._agents.values())
 
     @staticmethod
-    def _pick_name(personality: str, used_names: set[str]) -> str:
+    def _pick_name(used_names: set[str]) -> str:
         """从预设名字库中选择一个未使用的名字"""
-        candidates = AI_NAMES.get(personality, [])
-        available = [n for n in candidates if n not in used_names]
-        if available:
-            return random.choice(available)
-
-        # 如果当前性格的名字用完了，从所有名字中选
-        all_names = [n for names in AI_NAMES.values() for n in names]
-        available = [n for n in all_names if n not in used_names]
+        available = [n for n in AI_NAMES if n not in used_names]
         if available:
             return random.choice(available)
 

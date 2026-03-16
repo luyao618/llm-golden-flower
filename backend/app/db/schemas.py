@@ -91,7 +91,6 @@ class PlayerDB(Base):
     avatar: Mapped[str] = mapped_column(String(50), nullable=True, default="")
     player_type: Mapped[str] = mapped_column(String(10), nullable=False)
     model_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    personality: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     initial_chips: Mapped[int] = mapped_column(Integer, nullable=False)
     current_chips: Mapped[int] = mapped_column(Integer, nullable=False)
 

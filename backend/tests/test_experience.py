@@ -50,7 +50,6 @@ def _make_agent(agent_id: str = AGENT_ID, name: str = "测试选手") -> BaseAge
         agent_id=agent_id,
         name=name,
         model_id="openai-gpt4o-mini",
-        personality="analytical",
     )
 
 
