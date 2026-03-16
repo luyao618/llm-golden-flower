@@ -107,7 +107,7 @@ export default function ActionPanel({ onAction }: ActionPanelProps) {
 
   if (!isMyTurn || !myPlayer || !currentRound) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex flex-col items-center justify-center gap-2 py-3 px-4">
         <span className="text-[var(--text-muted)] text-sm">等待对手行动...</span>
       </div>
     )
@@ -142,104 +142,105 @@ export default function ActionPanel({ onAction }: ActionPanelProps) {
       (p) => p.id !== myPlayerId && p.status !== 'folded' && p.status !== 'out',
     )
     return (
-      <CompareSelector
-        targets={compareTargets}
-        cost={getCompareCost(currentRound, myPlayer)}
-        onSelect={handleCompareTarget}
-        onCancel={exitCompareMode}
-      />
+      <div className="p-3">
+        <CompareSelector
+          targets={compareTargets}
+          cost={getCompareCost(currentRound, myPlayer)}
+          onSelect={handleCompareTarget}
+          onCancel={exitCompareMode}
+        />
+      </div>
+    )
+  }
+
+  // 2×2 网格: [跟注/看牌, 加注] [比牌, 弃牌]
+  // 将所有按钮放入统一的 2 列网格
+  const renderButton = (btn: ActionButtonConfig) => {
+    const isConfirming = confirmAction === btn.action
+    const Icon = btn.icon
+    const accent = ACTION_ACCENT[btn.action] ?? ACTION_ACCENT.call
+
+    return (
+      <motion.div
+        key={btn.action}
+        layout
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.8 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+      >
+        {isConfirming ? (
+          <div className="flex items-center justify-center gap-1 h-full">
+            <button
+              onClick={() => executeAction(btn.action)}
+              disabled={isProcessing}
+              className="px-3 py-2.5 rounded-lg text-sm font-bold
+                bg-[var(--color-danger)]/20 text-[var(--color-danger)]
+                border border-[var(--color-danger)]/50
+                hover:bg-[var(--color-danger)]/30
+                transition-all cursor-pointer disabled:opacity-50"
+            >
+              确认{btn.label}
+            </button>
+            <button
+              onClick={handleCancelConfirm}
+              className="px-2 py-2.5 rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+            >
+              取消
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => handleActionClick(btn.action, btn.needsConfirm)}
+            disabled={isProcessing}
+            className={`
+              relative flex items-center justify-center gap-1.5 w-full h-full px-3 py-2.5 rounded-lg
+              bg-white/[0.03] border ${accent.border}
+              text-[var(--text-primary)]
+              hover:bg-white/[0.08] hover:scale-[1.02]
+              active:scale-95
+              transition-all cursor-pointer
+              disabled:opacity-50 disabled:cursor-not-allowed
+            `}
+          >
+            <Icon className={`w-4 h-4 ${accent.text} shrink-0`} />
+            <span className="text-sm font-semibold">{btn.label}</span>
+            {btn.costLabel && (
+              <span className="text-xs text-[var(--text-muted)] font-mono">
+                {btn.costLabel}
+              </span>
+            )}
+            {btn.hotkey && (
+              <span className="absolute top-0.5 right-1 text-[8px] bg-black/50 text-[var(--text-disabled)] rounded px-0.5 leading-relaxed">
+                {btn.hotkey}
+              </span>
+            )}
+          </button>
+        )}
+      </motion.div>
     )
   }
 
   return (
-    <div className="flex items-center justify-center gap-2 h-full px-3">
-      {/* 游戏信息 */}
-      <div className="flex items-center gap-2 mr-2 shrink-0 text-[10px]">
-        <span className="text-[var(--text-muted)]">
-          底池 <span className="text-[var(--color-gold)]/80 font-mono">{currentRound.pot}</span>
+    <div className="flex flex-col gap-2 p-3 w-full">
+      {/* 状态行: 底池 + 筹码 — 加大字号 */}
+      <div className="flex items-center justify-between px-0.5 mb-0.5">
+        <span className="text-[var(--text-secondary)] text-sm">
+          底池 <span className="text-[var(--color-gold)] font-mono font-bold text-base">{currentRound.pot}</span>
         </span>
-        <span className="text-[var(--text-disabled)]">·</span>
-        <span className="text-[var(--text-muted)]">
+        <span className="text-[var(--text-secondary)] text-sm">
           {myPlayer.status === 'active_blind' ? '暗注' : '明注'}
+          <span className="text-[var(--text-disabled)] mx-1">·</span>
+          筹码 <span className="text-[var(--color-gold)] font-mono font-bold text-base">{myPlayer.chips.toLocaleString()}</span>
         </span>
       </div>
 
-      {/* 操作按钮 */}
+      {/* 操作按钮 — 2×2 网格 */}
       <AnimatePresence mode="popLayout">
-        {buttons.map((btn) => {
-          const isConfirming = confirmAction === btn.action
-          const Icon = btn.icon
-          const accent = ACTION_ACCENT[btn.action] ?? ACTION_ACCENT.call
-
-          return (
-            <motion.div
-              key={btn.action}
-              layout
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-            >
-              {isConfirming ? (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => executeAction(btn.action)}
-                    disabled={isProcessing}
-                    className="px-3 py-1.5 rounded-full text-xs font-bold
-                      bg-[var(--color-danger)]/20 text-[var(--color-danger)]
-                      border border-[var(--color-danger)]/50
-                      hover:bg-[var(--color-danger)]/30
-                      transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    确认{btn.label}
-                  </button>
-                  <button
-                    onClick={handleCancelConfirm}
-                    className="px-2 py-1.5 rounded-full text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
-                  >
-                    取消
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => handleActionClick(btn.action, btn.needsConfirm)}
-                  disabled={isProcessing}
-                  className={`
-                    relative flex items-center gap-1.5 px-3 py-1.5 rounded-full
-                    bg-white/[0.03] border ${accent.border}
-                    text-[var(--text-primary)]
-                    hover:bg-white/[0.06] hover:scale-105
-                    active:scale-95
-                    transition-all cursor-pointer
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                  `}
-                >
-                  <Icon className={`w-3.5 h-3.5 ${accent.text}`} />
-                  <span className="text-xs font-medium">{btn.label}</span>
-                  {btn.costLabel && (
-                    <span className="text-[10px] text-[var(--text-muted)] font-mono">
-                      {btn.costLabel}
-                    </span>
-                  )}
-                  {btn.hotkey && (
-                    <span className="absolute -top-1.5 -right-1 text-[7px] bg-black/60 text-[var(--text-disabled)] rounded px-0.5 leading-relaxed">
-                      {btn.hotkey}
-                    </span>
-                  )}
-                </button>
-              )}
-            </motion.div>
-          )
-        })}
+        <div className="grid grid-cols-2 gap-1.5">
+          {buttons.map(renderButton)}
+        </div>
       </AnimatePresence>
-
-      {/* 筹码信息 */}
-      <div className="flex items-center gap-1 ml-2 shrink-0 text-[10px]">
-        <span className="text-[var(--text-muted)]">筹码</span>
-        <span className="text-[var(--color-gold)] font-mono font-semibold">
-          {myPlayer.chips.toLocaleString()}
-        </span>
-      </div>
     </div>
   )
 }

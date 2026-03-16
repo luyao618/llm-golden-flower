@@ -89,7 +89,7 @@ export default function ChatPanel({ messages, className = '' }: ChatPanelProps) 
   return (
     <div
       ref={scrollRef}
-      className={`flex flex-col gap-1 overflow-y-auto pr-1 custom-scrollbar ${className}`}
+      className={`flex flex-col gap-1 overflow-y-auto pr-1 chat-panel-scroll ${className}`}
     >
       {messages.length === 0 && (
         <div className="flex items-center justify-center h-full">
