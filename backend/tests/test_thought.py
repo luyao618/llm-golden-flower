@@ -331,7 +331,6 @@ def _make_agent(agent_id: str = "agent-1", name: str = "测试选手") -> BaseAg
         agent_id=agent_id,
         name=name,
         model_id="openai-gpt4o-mini",
-        personality="analytical",
     )
 
 
@@ -344,8 +343,8 @@ def _make_thoughts(count: int = 2) -> list[ThoughtRecord]:
                 agent_id="agent-1",
                 round_number=1,
                 turn_number=i + 1,
-                hand_evaluation=f"评估{i+1}",
-                reasoning=f"理由{i+1}",
+                hand_evaluation=f"评估{i + 1}",
+                reasoning=f"理由{i + 1}",
                 decision=GameAction.CALL if i == 0 else GameAction.RAISE,
                 confidence=0.5 + i * 0.1,
                 emotion="平静" if i == 0 else "自信",

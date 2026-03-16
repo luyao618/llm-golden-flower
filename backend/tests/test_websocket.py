@@ -77,13 +77,11 @@ def game_state():
             "name": "AI-张三",
             "player_type": "ai",
             "model_id": "openai-gpt4o-mini",
-            "personality": "aggressive",
         },
         {
             "name": "AI-李四",
             "player_type": "ai",
             "model_id": "openai-gpt4o-mini",
-            "personality": "conservative",
         },
     ]
     config = GameConfig(initial_chips=1000, ante=10)
@@ -100,7 +98,6 @@ def agent_manager(game_state):
             "agent_id": p.id,
             "name": p.name,
             "model_id": p.model_id or "openai-gpt4o-mini",
-            "personality": p.personality or "analytical",
         }
         for p in ai_players
     ]
@@ -382,7 +379,6 @@ class TestWebSocketEndpoint:
                 "name": "AI-1",
                 "player_type": "ai",
                 "model_id": "openai-gpt4o-mini",
-                "personality": "aggressive",
             },
         ]
         game = create_game(player_configs, GameConfig(initial_chips=1000, ante=10))
@@ -399,7 +395,6 @@ class TestWebSocketEndpoint:
                     "agent_id": p.id,
                     "name": p.name,
                     "model_id": "openai-gpt4o-mini",
-                    "personality": p.personality or "aggressive",
                 }
                 for p in ai_players
             ],
@@ -487,7 +482,6 @@ class TestStartRound:
                 "name": "AI-1",
                 "player_type": "ai",
                 "model_id": "openai-gpt4o-mini",
-                "personality": "aggressive",
             },
         ]
         game = create_game(player_configs, GameConfig(initial_chips=1000, ante=10))
@@ -504,7 +498,6 @@ class TestStartRound:
                     "agent_id": ai_player.id,
                     "name": ai_player.name,
                     "model_id": "openai-gpt4o-mini",
-                    "personality": "aggressive",
                 }
             ],
         )
@@ -594,7 +587,6 @@ class TestPlayerAction:
                 "name": "AI-1",
                 "player_type": "ai",
                 "model_id": "openai-gpt4o-mini",
-                "personality": "aggressive",
             },
         ]
         game = create_game(player_configs, GameConfig(initial_chips=1000, ante=10))
@@ -614,7 +606,6 @@ class TestPlayerAction:
                     "agent_id": ai.id,
                     "name": ai.name,
                     "model_id": "openai-gpt4o-mini",
-                    "personality": "aggressive",
                 }
             ],
         )
@@ -780,7 +771,6 @@ class TestChatMessage:
                 "name": "AI-1",
                 "player_type": "ai",
                 "model_id": "openai-gpt4o-mini",
-                "personality": "aggressive",
             },
         ]
         game = create_game(player_configs)
@@ -1080,7 +1070,6 @@ class TestFullRoundIntegration:
                 "name": "AI-1",
                 "player_type": "ai",
                 "model_id": "openai-gpt4o-mini",
-                "personality": "aggressive",
             },
         ]
         game = create_game(player_configs, GameConfig(initial_chips=1000, ante=10))
@@ -1096,7 +1085,6 @@ class TestFullRoundIntegration:
                     "agent_id": ai_player.id,
                     "name": ai_player.name,
                     "model_id": "openai-gpt4o-mini",
-                    "personality": "aggressive",
                 }
             ],
         )
@@ -1188,7 +1176,6 @@ class TestFullRoundIntegration:
                 "name": "AI-1",
                 "player_type": "ai",
                 "model_id": "openai-gpt4o-mini",
-                "personality": "aggressive",
             },
         ]
         game = create_game(player_configs, GameConfig(initial_chips=1000, ante=10))
@@ -1204,7 +1191,6 @@ class TestFullRoundIntegration:
                     "agent_id": ai_player.id,
                     "name": ai_player.name,
                     "model_id": "openai-gpt4o-mini",
-                    "personality": "aggressive",
                 }
             ],
         )

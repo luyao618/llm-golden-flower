@@ -54,7 +54,6 @@ def _default_player_configs(count: int = 3) -> list[dict]:
                 "name": f"AI_{i + 1}",
                 "player_type": "ai",
                 "model_id": "openai-gpt4o",
-                "personality": "aggressive",
             }
         )
     return configs
@@ -143,7 +142,6 @@ class TestCreateGame:
         game = _create_test_game(3)
         ai_player = game.players[1]
         assert ai_player.model_id == "openai-gpt4o"
-        assert ai_player.personality == "aggressive"
 
 
 # ============================================================

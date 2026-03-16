@@ -217,17 +217,11 @@ class ExperienceReviewer:
             opponent_recent_behaviors=opponent_behaviors_text,
         )
 
-        personality_name = (
-            self.agent.personality_profile.name_zh
-            if self.agent.personality_profile
-            else self.agent.personality
-        )
-
         messages = [
             {
                 "role": "system",
                 "content": (
-                    f"你是{self.agent.name}，一个{personality_name}的炸金花玩家。"
+                    f"你是{self.agent.name}，一个炸金花玩家。"
                     f"你正在回顾最近的牌局，反思自己的表现并调整策略。"
                 ),
             },

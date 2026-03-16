@@ -80,7 +80,6 @@ async def db_session(async_engine):
             name=AGENT_NAME,
             player_type="ai",
             model_id="gpt-4",
-            personality="aggressive",
             initial_chips=1000,
             current_chips=1000,
         )

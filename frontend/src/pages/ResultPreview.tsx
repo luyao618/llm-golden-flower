@@ -9,10 +9,10 @@ import resultBg from '../assets/result-bg.png'
 // ---- Mock 数据 ----
 
 const mockPlayers: Player[] = [
-  { id: 'p1', name: '赌神小明', avatar: '', player_type: 'human', chips: 1350, status: 'active_seen', hand: null, total_bet_this_round: 0, model_id: null, personality: null },
-  { id: 'p2', name: 'DeepBluff', avatar: '', player_type: 'ai', chips: 1120, status: 'active_seen', hand: null, total_bet_this_round: 0, model_id: 'gpt-4', personality: '激进型' },
-  { id: 'p3', name: 'PokerMind', avatar: '', player_type: 'ai', chips: 870, status: 'active_blind', hand: null, total_bet_this_round: 0, model_id: 'claude-3', personality: '保守型' },
-  { id: 'p4', name: 'CardShark', avatar: '', player_type: 'ai', chips: 660, status: 'folded', hand: null, total_bet_this_round: 0, model_id: 'gemini', personality: '随机型' },
+  { id: 'p1', name: '赌神小明', avatar: '', player_type: 'human', chips: 1350, status: 'active_seen', hand: null, total_bet_this_round: 0, model_id: null },
+  { id: 'p2', name: 'DeepBluff', avatar: '', player_type: 'ai', chips: 1120, status: 'active_seen', hand: null, total_bet_this_round: 0, model_id: 'gpt-4' },
+  { id: 'p3', name: 'PokerMind', avatar: '', player_type: 'ai', chips: 870, status: 'active_blind', hand: null, total_bet_this_round: 0, model_id: 'claude-3' },
+  { id: 'p4', name: 'CardShark', avatar: '', player_type: 'ai', chips: 660, status: 'folded', hand: null, total_bet_this_round: 0, model_id: 'gemini' },
 ]
 
 const initialChips = 1000

@@ -137,11 +137,7 @@ export default function AgentSummaryCard({
         <div className="flex-1 min-w-0 text-left">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-[var(--text-primary)] truncate">{player.name}</span>
-            {player.personality && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] text-[var(--text-muted)] border border-[var(--border-default)] shrink-0">
-                {player.personality}
-              </span>
-            )}
+
           </div>
           {summary && (
             <div className="flex items-center gap-3 mt-0.5">

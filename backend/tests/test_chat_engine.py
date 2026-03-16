@@ -2,8 +2,6 @@
 
 测试覆盖:
 - ChatMessage / ChatContext / BystanderReaction 数据模型
-- ChatEngine.should_respond 概率逻辑
-- ChatEngine.calculate_response_probability 各事件类型和性格组合
 - ChatEngine.maybe_react_as_bystander LLM 调用和解析
 - ChatEngine.collect_bystander_reactions must_respond 保证
 - TriggerEvent 创建工厂函数
@@ -13,8 +11,7 @@
 from __future__ import annotations
 
 import json
-import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -23,7 +20,6 @@ from app.agents.chat_engine import (
     ChatEngine,
     TriggerEvent,
     TriggerEventType,
-    EVENT_BASE_PROBABILITIES,
     create_trigger_event_from_action,
     create_player_message_event,
     _get_fallback_reaction,
@@ -45,14 +41,12 @@ from app.models.game import GameAction
 def make_agent(
     agent_id: str = "agent-1",
     name: str = "测试AI",
-    personality: str = "analytical",
     model_id: str = "openai-gpt4o-mini",
 ) -> BaseAgent:
     """创建测试用 BaseAgent"""
     return BaseAgent(
         agent_id=agent_id,
         name=name,
-        personality=personality,
         model_id=model_id,
     )
 
@@ -258,153 +252,6 @@ class TestBystanderReaction:
 
 
 # ============================================================
-# ChatEngine - should_respond 概率逻辑
-# ============================================================
-
-
-class TestShouldRespond:
-    """should_respond 概率逻辑测试"""
-
-    def test_self_action_never_triggers(self):
-        """自己的行动不触发自己的旁观反应"""
-        engine = ChatEngine()
-        agent = make_agent(agent_id="agent-1")
-        event = make_trigger_event(actor_id="agent-1")
-
-        # 多次测试确保一直返回 False
-        for _ in range(100):
-            assert engine.should_respond(event, agent) is False
-
-    def test_high_talk_frequency_more_likely(self):
-        """高发言频率的 AI 更可能回应"""
-        engine = ChatEngine()
-        aggressive = make_agent(personality="aggressive")  # talk_frequency=0.8
-        conservative = make_agent(
-            agent_id="agent-2", personality="conservative"
-        )  # talk_frequency=0.25
-
-        event = make_trigger_event(event_type=TriggerEventType.RAISE)
-
-        aggressive_prob = engine.calculate_response_probability(event, aggressive)
-        conservative_prob = engine.calculate_response_probability(event, conservative)
-
-        assert aggressive_prob > conservative_prob
-
-    def test_big_raise_higher_probability_than_call(self):
-        """大幅加注的触发概率高于跟注"""
-        engine = ChatEngine()
-        agent = make_agent()
-
-        big_raise_event = make_trigger_event(event_type=TriggerEventType.BIG_RAISE)
-        call_event = make_trigger_event(event_type=TriggerEventType.CALL)
-
-        big_raise_prob = engine.calculate_response_probability(big_raise_event, agent)
-        call_prob = engine.calculate_response_probability(call_event, agent)
-
-        assert big_raise_prob > call_prob
-
-
-class TestCalculateResponseProbability:
-    """calculate_response_probability 详细概率计算测试"""
-
-    def test_self_action_returns_zero(self):
-        engine = ChatEngine()
-        agent = make_agent(agent_id="agent-1")
-        event = make_trigger_event(actor_id="agent-1")
-        assert engine.calculate_response_probability(event, agent) == 0.0
-
-    def test_aggressive_big_raise(self):
-        """激进型 + 大幅加注 = 高概率"""
-        engine = ChatEngine()
-        agent = make_agent(personality="aggressive")  # talk_frequency=0.8
-        event = make_trigger_event(event_type=TriggerEventType.BIG_RAISE)
-
-        prob = engine.calculate_response_probability(event, agent)
-        # base=0.6, factor=0.3+0.8*1.4=1.42, final=0.6*1.42=0.852
-        assert 0.8 < prob <= 1.0
-
-    def test_conservative_call(self):
-        """保守型 + 跟注 = 低概率"""
-        engine = ChatEngine()
-        agent = make_agent(personality="conservative")  # talk_frequency=0.25
-        event = make_trigger_event(event_type=TriggerEventType.CALL)
-
-        prob = engine.calculate_response_probability(event, agent)
-        # base=0.1, factor=0.3+0.25*1.4=0.65, final=0.1*0.65=0.065
-        assert prob < 0.1
-
-    def test_analytical_compare(self):
-        """分析型 + 比牌"""
-        engine = ChatEngine()
-        agent = make_agent(personality="analytical")  # talk_frequency=0.45
-        event = make_trigger_event(event_type=TriggerEventType.COMPARE)
-
-        prob = engine.calculate_response_probability(event, agent)
-        # base=0.55, factor=0.3+0.45*1.4=0.93, final=0.55*0.93=0.5115
-        assert 0.4 < prob < 0.6
-
-    def test_must_respond_uses_higher_base(self):
-        """must_respond 事件使用更高的基础概率"""
-        engine = ChatEngine()
-        agent = make_agent()
-        event = make_trigger_event(must_respond=True)
-
-        prob = engine.calculate_response_probability(event, agent)
-        # must_respond base=0.7
-        assert prob > 0.5
-
-    def test_all_event_types_have_base_probability(self):
-        """所有事件类型都有基础概率配置"""
-        for event_type in TriggerEventType:
-            assert event_type in EVENT_BASE_PROBABILITIES
-
-    def test_probability_capped_at_one(self):
-        """概率不超过 1.0"""
-        engine = ChatEngine()
-        agent = make_agent(personality="aggressive")  # talk_frequency=0.8
-        # 用最高概率的事件
-        event = make_trigger_event(
-            event_type=TriggerEventType.PLAYER_MESSAGE,
-            must_respond=True,
-        )
-        prob = engine.calculate_response_probability(event, agent)
-        assert prob <= 1.0
-
-    def test_all_personalities_respond_probability(self):
-        """所有性格类型对同一事件的概率都是正数（排除自身行动）"""
-        engine = ChatEngine()
-        event = make_trigger_event(
-            event_type=TriggerEventType.RAISE,
-            actor_id="other-player",
-        )
-        for personality in ["aggressive", "conservative", "analytical", "intuitive", "bluffer"]:
-            agent = make_agent(personality=personality, agent_id="test-agent")
-            prob = engine.calculate_response_probability(event, agent)
-            assert prob > 0, f"Personality {personality} should have positive probability"
-
-    def test_event_probability_ordering(self):
-        """事件概率应该符合直觉排序：大幅加注 > 普通加注 > 跟注"""
-        engine = ChatEngine()
-        agent = make_agent()
-
-        big_raise = engine.calculate_response_probability(
-            make_trigger_event(event_type=TriggerEventType.BIG_RAISE), agent
-        )
-        normal_raise = engine.calculate_response_probability(
-            make_trigger_event(event_type=TriggerEventType.RAISE), agent
-        )
-        call = engine.calculate_response_probability(
-            make_trigger_event(event_type=TriggerEventType.CALL), agent
-        )
-        check = engine.calculate_response_probability(
-            make_trigger_event(event_type=TriggerEventType.CHECK_CARDS), agent
-        )
-
-        assert big_raise > normal_raise > call
-        assert big_raise > check
-
-
-# ============================================================
 # ChatEngine - maybe_react_as_bystander (mock LLM)
 # ============================================================
 
@@ -464,7 +311,7 @@ class TestMaybeReactAsBystander:
                 trigger_event=event,
                 agent=agent,
                 chat_context=ctx,
-                must_respond=True,
+                must_respond=False,
             )
 
         assert reaction is not None
@@ -474,7 +321,7 @@ class TestMaybeReactAsBystander:
     async def test_llm_failure_with_must_respond(self):
         """LLM 调用失败时，must_respond 返回降级反应"""
         engine = ChatEngine()
-        agent = make_agent(personality="aggressive")
+        agent = make_agent()
         event = make_trigger_event()
         ctx = ChatContext()
 
@@ -504,25 +351,6 @@ class TestMaybeReactAsBystander:
         with patch.object(
             agent, "call_llm", new_callable=AsyncMock, side_effect=Exception("API Error")
         ):
-            reaction = await engine.maybe_react_as_bystander(
-                trigger_event=event,
-                agent=agent,
-                chat_context=ctx,
-                must_respond=False,
-            )
-
-        assert reaction is None
-
-    @pytest.mark.asyncio
-    async def test_probability_skip(self):
-        """概率判断不通过时返回 None"""
-        engine = ChatEngine()
-        agent = make_agent()
-        event = make_trigger_event()
-        ctx = ChatContext()
-
-        # 通过 mock should_respond 始终返回 False
-        with patch.object(engine, "should_respond", return_value=False):
             reaction = await engine.maybe_react_as_bystander(
                 trigger_event=event,
                 agent=agent,
@@ -641,7 +469,7 @@ class TestBystanderResponseParsing:
                 trigger_event=event,
                 agent=agent,
                 chat_context=ctx,
-                must_respond=True,
+                must_respond=False,
             )
 
         assert reaction is not None
@@ -668,7 +496,7 @@ class TestBystanderResponseParsing:
                 trigger_event=event,
                 agent=agent,
                 chat_context=ctx,
-                must_respond=True,
+                must_respond=False,
             )
 
         assert reaction is not None
@@ -724,13 +552,11 @@ class TestCollectBystanderReactions:
                 other_agent, "call_llm", new_callable=AsyncMock, return_value=respond_json
             ),
         ):
-            # 让 should_respond 始终通过
-            with patch.object(engine, "should_respond", return_value=True):
-                reactions = await engine.collect_bystander_reactions(
-                    event=event,
-                    bystanders=[actor_agent, other_agent],
-                    chat_context=ctx,
-                )
+            reactions = await engine.collect_bystander_reactions(
+                event=event,
+                bystanders=[actor_agent, other_agent],
+                chat_context=ctx,
+            )
 
         # 只有 other_agent 的反应，actor_agent 被跳过
         agent_ids = [r.agent_id for r in reactions]
@@ -742,8 +568,8 @@ class TestCollectBystanderReactions:
         """must_respond=True 确保至少一个 AI 回应"""
         engine = ChatEngine()
         agents = [
-            make_agent(agent_id="a1", name="AI-1", personality="conservative"),
-            make_agent(agent_id="a2", name="AI-2", personality="aggressive"),
+            make_agent(agent_id="a1", name="AI-1"),
+            make_agent(agent_id="a2", name="AI-2"),
         ]
 
         event = make_trigger_event(
@@ -760,98 +586,52 @@ class TestCollectBystanderReactions:
             }
         )
 
-        # 先让所有 should_respond 返回 False，模拟无人回应
-        with patch.object(engine, "should_respond", return_value=False):
-            for agent in agents:
-                with patch.object(
-                    agent, "call_llm", new_callable=AsyncMock, return_value=respond_json
-                ):
-                    pass
-
-            # 需要同时 mock 所有 agent 的 call_llm
-            with (
-                patch.object(
-                    agents[0], "call_llm", new_callable=AsyncMock, return_value=respond_json
-                ),
-                patch.object(
-                    agents[1], "call_llm", new_callable=AsyncMock, return_value=respond_json
-                ),
-            ):
-                reactions = await engine.collect_bystander_reactions(
-                    event=event,
-                    bystanders=agents,
-                    chat_context=ctx,
-                )
-
-        # must_respond 保证至少有一个回应
-        assert len(reactions) >= 1
-        assert any(r.should_respond for r in reactions)
-
-    @pytest.mark.asyncio
-    async def test_must_respond_picks_most_talkative(self):
-        """must_respond 降级时选择最健谈的 AI"""
-        engine = ChatEngine()
-        conservative = make_agent(
-            agent_id="a1", name="保守者", personality="conservative"
-        )  # talk_frequency=0.25
-        aggressive = make_agent(
-            agent_id="a2", name="激进者", personality="aggressive"
-        )  # talk_frequency=0.8
-
-        event = make_trigger_event(
-            actor_id="player-1",
-            must_respond=True,
-        )
-        ctx = ChatContext()
-
-        respond_json = json.dumps(
-            {
-                "should_respond": True,
-                "message": "我来说两句",
-                "inner_thought": "好吧",
-            }
-        )
-
-        # 让 should_respond 始终返回 False，触发 must_respond 降级
-        with patch.object(engine, "should_respond", return_value=False):
-            with (
-                patch.object(
-                    conservative, "call_llm", new_callable=AsyncMock, return_value=respond_json
-                ),
-                patch.object(
-                    aggressive, "call_llm", new_callable=AsyncMock, return_value=respond_json
-                ),
-            ):
-                reactions = await engine.collect_bystander_reactions(
-                    event=event,
-                    bystanders=[conservative, aggressive],
-                    chat_context=ctx,
-                )
-
-        # 应该选择激进者（talk_frequency 更高）
-        assert len(reactions) == 1
-        assert reactions[0].agent_id == "a2"
-
-    @pytest.mark.asyncio
-    async def test_no_must_respond_may_return_empty(self):
-        """非 must_respond 事件可能无人回应"""
-        engine = ChatEngine()
-        agents = [
-            make_agent(agent_id="a1", personality="conservative"),
-        ]
-
-        event = make_trigger_event(must_respond=False)
-        ctx = ChatContext()
-
-        # 让 should_respond 返回 False
-        with patch.object(engine, "should_respond", return_value=False):
+        # 需要同时 mock 所有 agent 的 call_llm
+        with (
+            patch.object(agents[0], "call_llm", new_callable=AsyncMock, return_value=respond_json),
+            patch.object(agents[1], "call_llm", new_callable=AsyncMock, return_value=respond_json),
+        ):
             reactions = await engine.collect_bystander_reactions(
                 event=event,
                 bystanders=agents,
                 chat_context=ctx,
             )
 
-        assert reactions == []
+        # must_respond 保证至少有一个回应
+        assert len(reactions) >= 1
+        assert any(r.should_respond for r in reactions)
+
+    @pytest.mark.asyncio
+    async def test_no_must_respond_may_return_empty(self):
+        """非 must_respond 事件可能无人回应"""
+        engine = ChatEngine()
+        agents = [
+            make_agent(agent_id="a1"),
+        ]
+
+        event = make_trigger_event(must_respond=False)
+        ctx = ChatContext()
+
+        no_respond_json = json.dumps(
+            {
+                "should_respond": False,
+                "message": "",
+                "inner_thought": "不想说话",
+            }
+        )
+
+        # LLM 返回不回应
+        with patch.object(
+            agents[0], "call_llm", new_callable=AsyncMock, return_value=no_respond_json
+        ):
+            reactions = await engine.collect_bystander_reactions(
+                event=event,
+                bystanders=agents,
+                chat_context=ctx,
+            )
+
+        responding = [r for r in reactions if r.should_respond]
+        assert len(responding) == 0
 
 
 # ============================================================
@@ -967,91 +747,16 @@ class TestCreatePlayerMessageEvent:
 class TestFallbackReaction:
     """_get_fallback_reaction 降级反应测试"""
 
-    def test_each_personality_has_fallback(self):
-        """每种性格都有降级反应文本"""
-        for personality in ["aggressive", "conservative", "analytical", "intuitive", "bluffer"]:
-            agent = make_agent(personality=personality)
-            event = make_trigger_event()
-            fallback = _get_fallback_reaction(event, agent)
-            assert isinstance(fallback, str)
-            assert len(fallback) > 0
-
-    def test_unknown_personality_fallback(self):
-        """未知性格也能返回降级反应"""
-        agent = make_agent()
-        agent.personality = "unknown_type"
+    def test_fallback_returns_string(self):
+        """降级反应返回非空字符串"""
         event = make_trigger_event()
-        fallback = _get_fallback_reaction(event, agent)
+        fallback = _get_fallback_reaction(event)
         assert isinstance(fallback, str)
         assert len(fallback) > 0
 
-
-# ============================================================
-# _pick_most_talkative 测试
-# ============================================================
-
-
-class TestPickMostTalkative:
-    """_pick_most_talkative 选择最健谈 AI 测试"""
-
-    def test_picks_highest_talk_frequency(self):
-        engine = ChatEngine()
-        agents = [
-            make_agent(agent_id="a1", personality="conservative"),  # 0.25
-            make_agent(agent_id="a2", personality="aggressive"),  # 0.8
-            make_agent(agent_id="a3", personality="analytical"),  # 0.45
-        ]
-        result = engine._pick_most_talkative(agents)
-        assert result is not None
-        assert result.agent_id == "a2"
-
-    def test_excludes_specified_id(self):
-        engine = ChatEngine()
-        agents = [
-            make_agent(agent_id="a1", personality="aggressive"),  # 0.8 (excluded)
-            make_agent(agent_id="a2", personality="analytical"),  # 0.45
-            make_agent(agent_id="a3", personality="conservative"),  # 0.25
-        ]
-        result = engine._pick_most_talkative(agents, exclude_id="a1")
-        assert result is not None
-        assert result.agent_id == "a2"
-
-    def test_empty_list_returns_none(self):
-        engine = ChatEngine()
-        result = engine._pick_most_talkative([])
-        assert result is None
-
-    def test_all_excluded_returns_none(self):
-        engine = ChatEngine()
-        agents = [make_agent(agent_id="a1")]
-        result = engine._pick_most_talkative(agents, exclude_id="a1")
-        assert result is None
-
-
-# ============================================================
-# 统计：should_respond 在多次调用中的概率分布
-# ============================================================
-
-
-class TestShouldRespondDistribution:
-    """验证 should_respond 的概率分布大致正确"""
-
-    def test_aggressive_big_raise_mostly_responds(self):
-        """激进型对大幅加注应该大多数情况回应"""
-        engine = ChatEngine()
-        agent = make_agent(personality="aggressive")
-        event = make_trigger_event(event_type=TriggerEventType.BIG_RAISE)
-
-        responses = sum(1 for _ in range(1000) if engine.should_respond(event, agent))
-        # 期望概率约 0.85，允许偏差
-        assert responses > 700, f"Expected >700 responses, got {responses}"
-
-    def test_conservative_call_rarely_responds(self):
-        """保守型对跟注应该很少回应"""
-        engine = ChatEngine()
-        agent = make_agent(personality="conservative")
-        event = make_trigger_event(event_type=TriggerEventType.CALL)
-
-        responses = sum(1 for _ in range(1000) if engine.should_respond(event, agent))
-        # 期望概率约 0.065，允许偏差
-        assert responses < 150, f"Expected <150 responses, got {responses}"
+    def test_fallback_returns_varied_responses(self):
+        """多次调用降级反应可以返回不同的文本"""
+        event = make_trigger_event()
+        responses = {_get_fallback_reaction(event) for _ in range(50)}
+        # 应该有多种不同的降级回应
+        assert len(responses) > 1
