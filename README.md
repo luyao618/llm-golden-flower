@@ -28,6 +28,12 @@ When it's your turn, choose from fold, call, raise, or compare. AI opponents rea
 
 ![Game Table - Player Turn](docs/images/Pic4.jpg)
 
+### Thought Journal — AI Decision Transparency
+
+Peek into every AI's mind: hand evaluation, opponent analysis, risk assessment, chat analysis, reasoning process, confidence level, emotion, and table talk — all recorded per turn.
+
+![Thought Journal](docs/images/Pic5.jpg)
+
 ## Features
 
 - **Multi-Model AI Opponents** — 1–5 AI players, each driven by a different LLM provider (OpenRouter, GitHub Copilot, Azure OpenAI, SiliconFlow). Mix and match models at the table.
