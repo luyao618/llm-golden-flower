@@ -63,7 +63,7 @@ export default function PlayerSeat({
   onLookAtCards: _onLookAtCards,
   onClick,
 }: PlayerSeatProps) {
-  const { isCompareMode, thinkingPlayerId, reviewingPlayerId, showPlayerCards, hasLookedAtCards, toggleThoughtDrawer } = useUIStore()
+  const { isCompareMode, thinkingPlayerId, reviewingPlayerId, showPlayerCards, hasLookedAtCards, compareRevealedCards, toggleThoughtDrawer } = useUIStore()
 
   const isFolded = player.status === 'folded'
   const isOut = player.status === 'out'
@@ -85,6 +85,11 @@ export default function PlayerSeat({
   // 是否显示手牌
   const shouldShowCards = showPlayerCards && !isOut && !isFolded
   const canLookAtCards = isMe && !hasLookedAtCards && _myCards.length > 0
+
+  // 比牌亮牌：是否该玩家的手牌在比牌后被揭示
+  const revealedCards = compareRevealedCards[player.id] ?? null
+  // 弃牌的玩家（比牌输家）也要亮牌，只要有 revealed 数据
+  const shouldShowRevealed = revealedCards !== null && showPlayerCards && !isOut
 
   // 角色图片加载状态
   const [charLoaded, setCharLoaded] = useState(false)
@@ -232,11 +237,11 @@ export default function PlayerSeat({
             </div>
 
             {/* AI 对手的牌（角色下方） */}
-            {shouldShowCards && (
+            {(shouldShowCards || shouldShowRevealed) && (
               <div className="mt-1 flex justify-center">
                 <CardHand
-                  cards={PLACEHOLDER_CARDS}
-                  faceUp={false}
+                  cards={revealedCards ?? PLACEHOLDER_CARDS}
+                  faceUp={revealedCards !== null}
                   size="xs"
                   fanAngle={0}
                 />
@@ -249,7 +254,7 @@ export default function PlayerSeat({
       {/* ============================================ */}
       {/* 2. 牌区域（仅人类玩家，使用 cardPosition）  */}
       {/* ============================================ */}
-      {isHuman && shouldShowCards && (
+      {isHuman && (shouldShowCards || shouldShowRevealed) && (
         <motion.div
           className="absolute pointer-events-auto"
           style={{
@@ -268,7 +273,7 @@ export default function PlayerSeat({
           >
             <CardHand
               cards={_myCards.length > 0 ? _myCards : PLACEHOLDER_CARDS}
-              faceUp={hasLookedAtCards && _myCards.length > 0}
+              faceUp={(hasLookedAtCards && _myCards.length > 0) || revealedCards !== null}
               size="md"
               fanAngle={0}
             />

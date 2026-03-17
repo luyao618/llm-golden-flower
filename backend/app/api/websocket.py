@@ -260,6 +260,7 @@ def event_player_acted(
     action: str,
     amount: int = 0,
     compare_result: dict | None = None,
+    is_fallback: bool = False,
 ) -> dict[str, Any]:
     """player_acted 事件"""
     return {
@@ -270,6 +271,7 @@ def event_player_acted(
             "action": action,
             "amount": amount,
             "compare_result": compare_result,
+            "is_fallback": is_fallback,
         },
     }
 
@@ -420,6 +422,7 @@ async def process_ai_turns(
                     GameAction.FOLD,
                     result,
                     ws_manager,
+                    is_fallback=True,
                 )
                 if result.round_ended:
                     await _handle_round_end(game_id, game, result, ws_manager)
@@ -523,7 +526,10 @@ async def process_ai_turns(
                 logger.warning("Failed to persist thought record: %s", e)
 
         # Step 6: 广播操作结果
-        await _broadcast_action_result(game_id, game, current_player, action, result, ws_manager)
+        is_fallback = decision.is_fallback if decision is not None else True
+        await _broadcast_action_result(
+            game_id, game, current_player, action, result, ws_manager, is_fallback
+        )
 
         # Step 7: 处理行动发言（table_talk）
         if table_talk:
@@ -671,6 +677,7 @@ async def _broadcast_action_result(
     action: GameAction,
     result: ActionResult,
     ws_manager: WebSocketManager,
+    is_fallback: bool = False,
 ) -> None:
     """广播操作结果事件 + 更新后的游戏状态"""
     await ws_manager.broadcast(
@@ -681,6 +688,7 @@ async def _broadcast_action_result(
             action=action.value,
             amount=result.amount,
             compare_result=result.compare_result,
+            is_fallback=is_fallback,
         ),
     )
     # 广播更新后的游戏状态（筹码、底池、玩家状态等）

@@ -26,6 +26,7 @@ export interface ActionLogEntry {
   action: GameAction
   amount: number
   compare_result: Record<string, unknown> | null
+  is_fallback?: boolean
   timestamp: number
 }
 import { createGame as apiCreateGame, getAvailableModels } from '../services/api'

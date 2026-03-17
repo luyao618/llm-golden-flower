@@ -109,6 +109,13 @@ function LogEntry({
       {detail && (
         <span className={`${color} font-medium leading-4`}>{detail}</span>
       )}
+
+      {/* Fallback indicator */}
+      {entry.is_fallback && (
+        <span className="text-[9px] px-1 py-0.5 rounded bg-orange-500/15 text-orange-400/90 border border-orange-500/20 shrink-0 leading-3">
+          LLM降级
+        </span>
+      )}
     </motion.div>
   )
 }

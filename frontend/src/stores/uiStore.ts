@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { Card } from '../types/game'
 
 // ---- 动画状态 ----
 
@@ -78,6 +79,9 @@ export interface UIState {
   isGameLogExpanded: boolean
   isChatPanelExpanded: boolean
 
+  // 比牌后亮牌（player_id -> Card[]）
+  compareRevealedCards: Record<string, Card[]>
+
   // Actions
   setSelectedPlayer: (playerId: string | null) => void
   setActivePlayer: (playerId: string | null) => void
@@ -99,6 +103,8 @@ export interface UIState {
   toggleThoughtDrawer: (agentId?: string) => void
   toggleGameLog: () => void
   toggleChatPanel: () => void
+  setCompareRevealedCards: (cards: Record<string, Card[]>) => void
+  clearCompareRevealedCards: () => void
   resetUI: () => void
 }
 
@@ -123,6 +129,7 @@ export const useUIStore = create<UIState>((set) => ({
   thoughtDrawerAgentId: null,
   isGameLogExpanded: true,
   isChatPanelExpanded: false,
+  compareRevealedCards: {},
 
   // Actions
   setSelectedPlayer: (playerId) =>
@@ -199,6 +206,12 @@ export const useUIStore = create<UIState>((set) => ({
   toggleChatPanel: () =>
     set((state) => ({ isChatPanelExpanded: !state.isChatPanelExpanded })),
 
+  setCompareRevealedCards: (cards) =>
+    set({ compareRevealedCards: cards }),
+
+  clearCompareRevealedCards: () =>
+    set({ compareRevealedCards: {} }),
+
   resetUI: () =>
     set({
       selectedPlayerId: null,
@@ -215,5 +228,6 @@ export const useUIStore = create<UIState>((set) => ({
       copilotError: null,
       isThoughtDrawerOpen: false,
       thoughtDrawerAgentId: null,
+      compareRevealedCards: {},
     }),
 }))
