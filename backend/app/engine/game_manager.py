@@ -388,6 +388,11 @@ def _execute_action(
             "loser_name": loser.name,
             "winner_hand": _hand_description(winner.hand),
             "loser_hand": _hand_description(loser.hand),
+            # 包含实际牌面数据，供前端展示比牌双方的手牌
+            "winner_cards": [c.model_dump(mode="json") for c in winner.hand]
+            if winner.hand
+            else None,
+            "loser_cards": [c.model_dump(mode="json") for c in loser.hand] if loser.hand else None,
         }
 
         return ActionResult(

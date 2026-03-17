@@ -48,6 +48,7 @@ interface PlayerActedData {
   action: string
   amount: number
   compare_result: Record<string, unknown> | null
+  is_fallback?: boolean
 }
 
 interface ChatMessageData {
@@ -139,6 +140,8 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
   const setShowPlayerCards = useUIStore((s) => s.setShowPlayerCards)
   const setHasLookedAtCards = useUIStore((s) => s.setHasLookedAtCards)
   const setCopilotError = useUIStore((s) => s.setCopilotError)
+  const setCompareRevealedCards = useUIStore((s) => s.setCompareRevealedCards)
+  const clearCompareRevealedCards = useUIStore((s) => s.clearCompareRevealedCards)
 
   // ---- Server event handler ----
 
@@ -189,6 +192,7 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
           clearChatMessages()
           setThinkingPlayer(null)
           setReviewingPlayer(null)
+          clearCompareRevealedCards()
           useGameStore.getState().clearActionLog()
 
           // 重置卡牌和看牌状态
@@ -261,6 +265,23 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
             triggerChipAnimation(data.player_id, data.amount)
           }
 
+          // 比牌亮牌：将双方的实际手牌保存到 uiStore，供 PlayerSeat 渲染
+          if (data.action === 'compare' && data.compare_result) {
+            const cr = data.compare_result as Record<string, unknown>
+            const winnerId = cr.winner_id as string | undefined
+            const loserId = cr.loser_id as string | undefined
+            const winnerCards = cr.winner_cards as Card[] | null | undefined
+            const loserCards = cr.loser_cards as Card[] | null | undefined
+
+            const revealed: Record<string, Card[]> = {}
+            if (winnerId && winnerCards) revealed[winnerId] = winnerCards
+            if (loserId && loserCards) revealed[loserId] = loserCards
+
+            if (Object.keys(revealed).length > 0) {
+              setCompareRevealedCards(revealed)
+            }
+          }
+
           // 将操作记录添加到 store 中的 actionLog（用于行动日志 T6.5）
           const store = useGameStore.getState()
           store.addActionLog({
@@ -269,6 +290,7 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
             action: data.action as GameAction,
             amount: data.amount,
             compare_result: data.compare_result,
+            is_fallback: data.is_fallback,
           })
 
           break
@@ -321,6 +343,7 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
             setCurrentRound(null)
             setShowPlayerCards(false)
             setHasLookedAtCards(false)
+            clearCompareRevealedCards()
           }, 1500)
           break
         }
@@ -413,6 +436,8 @@ export function useGame(config: UseGameConfig | null): UseGameReturn {
       setShowPlayerCards,
       setHasLookedAtCards,
       setCopilotError,
+      setCompareRevealedCards,
+      clearCompareRevealedCards,
     ],
   )
 

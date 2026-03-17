@@ -61,6 +61,7 @@ class Decision:
     table_talk: str | None = None
     thought: ThoughtData | None = None
     raw_response: str = ""
+    is_fallback: bool = False
 
 
 @dataclass
@@ -486,6 +487,7 @@ class BaseAgent:
                     emotion="无奈",
                 ),
                 raw_response=f"[LLM ERROR] {e}",
+                is_fallback=True,
             )
 
         # 5. 验证比牌操作的目标

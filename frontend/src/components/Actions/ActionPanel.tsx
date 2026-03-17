@@ -105,7 +105,7 @@ export default function ActionPanel({ onAction }: ActionPanelProps) {
     setConfirmAction(null)
   }, [])
 
-  if (!isMyTurn || !myPlayer || !currentRound) {
+  if (!myPlayer || !currentRound) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-3 px-4">
         <span className="text-[var(--text-muted)] text-sm">等待对手行动...</span>
@@ -113,26 +113,47 @@ export default function ActionPanel({ onAction }: ActionPanelProps) {
     )
   }
 
-  // 构建操作按钮
+  // 构建操作按钮 — 轮到自己时用服务端下发的可用动作，否则显示默认按钮组（置灰）
   const buttons: ActionButtonConfig[] = []
 
-  for (const action of availableActions) {
-    switch (action) {
-      case 'check_cards':
-        buttons.push({ action: 'check_cards', label: '看牌', icon: Eye, hotkey: 'Q' })
-        break
-      case 'call':
-        buttons.push({ action: 'call', label: '跟注', costLabel: `${getCallCost(currentRound, myPlayer)}`, icon: ArrowDown, hotkey: 'W' })
-        break
-      case 'raise':
-        buttons.push({ action: 'raise', label: '加注', costLabel: `${getRaiseCost(currentRound, myPlayer)}`, icon: TrendingUp, hotkey: 'E' })
-        break
-      case 'compare':
-        buttons.push({ action: 'compare', label: '比牌', costLabel: `${getCompareCost(currentRound, myPlayer)}`, icon: Swords, hotkey: 'R' })
-        break
-      case 'fold':
-        buttons.push({ action: 'fold', label: '弃牌', icon: X, needsConfirm: true, hotkey: 'F' })
-        break
+  if (isMyTurn) {
+    for (const action of availableActions) {
+      switch (action) {
+        case 'check_cards':
+          buttons.push({ action: 'check_cards', label: '看牌', icon: Eye, hotkey: 'Q' })
+          break
+        case 'call':
+          buttons.push({ action: 'call', label: '跟注', costLabel: `${getCallCost(currentRound, myPlayer)}`, icon: ArrowDown, hotkey: 'W' })
+          break
+        case 'raise':
+          buttons.push({ action: 'raise', label: '加注', costLabel: `${getRaiseCost(currentRound, myPlayer)}`, icon: TrendingUp, hotkey: 'E' })
+          break
+        case 'compare':
+          buttons.push({ action: 'compare', label: '比牌', costLabel: `${getCompareCost(currentRound, myPlayer)}`, icon: Swords, hotkey: 'R' })
+          break
+        case 'fold':
+          buttons.push({ action: 'fold', label: '弃牌', icon: X, needsConfirm: true, hotkey: 'F' })
+          break
+      }
+    }
+  } else {
+    // 等待对手时显示与行动时一致的按钮布局（置灰）
+    // 暗注: 看牌、跟注、加注、弃牌（4个，无比牌）
+    // 明注: 跟注、加注、比牌、弃牌（4个，无看牌）
+    if (myPlayer.status === 'active_blind') {
+      buttons.push(
+        { action: 'check_cards', label: '看牌', icon: Eye, hotkey: 'Q' },
+        { action: 'call', label: '跟注', costLabel: `${getCallCost(currentRound, myPlayer)}`, icon: ArrowDown, hotkey: 'W' },
+        { action: 'raise', label: '加注', costLabel: `${getRaiseCost(currentRound, myPlayer)}`, icon: TrendingUp, hotkey: 'E' },
+        { action: 'fold', label: '弃牌', icon: X, hotkey: 'F' },
+      )
+    } else {
+      buttons.push(
+        { action: 'call', label: '跟注', costLabel: `${getCallCost(currentRound, myPlayer)}`, icon: ArrowDown, hotkey: 'W' },
+        { action: 'raise', label: '加注', costLabel: `${getRaiseCost(currentRound, myPlayer)}`, icon: TrendingUp, hotkey: 'E' },
+        { action: 'compare', label: '比牌', costLabel: `${getCompareCost(currentRound, myPlayer)}`, icon: Swords, hotkey: 'R' },
+        { action: 'fold', label: '弃牌', icon: X, hotkey: 'F' },
+      )
     }
   }
 
@@ -153,12 +174,13 @@ export default function ActionPanel({ onAction }: ActionPanelProps) {
     )
   }
 
-  // 2×2 网格: [跟注/看牌, 加注] [比牌, 弃牌]
+  // 2x2 网格: [跟注/看牌, 加注] [比牌, 弃牌]
   // 将所有按钮放入统一的 2 列网格
   const renderButton = (btn: ActionButtonConfig) => {
     const isConfirming = confirmAction === btn.action
     const Icon = btn.icon
     const accent = ACTION_ACCENT[btn.action] ?? ACTION_ACCENT.call
+    const isDisabled = !isMyTurn || isProcessing
 
     return (
       <motion.div
@@ -191,22 +213,21 @@ export default function ActionPanel({ onAction }: ActionPanelProps) {
           </div>
         ) : (
           <button
-            onClick={() => handleActionClick(btn.action, btn.needsConfirm)}
-            disabled={isProcessing}
+            onClick={() => !isDisabled && handleActionClick(btn.action, btn.needsConfirm)}
+            disabled={isDisabled}
             className={`
               relative flex items-center w-full h-full px-3 py-2.5 rounded-lg
-              bg-white/[0.03] border ${accent.border}
-              text-[var(--text-primary)]
-              hover:bg-white/[0.08] hover:scale-[1.02]
-              active:scale-95
-              transition-all cursor-pointer
-              disabled:opacity-50 disabled:cursor-not-allowed
+              border transition-all
+              ${isMyTurn
+                ? `bg-white/[0.03] ${accent.border} text-[var(--text-primary)] hover:bg-white/[0.08] hover:scale-[1.02] active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`
+                : `bg-white/[0.02] border-white/[0.06] text-[var(--text-disabled)] cursor-not-allowed`
+              }
             `}
           >
-            <Icon className={`w-4 h-4 ${accent.text} shrink-0`} />
+            <Icon className={`w-4 h-4 ${isMyTurn ? accent.text : 'text-[var(--text-disabled)]'} shrink-0`} />
             <span className="text-sm font-semibold ml-1.5">{btn.label}</span>
             {btn.costLabel && (
-              <span className="text-xs text-[var(--text-muted)] font-mono ml-auto">
+              <span className={`text-xs font-mono ml-auto ${isMyTurn ? 'text-[var(--text-muted)]' : 'text-[var(--text-disabled)]'}`}>
                 {btn.costLabel}
               </span>
             )}
@@ -223,7 +244,7 @@ export default function ActionPanel({ onAction }: ActionPanelProps) {
 
   return (
     <div className="flex flex-col gap-2 p-3 w-full">
-      {/* 状态行: 底池 + 筹码 — 加大字号 */}
+      {/* 状态行: 底池 + 筹码 — 始终可见 */}
       <div className="flex items-center justify-between px-0.5 mb-0.5">
         <span className="text-[var(--text-secondary)] text-sm">
           底池 <span className="text-[var(--color-gold)] font-mono font-bold text-base">{currentRound.pot}</span>
@@ -235,7 +256,18 @@ export default function ActionPanel({ onAction }: ActionPanelProps) {
         </span>
       </div>
 
-      {/* 操作按钮 — 2×2 网格 */}
+      {/* 等待提示 */}
+      {!isMyTurn && (
+        <div className="flex items-center justify-center gap-2 py-0.5">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--text-muted)] opacity-40" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[var(--text-muted)]" />
+          </span>
+          <span className="text-[var(--text-muted)] text-xs">等待对手行动...</span>
+        </div>
+      )}
+
+      {/* 操作按钮 — 2x2 网格 */}
       <AnimatePresence mode="popLayout">
         <div className="grid grid-cols-2 gap-1.5">
           {buttons.map(renderButton)}
