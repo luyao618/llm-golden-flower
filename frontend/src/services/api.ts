@@ -411,9 +411,13 @@ export async function removeAzureOpenAIModel(
 
 // ---- 游戏设置 ----
 
+/** AI 思考模式 */
+export type AiThinkingMode = 'detailed' | 'fast' | 'turbo'
+
 /** 设置响应类型 */
 export interface SettingsData {
   llm_max_tokens: number | null
+  ai_thinking_mode: AiThinkingMode
   // AI 调用配置
   llm_timeout: number
   llm_max_retries: number

@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useSettingsStore } from '../../stores/settingsStore'
+import type { AiThinkingMode } from '../../services/api'
 
 interface GameSettingsModalProps {
   open: boolean
@@ -27,6 +28,21 @@ const MAX_TOKEN_PRESETS: MaxTokenPreset[] = [
   { label: '16384', value: 16384, desc: '长篇输出' },
   { label: '40960', value: 40960, desc: '超长（LiteLLM 默认）' },
   { label: '无上限', value: null, desc: '不限制，使用模型最大值' },
+]
+
+// ---- AI 思考模式预设 ----
+
+interface ThinkingModePreset {
+  mode: AiThinkingMode
+  label: string
+  desc: string
+  icon: string
+}
+
+const THINKING_MODE_PRESETS: ThinkingModePreset[] = [
+  { mode: 'detailed', label: '详细思考', desc: '完整思考过程，心路历程最丰富', icon: '🔍' },
+  { mode: 'fast', label: '快速思考', desc: '精简思考，速度与质量平衡（默认）', icon: '⚡' },
+  { mode: 'turbo', label: '极速决策', desc: '跳过思考过程，最快响应', icon: '🚀' },
 ]
 
 // ================================================================
@@ -104,8 +120,8 @@ function SettingNumberRow({
 
 function SettingsPanel() {
   const {
-    maxTokens, llmTimeout, llmMaxRetries, llmTemperature,
-    loading, saving, fetchSettings, setMaxTokens, updateSetting,
+    maxTokens, aiThinkingMode, llmTimeout, llmMaxRetries, llmTemperature,
+    loading, saving, fetchSettings, setMaxTokens, setAiThinkingMode, updateSetting,
   } = useSettingsStore()
   const [selectedTokens, setSelectedTokens] = useState<number | null>(null)
   const [initialized, setInitialized] = useState(false)
@@ -148,6 +164,50 @@ function SettingsPanel() {
           调整 LLM 调用参数。修改立即生效，影响所有 AI 玩家。
         </p>
       </div>
+
+      {/* ---- AI 思考模式 ---- */}
+      <div className="space-y-3">
+        <div>
+          <h4 className="text-sm font-medium text-[#d0dce8] mb-1">AI 思考模式</h4>
+          <p className="text-xs text-[#8090a0] leading-relaxed">
+            控制 AI 决策时的思考深度。详细模式产出丰富的心路历程，极速模式跳过思考以降低延迟。
+          </p>
+        </div>
+
+        {/* 三选一 pill 按钮 */}
+        <div className="grid grid-cols-3 gap-2">
+          {THINKING_MODE_PRESETS.map((preset) => {
+            const isSelected = aiThinkingMode === preset.mode
+            return (
+              <button
+                key={preset.mode}
+                onClick={() => setAiThinkingMode(preset.mode)}
+                disabled={saving}
+                className={`group relative px-3 py-3 rounded-lg border transition-all cursor-pointer
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  ${isSelected
+                    ? 'border-cyan-500/60 bg-cyan-500/12 shadow-[0_0_16px_rgba(0,212,255,0.10)]'
+                    : 'border-white/[0.10] bg-white/[0.03] hover:border-white/[0.20] hover:bg-white/[0.06]'
+                  }`}
+              >
+                <div className={`text-sm font-bold mb-0.5 ${isSelected ? 'text-cyan-300' : 'text-[#d0dce8]'}`}>
+                  <span className="mr-1">{preset.icon}</span>{preset.label}
+                </div>
+                <div className={`text-[10px] leading-tight ${isSelected ? 'text-cyan-400/70' : 'text-[#6a7a8a]'}`}>
+                  {preset.desc}
+                </div>
+                {/* 选中指示器 */}
+                {isSelected && (
+                  <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(0,212,255,0.5)]" />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ---- 分隔线 ---- */}
+      <div className="border-t border-white/[0.08]" />
 
       {/* ---- 调用参数 ---- */}
       <div className="space-y-3">

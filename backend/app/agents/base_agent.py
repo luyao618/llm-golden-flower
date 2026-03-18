@@ -17,7 +17,7 @@ from typing import Any
 import litellm
 
 from app.agents.prompts import render_decision_prompt, render_system_prompt
-from app.api.settings import get_runtime_llm_config
+from app.api.settings import get_runtime_llm_config, get_thinking_mode
 from app.config import _get_all_models, get_settings
 from app.engine.evaluator import evaluate_hand
 from app.engine.rules import (
@@ -188,6 +188,7 @@ class BaseAgent:
         messages: list[dict[str, str]],
         temperature: float | None = None,
         response_format: dict | None = None,
+        max_tokens_override: int | None = None,
     ) -> str:
         """封装 LLM 调用，含重试、超时、错误处理
 
@@ -199,6 +200,7 @@ class BaseAgent:
             messages: OpenAI 格式的消息列表
             temperature: 生成温度，None 则使用默认配置
             response_format: 响应格式要求（如 {"type": "json_object"}）
+            max_tokens_override: 覆盖默认 max_tokens（由思考模式决定）
 
         Returns:
             LLM 响应的文本内容
@@ -219,7 +221,9 @@ class BaseAgent:
 
         # ---- Copilot 路径 ----
         if provider == "github_copilot":
-            return await self._call_copilot(model_name, messages, temp, fmt)
+            return await self._call_copilot(
+                model_name, messages, temp, fmt, max_tokens_override=max_tokens_override
+            )
 
         # ---- LiteLLM 路径 ----
         # 设置 API keys（LiteLLM 会根据模型自动选择对应的 key）
@@ -241,7 +245,13 @@ class BaseAgent:
                 from app.api.settings import get_runtime_max_tokens
 
                 runtime_max = get_runtime_max_tokens()
-                effective_max_tokens = runtime_max if runtime_max is not None else 40960
+                # 优先使用思考模式的 override，其次运行时配置，最后默认值
+                if max_tokens_override is not None:
+                    effective_max_tokens = max_tokens_override
+                elif runtime_max is not None:
+                    effective_max_tokens = runtime_max
+                else:
+                    effective_max_tokens = 40960
 
                 response = await litellm.acompletion(
                     model=model_name,
@@ -280,6 +290,7 @@ class BaseAgent:
         messages: list[dict[str, str]],
         temperature: float,
         response_format: dict | None = None,
+        max_tokens_override: int | None = None,
     ) -> str:
         """通过 Copilot API 调用 LLM
 
@@ -311,7 +322,13 @@ class BaseAgent:
                 from app.api.settings import get_runtime_max_tokens
 
                 runtime_max = get_runtime_max_tokens()
-                effective_max_tokens = runtime_max if runtime_max is not None else 4096
+                # 优先使用思考模式的 override，其次运行时配置，最后默认值
+                if max_tokens_override is not None:
+                    effective_max_tokens = max_tokens_override
+                elif runtime_max is not None:
+                    effective_max_tokens = runtime_max
+                else:
+                    effective_max_tokens = 4096
 
                 content = await copilot.call_copilot_api(
                     model=model_name,
@@ -359,16 +376,19 @@ class BaseAgent:
 
     # ---- Prompt 构建 ----
 
-    def build_system_prompt(self) -> str:
+    def build_system_prompt(self, thinking_mode: str = "fast") -> str:
         """构建 system prompt
 
-        使用 prompts 模块的模板，不预设任何性格。
+        使用 prompts 模块的模板，根据思考模式选择对应的模板。
         AI 的打法和说话风格完全由 LLM 自行决定。
+
+        Args:
+            thinking_mode: AI 思考模式 ("detailed" / "fast" / "turbo")
 
         Returns:
             完整的 system prompt 文本
         """
-        return render_system_prompt(agent_name=self.name)
+        return render_system_prompt(agent_name=self.name, thinking_mode=thinking_mode)
 
     # ---- 响应解析 ----
 
@@ -429,11 +449,12 @@ class BaseAgent:
         """完整的 AI 决策流程
 
         流程：
-        1. 构建决策 prompt（手牌、局面、历史行动、聊天上下文、经验策略）
-        2. 调用 LLM
-        3. 解析响应为 Decision（action + thought + table_talk）
-        4. 验证操作合法性，非法操作降级处理
-        5. 比牌操作时验证/选择目标
+        1. 读取当前 AI 思考模式
+        2. 构建决策 prompt（手牌、局面、历史行动、聊天上下文、经验策略）
+        3. 调用 LLM（根据思考模式调整 max_tokens）
+        4. 解析响应为 Decision（action + thought + table_talk）
+        5. 验证操作合法性，非法操作降级处理
+        6. 比牌操作时验证/选择目标
 
         Args:
             game: 当前完整游戏状态
@@ -445,6 +466,9 @@ class BaseAgent:
         """
         round_state = game.current_round
         assert round_state is not None
+
+        # 0. 获取当前 AI 思考模式
+        thinking_mode = get_thinking_mode().value
 
         # 1. 获取可用操作
         available_actions = get_available_actions(round_state, player, game.players, game.config)
@@ -464,8 +488,8 @@ class BaseAgent:
         )
         experience_context = self.get_strategy_context()
 
-        # 3. 渲染 prompt
-        system_prompt = self.build_system_prompt()
+        # 3. 渲染 prompt（根据思考模式选择模板）
+        system_prompt = self.build_system_prompt(thinking_mode=thinking_mode)
         decision_prompt = render_decision_prompt(
             hand_description=hand_description,
             seen_status=seen_status,
@@ -484,9 +508,17 @@ class BaseAgent:
             {"role": "user", "content": decision_prompt},
         ]
 
-        # 4. 调用 LLM 并解析
+        # 4. 根据思考模式确定 max_tokens 上限
+        mode_max_tokens = {
+            "detailed": 4096,
+            "fast": 2048,
+            "turbo": 1024,
+        }
+        max_tokens_for_mode = mode_max_tokens.get(thinking_mode, 2048)
+
+        # 5. 调用 LLM 并解析
         try:
-            raw_response = await self.call_llm(messages)
+            raw_response = await self.call_llm(messages, max_tokens_override=max_tokens_for_mode)
             decision = self.parse_decision_response(raw_response, available_actions)
         except LLMCallError as e:
             # Copilot 订阅错误需要向上传播，让 WebSocket 层发送弹窗事件
@@ -505,11 +537,11 @@ class BaseAgent:
                 is_fallback=True,
             )
 
-        # 5. 验证比牌操作的目标
+        # 6. 验证比牌操作的目标
         if decision.action == GameAction.COMPARE:
             decision = self._validate_compare_target(decision, game, player, available_actions)
 
-        # 6. 最终合法性校验（使用 rules 引擎做真正的校验）
+        # 7. 最终合法性校验（使用 rules 引擎做真正的校验）
         if not validate_action(
             round_state,
             player,
@@ -526,7 +558,7 @@ class BaseAgent:
             decision.action = self._get_fallback_action(available_actions)
             decision.target = None
 
-        # 7. 记录思考数据
+        # 8. 记录思考数据
         if decision.thought:
             self.record_thought(round_state.round_number, decision.thought)
 

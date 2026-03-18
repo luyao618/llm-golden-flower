@@ -14,7 +14,6 @@
 
 from __future__ import annotations
 
-
 # ---- 炸金花规则摘要 ----
 
 RULES_SUMMARY = """\
@@ -47,6 +46,29 @@ DECISION_OUTPUT_SCHEMA = """\
         "confidence": 0.0到1.0之间的数字,
         "emotion": "当前情绪标签，如：紧张、自信、忐忑、兴奋、沮丧、平静"
     }
+}"""
+
+# ---- 快速思考模式输出格式（仅保留核心思考字段） ----
+
+FAST_DECISION_OUTPUT_SCHEMA = """\
+{
+    "action": "fold | call | raise | check_cards | compare",
+    "target": "比牌对象的玩家ID（仅当 action 为 compare 时需要，否则为 null）",
+    "table_talk": "你在操作时说的话（可以为 null 表示沉默）",
+    "thought": {
+        "reasoning": "简要决策理由（一两句话）",
+        "confidence": 0.0到1.0之间的数字,
+        "emotion": "当前情绪标签，如：紧张、自信、忐忑、兴奋、沮丧、平静"
+    }
+}"""
+
+# ---- 极速决策模式输出格式（无思考过程） ----
+
+TURBO_DECISION_OUTPUT_SCHEMA = """\
+{
+    "action": "fold | call | raise | check_cards | compare",
+    "target": "比牌对象的玩家ID（仅当 action 为 compare 时需要，否则为 null）",
+    "table_talk": "你在操作时说的话（可以为 null 表示沉默）"
 }"""
 
 BYSTANDER_OUTPUT_SCHEMA = """\
@@ -120,6 +142,33 @@ SYSTEM_PROMPT_TEMPLATE = """\
 
 ## 输出格式
 你必须以 JSON 格式输出，包含以下字段:
+{output_schema}"""
+
+# ---- 快速思考模式 System Prompt（精简版） ----
+
+FAST_SYSTEM_PROMPT_TEMPLATE = """\
+你是炸金花玩家 {agent_name}，目标是赢得更多筹码。
+
+## 规则摘要
+{rules_summary}
+
+## 决策要求
+- 根据局面做出最有利的决策
+- 分析对手行为模式，权衡风险与收益
+- 可以在操作时说一句话（也可以沉默），利用言语施压或试探
+
+## 输出格式（JSON）
+{output_schema}"""
+
+# ---- 极速决策模式 System Prompt（最精简） ----
+
+TURBO_SYSTEM_PROMPT_TEMPLATE = """\
+你是炸金花玩家 {agent_name}。根据局面快速做出最有利的决策。
+
+## 规则
+{rules_summary}
+
+## 输出格式（JSON，直接输出决策）
 {output_schema}"""
 
 
@@ -281,19 +330,34 @@ GAME_SUMMARY_PROMPT_TEMPLATE = """\
 
 def render_system_prompt(
     agent_name: str,
+    thinking_mode: str = "fast",
 ) -> str:
     """渲染 System Prompt
 
+    根据 thinking_mode 选择对应的模板和输出 Schema。
+
     Args:
         agent_name: Agent 显示名称
+        thinking_mode: AI 思考模式 ("detailed" / "fast" / "turbo")
 
     Returns:
         渲染后的 system prompt 文本
     """
-    return SYSTEM_PROMPT_TEMPLATE.format(
+    if thinking_mode == "turbo":
+        template = TURBO_SYSTEM_PROMPT_TEMPLATE
+        schema = TURBO_DECISION_OUTPUT_SCHEMA
+    elif thinking_mode == "fast":
+        template = FAST_SYSTEM_PROMPT_TEMPLATE
+        schema = FAST_DECISION_OUTPUT_SCHEMA
+    else:
+        # detailed（默认完整版）
+        template = SYSTEM_PROMPT_TEMPLATE
+        schema = DECISION_OUTPUT_SCHEMA
+
+    return template.format(
         agent_name=agent_name,
         rules_summary=RULES_SUMMARY,
-        output_schema=DECISION_OUTPUT_SCHEMA,
+        output_schema=schema,
     )
 
 

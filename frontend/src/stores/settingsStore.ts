@@ -4,12 +4,14 @@
 // ============================================================
 
 import { create } from 'zustand'
-import { getSettings, updateSettings, type SettingsData } from '../services/api'
+import { getSettings, updateSettings, type AiThinkingMode, type SettingsData } from '../services/api'
 import { useUIStore } from './uiStore'
 
 export interface SettingsState {
   /** LLM 最大生成 token 数，null 表示无上限 */
   maxTokens: number | null
+  /** AI 思考模式 */
+  aiThinkingMode: AiThinkingMode
   /** AI 调用配置 */
   llmTimeout: number
   llmMaxRetries: number
@@ -22,12 +24,15 @@ export interface SettingsState {
   fetchSettings: () => Promise<void>
   /** 更新 max_tokens */
   setMaxTokens: (value: number | null) => Promise<void>
+  /** 更新 AI 思考模式 */
+  setAiThinkingMode: (mode: AiThinkingMode) => Promise<void>
   /** 更新单个设置项 */
   updateSetting: <K extends keyof SettingsData>(key: K, value: SettingsData[K]) => Promise<void>
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
   maxTokens: null,
+  aiThinkingMode: 'fast',
   llmTimeout: 30,
   llmMaxRetries: 3,
   llmTemperature: 0.7,
@@ -40,6 +45,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       const res = await getSettings()
       set({
         maxTokens: res.llm_max_tokens,
+        aiThinkingMode: res.ai_thinking_mode,
         llmTimeout: res.llm_timeout,
         llmMaxRetries: res.llm_max_retries,
         llmTemperature: res.llm_temperature,
@@ -69,12 +75,28 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     }
   },
 
+  setAiThinkingMode: async (mode: AiThinkingMode) => {
+    set({ saving: true })
+    try {
+      await updateSettings({ ai_thinking_mode: mode })
+      set({ aiThinkingMode: mode })
+    } catch (err) {
+      useUIStore.getState().pushErrorPopup({
+        message: err instanceof Error ? err.message : '更新设置失败',
+        source: '保存设置',
+      })
+    } finally {
+      set({ saving: false })
+    }
+  },
+
   updateSetting: async (key, value) => {
     set({ saving: true })
     try {
       const res = await updateSettings({ [key]: value })
       set({
         maxTokens: res.llm_max_tokens,
+        aiThinkingMode: res.ai_thinking_mode,
         llmTimeout: res.llm_timeout,
         llmMaxRetries: res.llm_max_retries,
         llmTemperature: res.llm_temperature,

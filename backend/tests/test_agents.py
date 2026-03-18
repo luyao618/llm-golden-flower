@@ -117,6 +117,7 @@ class TestBuildSystemPrompt:
 
     def test_contains_output_schema(self):
         agent = BaseAgent()
+        # 默认 fast 模式包含简化的 thought 字段
         prompt = agent.build_system_prompt()
         assert '"action"' in prompt
         assert '"thought"' in prompt
@@ -124,10 +125,27 @@ class TestBuildSystemPrompt:
         assert '"confidence"' in prompt
 
     def test_contains_chat_guidance(self):
+        """详细模式包含完整的牌桌交流指导"""
         agent = BaseAgent()
-        prompt = agent.build_system_prompt()
+        prompt = agent.build_system_prompt(thinking_mode="detailed")
         assert "牌桌交流" in prompt
         assert "虚张声势" in prompt
+
+    def test_fast_mode_prompt(self):
+        """快速模式包含精简的决策指导"""
+        agent = BaseAgent()
+        prompt = agent.build_system_prompt(thinking_mode="fast")
+        assert '"action"' in prompt
+        assert '"confidence"' in prompt
+        assert "炸金花" in prompt
+
+    def test_turbo_mode_prompt(self):
+        """极速模式不包含 thought 字段"""
+        agent = BaseAgent()
+        prompt = agent.build_system_prompt(thinking_mode="turbo")
+        assert '"action"' in prompt
+        assert '"table_talk"' in prompt
+        assert '"thought"' not in prompt
 
 
 # ============================================================

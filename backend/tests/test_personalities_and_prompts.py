@@ -57,8 +57,8 @@ class TestSystemPromptTemplate:
         assert "confidence" in result
 
     def test_contains_chat_guide(self):
-        """包含牌桌交流指导"""
-        result = render_system_prompt("Test")
+        """详细模式包含牌桌交流指导"""
+        result = render_system_prompt("Test", thinking_mode="detailed")
         assert "牌桌交流" in result
         assert "虚张声势" in result
 

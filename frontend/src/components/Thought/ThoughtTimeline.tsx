@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { ThoughtRecord, ExperienceReview, RoundNarrative } from '../../types/game'
 import { getRoundThoughts, getExperienceReviews, getRoundNarrative } from '../../services/api'
+import { useSettingsStore } from '../../stores/settingsStore'
 import ThoughtCard from './ThoughtCard'
 import NarrativeView from './NarrativeView'
 
@@ -212,9 +213,7 @@ export default function ThoughtTimeline({
 
                 {/* 思考记录 — 垂直时间线 */}
                 {thoughts.length === 0 ? (
-                  <div className="text-[var(--text-muted)] text-xs text-center py-4">
-                    该局暂无思考记录
-                  </div>
+                  <EmptyThoughtsHint />
                 ) : (
                   <div className="relative">
                     {/* 垂直时间线主线 */}
@@ -305,6 +304,31 @@ export default function ThoughtTimeline({
           </AnimatePresence>
         )}
       </div>
+    </div>
+  )
+}
+
+// ---- 空思考记录提示 ----
+
+function EmptyThoughtsHint() {
+  const aiThinkingMode = useSettingsStore((s) => s.aiThinkingMode)
+
+  if (aiThinkingMode === 'turbo') {
+    return (
+      <div className="text-center py-6 space-y-2">
+        <div className="text-[var(--text-muted)] text-xs">
+          当前为「极速决策」模式，AI 不输出思考过程
+        </div>
+        <div className="text-[var(--text-muted)]/60 text-[10px]">
+          切换至「快速思考」或「详细思考」模式可查看心路历程
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="text-[var(--text-muted)] text-xs text-center py-4">
+      该局暂无思考记录
     </div>
   )
 }
