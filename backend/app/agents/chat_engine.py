@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import random
@@ -220,28 +221,34 @@ class ChatEngine:
             return []
 
         states = agent_states or {}
-        reactions: list[BystanderReaction] = []
 
-        # 每个旁观 AI 都调用 LLM 决定是否回应
-        for agent in bystanders:
-            # 跳过事件发起者
-            if agent.agent_id == event.actor_id:
-                continue
+        # 并行调用所有旁观 AI 的 LLM，大幅减少等待时间
+        eligible = [a for a in bystanders if a.agent_id != event.actor_id]
+        if not eligible:
+            return []
 
+        async def _react(agent: BaseAgent) -> BystanderReaction | None:
             state = states.get(agent.agent_id)
-            reaction = await self.maybe_react_as_bystander(
+            return await self.maybe_react_as_bystander(
                 trigger_event=event,
                 agent=agent,
                 chat_context=chat_context,
                 agent_state=state,
             )
-            if reaction is not None and reaction.should_respond:
-                reactions.append(reaction)
+
+        results = await asyncio.gather(*[_react(a) for a in eligible], return_exceptions=True)
+        reactions: list[BystanderReaction] = []
+        for r in results:
+            if isinstance(r, BaseException):
+                logger.warning("[ChatEngine] Bystander reaction failed: %s", r)
+                continue
+            if r is not None and r.should_respond:
+                reactions.append(r)
 
         # must_respond 保证：如果需要至少一个回应但没有任何 AI 回应
-        if event.must_respond and not reactions and bystanders:
+        if event.must_respond and not reactions and eligible:
             # 随机选一个旁观 AI 强制回应
-            candidates = [a for a in bystanders if a.agent_id != event.actor_id]
+            candidates = eligible
             if candidates:
                 forced_agent = random.choice(candidates)
                 state = states.get(forced_agent.agent_id)
