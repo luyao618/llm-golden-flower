@@ -10,71 +10,16 @@
 """
 
 from __future__ import annotations
-from unittest.mock import patch, MagicMock
 
 import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from httpx import AsyncClient
 
-from app.api.game_store import GameStore, get_game_store, reset_game_store
-from app.db.database import Base, get_db
-from app.main import create_app
+from app.api.game_store import GameStore, get_game_store
+
+# async_engine, async_client fixtures 由 conftest.py 提供
 
 
-# ---- Fixtures ----
-
-
-@pytest_asyncio.fixture
-async def async_engine():
-    """创建内存 SQLite 异步引擎（测试专用）"""
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
-    import app.db.schemas  # noqa: F401
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield engine
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture
-async def async_client(async_engine):
-    """创建测试用 HTTP 客户端，覆盖数据库依赖，并模拟 Copilot 已连接"""
-    test_session_factory = async_sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
-
-    async def _override_get_db():
-        async with test_session_factory() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception:
-                await session.rollback()
-                raise
-            finally:
-                await session.close()
-
-    test_app = create_app()
-    test_app.dependency_overrides[get_db] = _override_get_db
-
-    # 模拟 Copilot 认证已连接，使 get_available_models() 返回 Copilot 模型
-    mock_copilot = MagicMock()
-    mock_copilot.is_connected = True
-
-    transport = ASGITransport(app=test_app)
-    with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            yield client
-
-    # 每次测试后清理 game store
-    reset_game_store()
-    test_app.dependency_overrides.clear()
-
-
-@pytest_asyncio.fixture
+@pytest.fixture
 def store():
     """获取全局 game store"""
     return get_game_store()

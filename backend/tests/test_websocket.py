@@ -12,19 +12,16 @@
 
 from __future__ import annotations
 
-import asyncio
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
 from starlette.testclient import TestClient
 
 from app.agents.agent_manager import AgentManager, get_agent_manager
 from app.agents.base_agent import BaseAgent, Decision, ThoughtData
 from app.agents.chat_engine import ChatEngine
-from app.api.game_store import GameStore, get_game_store, reset_game_store
+from app.api.game_store import get_game_store, reset_game_store
 from app.api.websocket import (
     WebSocketManager,
     event_ai_reviewing,
@@ -33,7 +30,6 @@ from app.api.websocket import (
     event_chat_message,
     event_error,
     event_game_ended,
-    event_game_started,
     event_player_acted,
     event_round_ended,
     event_round_started,
@@ -43,7 +39,7 @@ from app.api.websocket import (
     process_ai_turns,
     reset_ws_manager,
 )
-from app.db.database import Base, get_db
+from app.db.database import get_db
 from app.engine.game_manager import create_game, start_round
 from app.main import create_app
 from app.models.chat import ChatContext, ChatMessage, ChatMessageType
@@ -54,10 +50,7 @@ from app.models.game import (
     GameState,
     Player,
     PlayerStatus,
-    PlayerType,
-    RoundState,
 )
-
 
 # ---- Fixtures ----
 
@@ -109,22 +102,6 @@ def agent_manager(game_state):
 def chat_engine():
     """创建 ChatEngine 实例"""
     return ChatEngine()
-
-
-@pytest_asyncio.fixture
-async def async_engine():
-    """创建内存 SQLite 异步引擎"""
-    from sqlalchemy.ext.asyncio import create_async_engine
-
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
-    import app.db.schemas  # noqa: F401
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield engine
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await engine.dispose()
 
 
 @pytest_asyncio.fixture
@@ -523,7 +500,6 @@ class TestStartRound:
 
                 # 收集所有事件（带超时）
                 events = []
-                import select
                 import time
 
                 deadline = time.time() + 3.0

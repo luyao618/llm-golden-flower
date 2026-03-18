@@ -9,15 +9,15 @@
 """
 
 from __future__ import annotations
-from unittest.mock import patch, MagicMock
+
+from unittest.mock import MagicMock, patch
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import inspect, text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import inspect
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import Base
 from app.db.schemas import (
     ChatMessageDB,
     ExperienceReviewDB,
@@ -30,39 +30,19 @@ from app.db.schemas import (
 )
 from app.main import app
 
+# async_engine, db_session fixtures 由 conftest.py 提供
+
 
 # ---- Fixtures ----
 
 
 @pytest_asyncio.fixture
-async def async_engine():
-    """创建内存 SQLite 异步引擎（测试专用）"""
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        echo=False,
-    )
-    # 导入 schemas 确保所有模型注册到 Base
-    import app.db.schemas  # noqa: F401
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield engine
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture
-async def db_session(async_engine):
-    """创建测试用异步 session"""
-    session_factory = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
-    async with session_factory() as session:
-        yield session
-
-
-@pytest_asyncio.fixture
 async def async_client():
-    """创建测试用 HTTP 客户端，模拟 Copilot 已连接"""
+    """创建测试用 HTTP 客户端（使用全局 app 单例），模拟 Copilot 已连接
+
+    注意: 这里有意使用全局 app 而非 create_app()，
+    因为测试的是应用启动时的内置数据库初始化功能。
+    """
     mock_copilot = MagicMock()
     mock_copilot.is_connected = True
 

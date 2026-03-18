@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     siliconflow_api_key: str = ""
     azure_openai_api_key: str = ""
+    zhipu_api_key: str = ""
 
     # ---- 游戏默认配置 ----
     default_initial_chips: int = 1000
@@ -69,6 +70,7 @@ COPILOT_MODELS: dict[str, dict] = {
 OPENROUTER_MODELS: dict[str, dict] = {}
 SILICONFLOW_MODELS: dict[str, dict] = {}
 AZURE_OPENAI_MODELS: dict[str, dict] = {}
+ZHIPU_MODELS: dict[str, dict] = {}
 
 # 合并所有模型的完整注册表（用于 model_id 查找）
 ALL_MODELS: dict[str, dict] = {**COPILOT_MODELS}
@@ -110,7 +112,13 @@ def get_settings() -> Settings:
 
 def _get_all_models() -> dict[str, dict]:
     """获取包含动态模型在内的完整模型注册表"""
-    return {**COPILOT_MODELS, **OPENROUTER_MODELS, **SILICONFLOW_MODELS, **AZURE_OPENAI_MODELS}
+    return {
+        **COPILOT_MODELS,
+        **OPENROUTER_MODELS,
+        **SILICONFLOW_MODELS,
+        **AZURE_OPENAI_MODELS,
+        **ZHIPU_MODELS,
+    }
 
 
 def get_available_models() -> list[dict]:
@@ -148,6 +156,11 @@ def get_available_models() -> list[dict]:
     # Azure OpenAI 动态模型
     if provider_manager.has_key("azure_openai"):
         for model_id, model_info in AZURE_OPENAI_MODELS.items():
+            models.append({"id": model_id, **model_info})
+
+    # 智谱 (Zhipu / GLM) 动态模型
+    if provider_manager.has_key("zhipu"):
+        for model_id, model_info in ZHIPU_MODELS.items():
             models.append({"id": model_id, **model_info})
 
     return models
@@ -271,6 +284,45 @@ def remove_azure_openai_model(model_id: str) -> bool:
 def get_azure_openai_models() -> list[dict]:
     """获取当前已添加的 Azure OpenAI 模型列表"""
     return [{"id": mid, **info} for mid, info in AZURE_OPENAI_MODELS.items()]
+
+
+# ---- 智谱 (Zhipu / GLM) 动态模型管理 ----
+
+
+def add_zhipu_model(zhipu_model_id: str, display_name: str) -> str:
+    """添加一个智谱模型到可用列表"""
+    model_id = "zhipu-" + zhipu_model_id.replace("/", "-")
+
+    if model_id in ZHIPU_MODELS:
+        logger.info("Zhipu model already added: %s", model_id)
+        return model_id
+
+    ZHIPU_MODELS[model_id] = {
+        # 智谱兼容 OpenAI API，用 LiteLLM openai/ 前缀
+        "model": f"openai/{zhipu_model_id}",
+        "display_name": display_name,
+        "provider": "zhipu",
+        "zhipu_id": zhipu_model_id,
+    }
+    ALL_MODELS[model_id] = ZHIPU_MODELS[model_id]
+
+    logger.info("Zhipu model added: %s -> %s", model_id, zhipu_model_id)
+    return model_id
+
+
+def remove_zhipu_model(model_id: str) -> bool:
+    """从可用列表中移除一个智谱模型"""
+    if model_id not in ZHIPU_MODELS:
+        return False
+    del ZHIPU_MODELS[model_id]
+    ALL_MODELS.pop(model_id, None)
+    logger.info("Zhipu model removed: %s", model_id)
+    return True
+
+
+def get_zhipu_models() -> list[dict]:
+    """获取当前已添加的智谱模型列表"""
+    return [{"id": mid, **info} for mid, info in ZHIPU_MODELS.items()]
 
 
 # ---- 默认模型选择 ----

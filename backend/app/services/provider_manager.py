@@ -33,6 +33,12 @@ PROVIDERS: dict[str, dict[str, str]] = {
         "verify_url": "",  # dynamic: {endpoint}/openai/models?api-version=...
         "default_api_version": "2024-10-21",
     },
+    "zhipu": {
+        "name": "Zhipu (智谱)",
+        "env_key": "ZHIPU_API_KEY",
+        "verify_url": "https://open.bigmodel.cn/api/paas/v4/models",
+        "default_api_host": "https://open.bigmodel.cn/api/paas/v4",
+    },
 }
 
 
@@ -100,6 +106,8 @@ class ProviderManager:
             return settings.siliconflow_api_key or os.environ.get("SILICONFLOW_API_KEY") or None
         elif provider == "azure_openai":
             return settings.azure_openai_api_key or os.environ.get("AZURE_OPENAI_API_KEY") or None
+        elif provider == "zhipu":
+            return settings.zhipu_api_key or os.environ.get("ZHIPU_API_KEY") or None
 
         return None
 
@@ -183,6 +191,8 @@ class ProviderManager:
                 return await self._verify_siliconflow(api_key)
             elif provider == "azure_openai":
                 return await self._verify_azure_openai(api_key)
+            elif provider == "zhipu":
+                return await self._verify_zhipu(api_key)
             else:
                 return {"valid": False, "message": f"Verification not supported for {provider}"}
         except Exception as e:
@@ -247,6 +257,26 @@ class ProviderManager:
             )
             if resp.status_code == 200:
                 return {"valid": True, "message": "Azure OpenAI API Key valid"}
+            elif resp.status_code in (401, 403):
+                return {"valid": False, "message": "Invalid API Key"}
+            else:
+                return {"valid": False, "message": f"HTTP {resp.status_code}: {resp.text[:100]}"}
+
+    async def _verify_zhipu(self, key: str) -> dict[str, Any]:
+        """验证智谱 API Key
+
+        智谱兼容 OpenAI API 格式，通过 GET /models 验证。
+        """
+        extra = self.get_extra_config("zhipu")
+        api_host = extra.get("api_host", "https://open.bigmodel.cn/api/paas/v4")
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{api_host.rstrip('/')}/models",
+                headers={"Authorization": f"Bearer {key}"},
+                timeout=10.0,
+            )
+            if resp.status_code == 200:
+                return {"valid": True, "message": "Zhipu API Key valid"}
             elif resp.status_code in (401, 403):
                 return {"valid": False, "message": "Invalid API Key"}
             else:

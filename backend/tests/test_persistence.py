@@ -9,9 +9,15 @@ from __future__ import annotations
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.db.database import Base
+from app.api.persistence import (
+    persist_chat_message,
+    persist_experience_review,
+    persist_game_summary,
+    persist_round_narrative,
+    persist_thought_record,
+)
 from app.db.schemas import (
     ChatMessageDB,
     ExperienceReviewDB,
@@ -30,14 +36,8 @@ from app.models.thought import (
     RoundNarrative,
     ThoughtRecord,
 )
-from app.api.persistence import (
-    persist_chat_message,
-    persist_experience_review,
-    persist_game_summary,
-    persist_round_narrative,
-    persist_thought_record,
-)
 
+# async_engine fixture 由 conftest.py 提供
 
 # ---- Constants ----
 
@@ -50,22 +50,11 @@ AGENT_NAME = "赵子龙"
 
 
 @pytest_asyncio.fixture
-async def async_engine():
-    """创建内存 SQLite 异步引擎（测试专用）"""
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
-    import app.db.schemas  # noqa: F401
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield engine
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture
 async def db_session(async_engine):
-    """创建测试用数据库会话，并预插入必要的 Game 和 Player 记录"""
+    """创建测试用数据库会话，并预插入必要的 Game 和 Player 记录
+
+    注意: 覆盖 conftest.py 中的基础 db_session，因为持久化测试需要预填充外键依赖。
+    """
     session_factory = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     async with session_factory() as session:
         # 插入外键依赖：games + players

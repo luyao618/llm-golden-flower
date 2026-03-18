@@ -13,10 +13,10 @@ from __future__ import annotations
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api.game_store import reset_game_store
-from app.db.database import Base, get_db
+from app.db.database import get_db
 from app.db.schemas import (
     ExperienceReviewDB,
     GameDB,
@@ -26,6 +26,8 @@ from app.db.schemas import (
     ThoughtRecordDB,
 )
 from app.main import create_app
+
+# async_engine fixture 由 conftest.py 提供
 
 
 # ---- Constants ----
@@ -39,22 +41,8 @@ AGENT_NAME = "测试AI"
 
 
 @pytest_asyncio.fixture
-async def async_engine():
-    """创建内存 SQLite 异步引擎（测试专用）"""
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
-    import app.db.schemas  # noqa: F401
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield engine
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture
 async def async_client(async_engine):
-    """创建测试用 HTTP 客户端，预插入数据"""
+    """创建测试用 HTTP 客户端，预插入 Game + Player（覆盖 conftest 版本）"""
     test_session_factory = async_sessionmaker(
         async_engine, class_=AsyncSession, expire_on_commit=False
     )

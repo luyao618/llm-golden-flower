@@ -45,12 +45,10 @@ OPPONENT_ID = "opponent-1"
 
 
 def _make_agent(agent_id: str = AGENT_ID, name: str = "测试选手") -> BaseAgent:
-    """创建测试用 Agent"""
-    return BaseAgent(
-        agent_id=agent_id,
-        name=name,
-        model_id="copilot-gpt4o-mini",
-    )
+    """创建测试用 Agent（同 conftest.make_agent，保留本地别名以减少修改量）"""
+    from tests.conftest import make_agent
+
+    return make_agent(agent_id=agent_id, name=name)
 
 
 def _make_game(

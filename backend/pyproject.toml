@@ -37,6 +37,9 @@ build-backend = "hatchling.build"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 pythonpath = ["."]
+markers = [
+    "integration: 需要真实 LLM API 调用的集成测试（需设置 API Key 环境变量，默认跳过）",
+]
 
 [tool.ruff]
 target-version = "py39"

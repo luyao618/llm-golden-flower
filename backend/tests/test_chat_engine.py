@@ -43,12 +43,10 @@ def make_agent(
     name: str = "测试AI",
     model_id: str = "copilot-gpt4o-mini",
 ) -> BaseAgent:
-    """创建测试用 BaseAgent"""
-    return BaseAgent(
-        agent_id=agent_id,
-        name=name,
-        model_id=model_id,
-    )
+    """创建测试用 BaseAgent（同 conftest.make_agent，保留本地别名以减少修改量）"""
+    from tests.conftest import make_agent as _make_agent
+
+    return _make_agent(agent_id=agent_id, name=name, model_id=model_id)
 
 
 def make_trigger_event(

@@ -229,6 +229,9 @@ class BaseAgent:
         # 设置 API keys（LiteLLM 会根据模型自动选择对应的 key）
         _configure_api_keys(settings)
 
+        # 为需要自定义 api_base 的 provider 获取端点
+        api_base = _get_provider_api_base(provider)
+
         last_error: Exception | None = None
 
         for attempt in range(1, llm_cfg["llm_max_retries"] + 1):
@@ -253,14 +256,24 @@ class BaseAgent:
                 else:
                     effective_max_tokens = 40960
 
-                response = await litellm.acompletion(
-                    model=model_name,
-                    messages=messages,
-                    temperature=temp,
-                    response_format=fmt,
-                    timeout=llm_cfg["llm_timeout"],
-                    max_tokens=effective_max_tokens,
-                )
+                # 构建 LiteLLM 调用参数
+                call_kwargs = {
+                    "model": model_name,
+                    "messages": messages,
+                    "temperature": temp,
+                    "response_format": fmt,
+                    "timeout": llm_cfg["llm_timeout"],
+                    "max_tokens": effective_max_tokens,
+                }
+                if api_base:
+                    call_kwargs["api_base"] = api_base
+                    # openai/ 前缀的 Provider 使用自定义 api_base 时，
+                    # LiteLLM 仍然读取 OPENAI_API_KEY，需要显式传入该 Provider 的 key
+                    api_key = _get_provider_api_key(provider)
+                    if api_key:
+                        call_kwargs["api_key"] = api_key
+
+                response = await litellm.acompletion(**call_kwargs)
 
                 content = response.choices[0].message.content
                 if content is None:
@@ -849,7 +862,7 @@ def _configure_api_keys(settings: Any) -> None:
     """
     import os
 
-    from app.services.provider_manager import get_provider_manager, PROVIDERS
+    from app.services.provider_manager import PROVIDERS, get_provider_manager
 
     pm = get_provider_manager()
 
@@ -857,6 +870,51 @@ def _configure_api_keys(settings: Any) -> None:
         key = pm.get_key(provider)
         if key:
             os.environ[meta["env_key"]] = key
+
+
+def _get_provider_api_base(provider: str) -> str | None:
+    """获取需要自定义 api_base 的 Provider 的端点 URL
+
+    智谱、SiliconFlow 等兼容 OpenAI 的 Provider 需要设置 api_base
+    来指向其自己的 API 端点，而非默认的 OpenAI 端点。
+
+    Args:
+        provider: Provider 标识
+
+    Returns:
+        api_base URL，不需要自定义时返回 None
+    """
+    from app.services.provider_manager import get_provider_manager
+
+    providers_with_custom_base = {"zhipu", "siliconflow"}
+    if provider not in providers_with_custom_base:
+        return None
+
+    pm = get_provider_manager()
+    extra = pm.get_extra_config(provider)
+    api_host = extra.get("api_host")
+    if api_host:
+        return api_host
+    return None
+
+
+def _get_provider_api_key(provider: str) -> str | None:
+    """获取指定 Provider 的 API Key
+
+    用于 openai/ 前缀的 Provider（如智谱、SiliconFlow），
+    因为 LiteLLM 在使用 openai/ 前缀时默认读取 OPENAI_API_KEY，
+    需要通过 api_key 参数显式传入该 Provider 自己的 key。
+
+    Args:
+        provider: Provider 标识
+
+    Returns:
+        API Key 字符串，未配置时返回 None
+    """
+    from app.services.provider_manager import get_provider_manager
+
+    pm = get_provider_manager()
+    return pm.get_key(provider)
 
 
 # ---- 决策上下文格式化函数 ----
