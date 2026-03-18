@@ -168,19 +168,30 @@ class TestBystanderReactPromptTemplate:
         result = render_bystander_react_prompt(
             trigger_event_description="玩家A刚刚加注到 80 筹码",
             recent_chat="玩家A: 你们谁敢跟我比牌？",
-            seen_status="已看牌",
+            hand_description="红心K, 黑桃K, 方块3（一对K）",
             your_chips=800,
             your_actions_so_far="跟注了一次",
+            pot=1200,
+            current_bet=80,
+            players_status="- 玩家A: 筹码 1000, 状态: 明注（已看牌）",
         )
         assert "加注到 80" in result
         assert "谁敢跟我比牌" in result
-        assert "已看牌" in result
+        assert "一对K" in result
         assert "800" in result
         assert "跟注了一次" in result
+        assert "1200" in result  # 底池
+        assert "玩家A" in result  # 玩家状态
 
     def test_contains_output_schema(self):
         """包含输出格式说明"""
-        result = render_bystander_react_prompt("event", "chat", "status", 100, "actions")
+        result = render_bystander_react_prompt(
+            trigger_event_description="event",
+            recent_chat="chat",
+            hand_description="未知（你还没有看牌）",
+            your_chips=100,
+            your_actions_so_far="actions",
+        )
         assert "should_respond" in result
         assert "inner_thought" in result
 

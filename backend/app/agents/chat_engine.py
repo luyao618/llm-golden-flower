@@ -134,17 +134,23 @@ class ChatEngine:
 
         # 构建状态信息
         state = agent_state or {}
-        seen_status = state.get("seen_status", "未看牌")
         your_chips = state.get("chips", 0)
         your_actions = state.get("actions_summary", "暂无操作")
+        hand_description = state.get("hand_description", "未知（你还没有看牌）")
+        pot = state.get("pot", 0)
+        current_bet = state.get("current_bet", 0)
+        players_status = state.get("players_status", "")
 
         # 构建 bystander prompt
         prompt = render_bystander_react_prompt(
             trigger_event_description=trigger_event.description,
             recent_chat=chat_context.format_for_prompt(count=8),
-            seen_status=seen_status,
+            hand_description=hand_description,
             your_chips=your_chips,
             your_actions_so_far=your_actions,
+            pot=pot,
+            current_bet=current_bet,
+            players_status=players_status,
         )
 
         system_prompt = agent.build_system_prompt()

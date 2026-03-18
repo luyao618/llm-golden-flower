@@ -387,6 +387,10 @@ class TestMaybeReactAsBystander:
                     "seen_status": "已看牌",
                     "chips": 500,
                     "actions_summary": "跟注了2次",
+                    "hand_description": "红心K, 黑桃K, 方块3（一对K）",
+                    "pot": 800,
+                    "current_bet": 100,
+                    "players_status": "- 测试AI（你）: 筹码 500, 状态: 明注（已看牌）",
                 },
                 must_respond=True,
             )
@@ -397,9 +401,11 @@ class TestMaybeReactAsBystander:
             call_args = mock_call.call_args
             messages = call_args[1].get("messages") or call_args[0][0]
             user_prompt = messages[1]["content"]
-            assert "已看牌" in user_prompt
+            assert "一对K" in user_prompt
             assert "500" in user_prompt
             assert "跟注了2次" in user_prompt
+            assert "800" in user_prompt  # 底池
+            assert "100" in user_prompt  # 注额
 
 
 # ============================================================

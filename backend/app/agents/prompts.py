@@ -213,13 +213,21 @@ BYSTANDER_REACT_PROMPT_TEMPLATE = """\
 ## 最近的聊天记录
 {recent_chat}
 
+## 当前局面
+- 底池: {pot} 筹码
+- 当前注额: {current_bet}
+
+## 各玩家状态
+{players_status}
+
 ## 你的当前状态
-- 手牌状态: {seen_status}
+- 手牌: {hand_description}
 - 筹码: {your_chips}
 - 你在这一局的表现: {your_actions_so_far}
 
 你可以选择回应，也可以选择沉默。
 如果回应，简短有力，一两句话即可。
+注意：你说的话对手能看到，不要泄露自己的真实手牌信息，但你可以利用言语施压、诈唬、试探。
 
 输出格式:
 {output_schema}"""
@@ -412,18 +420,24 @@ def render_decision_prompt(
 def render_bystander_react_prompt(
     trigger_event_description: str,
     recent_chat: str,
-    seen_status: str,
+    hand_description: str,
     your_chips: int,
     your_actions_so_far: str,
+    pot: int = 0,
+    current_bet: int = 0,
+    players_status: str = "",
 ) -> str:
     """渲染 Bystander React Prompt
 
     Args:
         trigger_event_description: 触发事件描述
         recent_chat: 最近的聊天记录
-        seen_status: 看牌状态
+        hand_description: 手牌描述（已看牌时含具体牌面和牌型，未看牌时为"未知"）
         your_chips: 自己的筹码数
         your_actions_so_far: 自己本局的行动概述
+        pot: 当前底池
+        current_bet: 当前注额
+        players_status: 各玩家状态表（含弃牌/看牌/筹码等信息）
 
     Returns:
         渲染后的 bystander react prompt 文本
@@ -431,9 +445,12 @@ def render_bystander_react_prompt(
     return BYSTANDER_REACT_PROMPT_TEMPLATE.format(
         trigger_event_description=trigger_event_description,
         recent_chat=recent_chat,
-        seen_status=seen_status,
+        hand_description=hand_description,
         your_chips=your_chips,
         your_actions_so_far=your_actions_so_far,
+        pot=pot,
+        current_bet=current_bet,
+        players_status=players_status or "（暂无信息）",
         output_schema=BYSTANDER_OUTPUT_SCHEMA,
     )
 

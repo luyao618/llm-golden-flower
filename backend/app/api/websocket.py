@@ -21,7 +21,12 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.agent_manager import AgentManager, get_agent_manager
-from app.agents.base_agent import BaseAgent, ThoughtData
+from app.agents.base_agent import (
+    BaseAgent,
+    ThoughtData,
+    format_hand_description,
+    format_players_status,
+)
 from app.agents.base_agent import LLMCallError
 from app.agents.chat_engine import (
     ChatEngine,
@@ -899,18 +904,33 @@ def _build_agent_states(
     game: GameState,
     agents: list[BaseAgent],
 ) -> dict[str, dict[str, Any]]:
-    """构建各 Agent 的状态信息（用于旁观反应 prompt）"""
+    """构建各 Agent 的状态信息（用于旁观反应 prompt）
+
+    包含手牌（已看牌时）、底池、注额、各玩家状态等完整局面信息，
+    使 AI 在聊天时能基于实际局面做出合理回应。
+    """
     states: dict[str, dict[str, Any]] = {}
+    round_state = game.current_round
     for agent in agents:
         player = game.get_player_by_id(agent.agent_id)
         if player is None:
             continue
         seen_status = "已看牌" if player.has_seen_cards else "未看牌"
-        states[agent.agent_id] = {
+        state: dict[str, Any] = {
             "seen_status": seen_status,
             "chips": player.chips,
             "actions_summary": f"筹码 {player.chips}, 本局已下注 {player.total_bet_this_round}",
+            # 手牌信息：已看牌时提供具体牌面和牌型，未看牌时为未知
+            "hand_description": format_hand_description(player.hand, player.has_seen_cards),
         }
+        # 局面信息：底池、注额、各玩家状态表
+        if round_state:
+            state["pot"] = round_state.pot
+            state["current_bet"] = round_state.current_bet
+            state["players_status"] = format_players_status(
+                game.players, agent.agent_id, round_state
+            )
+        states[agent.agent_id] = state
     return states
 
 
