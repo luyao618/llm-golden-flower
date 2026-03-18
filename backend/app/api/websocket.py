@@ -559,7 +559,32 @@ async def process_ai_turns(
             await _handle_round_end(game_id, game, result, ws_manager)
             break
 
-        # Step 9: 旁观者反应（仅在局未结束时收集）
+        # Step 9: 如果下一个行动者是人类玩家，先发送 turn_changed 让玩家可以立即操作，
+        # 再异步收集旁观者反应（旁观者聊天不影响游戏状态）
+        next_round_state = game.current_round
+        next_player = (
+            game.players[next_round_state.current_player_index]
+            if next_round_state and next_round_state.phase == GamePhase.BETTING
+            else None
+        )
+        human_turn_notified = False
+        if next_player and next_player.player_type == PlayerType.HUMAN:
+            from app.engine.rules import get_available_actions
+
+            available = get_available_actions(
+                next_round_state, next_player, game.players, game.config
+            )
+            await ws_manager.broadcast(
+                game_id,
+                event_turn_changed(
+                    next_player.name,
+                    next_player.id,
+                    [a.value for a in available],
+                ),
+            )
+            human_turn_notified = True
+
+        # Step 10: 旁观者反应（仅在局未结束时收集）
         await _collect_and_broadcast_bystander_reactions(
             game_id=game_id,
             game=game,
@@ -571,6 +596,10 @@ async def process_ai_turns(
             chat_context=chat_context,
             ws_manager=ws_manager,
         )
+
+        # 如果已经提前通知了人类玩家，跳出循环（不再重复发送 turn_changed）
+        if human_turn_notified:
+            break
 
         # 小延迟让前端动画有时间播放
         await asyncio.sleep(0.5)
