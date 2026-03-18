@@ -34,5 +34,8 @@ Thumbs.db
 # Project
 .superset/
 
+# Logs
+backend/logs/
+
 # Node (frontend)
 node_modules/

@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     debug: bool = False
     host: str = "0.0.0.0"
     port: int = 8000
+    log_level: str = "INFO"  # 日志级别: DEBUG/INFO/WARNING/ERROR
 
     # ---- 数据库 ----
     database_url: str = "sqlite+aiosqlite:///./golden_flower.db"

@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 
@@ -35,6 +36,8 @@ from app.models.game import (
     RoundResult,
     RoundState,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class GameError(Exception):
@@ -126,12 +129,22 @@ def create_game(
         )
         players.append(player)
 
-    return GameState(
+    game = GameState(
         game_id=str(uuid.uuid4()),
         players=players,
         config=game_config,
         status="waiting",
     )
+
+    logger.info(
+        "游戏已创建 — game_id=%s, 玩家数=%d, 初始筹码=%d, 底注=%d",
+        game.game_id,
+        len(players),
+        game_config.initial_chips,
+        game_config.ante,
+    )
+
+    return game
 
 
 def start_round(game: GameState, deck: Deck | None = None) -> RoundState:
@@ -217,6 +230,15 @@ def start_round(game: GameState, deck: Deck | None = None) -> RoundState:
     # 进入下注阶段
     round_state.phase = GamePhase.BETTING
 
+    logger.info(
+        "新局开始 — game=%s, 第%d局, 庄家=%s, 底池=%d, 行动起始=%s",
+        game.game_id,
+        round_state.round_number,
+        game.players[dealer_index].name,
+        round_state.pot,
+        game.players[first_player_index].name,
+    )
+
     return round_state
 
 
@@ -268,6 +290,15 @@ def apply_action(
 
     # 执行操作
     result = _execute_action(game, player, action, target_id)
+
+    logger.info(
+        "操作执行 — game=%s, player=%s, action=%s, amount=%d | %s",
+        game.game_id,
+        player.name,
+        action.value,
+        result.amount,
+        result.message,
+    )
 
     # 记录操作
     record = ActionRecord(
@@ -546,6 +577,15 @@ def settle_round(game: GameState) -> RoundResult:
         player_chip_changes=player_chip_changes,
     )
 
+    logger.info(
+        "局结算 — game=%s, 第%d局, 赢家=%s, 底池=%d, 方式=%s",
+        game.game_id,
+        round_state.round_number,
+        winner.name,
+        pot,
+        win_method,
+    )
+
     # 记录到历史
     game.round_history.append(result)
 
@@ -553,12 +593,18 @@ def settle_round(game: GameState) -> RoundResult:
     for p in game.players:
         if p.chips <= 0 and p.status != PlayerStatus.OUT:
             p.status = PlayerStatus.OUT
+            logger.info("玩家出局 — game=%s, player=%s (筹码耗尽)", game.game_id, p.name)
 
     # 检查游戏是否结束（只剩 1 个有筹码的玩家）
     alive_players = [p for p in game.players if p.status != PlayerStatus.OUT and p.chips > 0]
     if len(alive_players) <= 1:
         game.status = "finished"
         round_state.phase = GamePhase.GAME_OVER
+        logger.info(
+            "游戏结束 — game=%s, 最终赢家=%s",
+            game.game_id,
+            alive_players[0].name if alive_players else "无",
+        )
     else:
         round_state.phase = GamePhase.SETTLEMENT
 

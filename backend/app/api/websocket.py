@@ -475,10 +475,22 @@ async def process_ai_turns(
             action = GameAction.FOLD
             target_id = None
             table_talk = None
+            logger.info(
+                "AI 决策降级 — game=%s, player=%s -> 自动弃牌",
+                game_id,
+                current_player.name,
+            )
         else:
             action = decision.action
             target_id = decision.target
             table_talk = decision.table_talk
+            logger.info(
+                "AI 决策完成 — game=%s, player=%s, action=%s, confidence=%.2f",
+                game_id,
+                current_player.name,
+                action.value,
+                decision.thought.confidence if decision.thought else 0.0,
+            )
 
         # Step 4: 执行操作
         try:
@@ -639,6 +651,12 @@ async def handle_player_chat(
         message_type=ChatMessageType.PLAYER_MESSAGE,
         content=content,
     )
+    logger.info(
+        "玩家聊天 — game=%s, player=%s: %s",
+        game_id,
+        player.name,
+        content[:100],
+    )
     chat_context = ws_manager.get_chat_context(game_id)
     chat_context.add_message(player_msg)
     await ws_manager.broadcast(game_id, event_chat_message(player_msg))
@@ -732,7 +750,16 @@ async def _handle_round_end(
 ) -> None:
     """处理局结束事件"""
     if result.round_result is not None:
-        round_result_dict = result.round_result.model_dump(mode="json")
+        rr = result.round_result
+        logger.info(
+            "局结束 — game=%s, 第%d局, 赢家=%s, 底池=%d, 方式=%s",
+            game_id,
+            rr.round_number,
+            rr.winner_name,
+            rr.pot,
+            rr.win_method,
+        )
+        round_result_dict = rr.model_dump(mode="json")
         await ws_manager.broadcast(game_id, event_round_ended(round_result_dict))
 
     # 广播更新后的游戏状态（含结算后的筹码）
@@ -744,6 +771,11 @@ async def _handle_round_end(
             {"id": p.id, "name": p.name, "chips": p.chips}
             for p in sorted(game.players, key=lambda p: p.chips, reverse=True)
         ]
+        logger.info(
+            "游戏结束 — game=%s, 排名: %s",
+            game_id,
+            [(s["name"], s["chips"]) for s in final_standings],
+        )
         await ws_manager.broadcast(
             game_id,
             event_game_ended({"final_standings": final_standings}),
@@ -1046,6 +1078,12 @@ async def _handle_player_action(
     try:
         action = GameAction(action_str)
     except ValueError:
+        logger.warning(
+            "玩家操作解析失败 — game=%s, player=%s, action=%s",
+            game_id,
+            player_id,
+            action_str,
+        )
         await ws_manager.send_to_player(
             game_id,
             player_id,
@@ -1113,15 +1151,37 @@ async def _handle_player_action(
     try:
         result = apply_action(game, player_id, action, target_id)
     except InvalidActionError as e:
+        logger.warning(
+            "玩家操作非法 — game=%s, player=%s, action=%s: %s",
+            game_id,
+            player_id,
+            action_str,
+            e,
+        )
         await ws_manager.send_to_player(game_id, player_id, event_error(str(e)))
         return
     except GameError as e:
+        logger.error(
+            "玩家操作错误 — game=%s, player=%s, action=%s: %s",
+            game_id,
+            player_id,
+            action_str,
+            e,
+        )
         await ws_manager.send_to_player(game_id, player_id, event_error(str(e)))
         return
 
     player = game.get_player_by_id(player_id)
     if player is None:
         return
+
+    logger.info(
+        "玩家操作成功 — game=%s, player=%s, action=%s, amount=%d",
+        game_id,
+        player.name,
+        action.value,
+        result.amount,
+    )
 
     # 广播操作结果
     await _broadcast_action_result(game_id, game, player, action, result, ws_manager)
@@ -1206,10 +1266,19 @@ async def _handle_start_round(
     try:
         round_state = start_round(game)
     except GameError as e:
+        logger.warning("开始新局失败 — game=%s: %s", game_id, e)
         await ws_manager.send_to_player(game_id, player_id, event_error(str(e)))
         return
 
     dealer = game.players[round_state.dealer_index]
+
+    logger.info(
+        "新局开始 — game=%s, 第%d局, 庄家=%s, 底池=%d",
+        game_id,
+        round_state.round_number,
+        dealer.name,
+        round_state.pot,
+    )
 
     # 广播 round_started（包含完整局面信息）
     await ws_manager.broadcast(
