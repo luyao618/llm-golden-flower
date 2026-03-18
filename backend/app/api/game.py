@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import logging
 import random
 import uuid
 
@@ -34,6 +35,8 @@ from app.engine.game_manager import (
     start_round,
 )
 from app.models.game import GameAction, GameConfig
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -170,6 +173,7 @@ async def create_game_endpoint(
     valid_models = {m["id"] for m in get_available_models()}
     for ai in request.ai_opponents:
         if ai.model_id not in valid_models:
+            logger.warning("创建游戏失败 — 无效 AI 模型: %s", ai.model_id)
             raise HTTPException(
                 status_code=400,
                 detail=f"无效的 AI 模型: {ai.model_id}。可用模型: {sorted(valid_models)}",
@@ -250,6 +254,15 @@ async def create_game_endpoint(
         for p in game_state.players
     ]
 
+    ai_names = [p.name for p in game_state.players if p.player_type.value == "ai"]
+    logger.info(
+        "游戏创建成功 — game_id=%s, 玩家=%s, AI对手=%s, 初始筹码=%d",
+        game_state.game_id,
+        request.player_name,
+        ai_names,
+        request.initial_chips,
+    )
+
     return CreateGameResponse(
         game_id=game_state.game_id,
         message=f"游戏已创建，共 {len(game_state.players)} 名玩家",
@@ -311,7 +324,15 @@ async def start_game_endpoint(
     try:
         round_state = start_round(game)
     except GameError as e:
+        logger.warning("开始游戏失败 — game_id=%s: %s", game_id, e)
         raise HTTPException(status_code=400, detail=str(e))
+
+    logger.info(
+        "游戏开始 — game_id=%s, 第%d局, 庄家=%s",
+        game_id,
+        round_state.round_number,
+        game.players[round_state.dealer_index].name,
+    )
 
     # 更新数据库中的游戏状态
     game_db = await db.get(GameDB, game_id)
@@ -359,6 +380,12 @@ async def end_game_endpoint(
         raise HTTPException(status_code=400, detail="游戏已经结束")
 
     game.status = "finished"
+
+    logger.info(
+        "游戏结束 — game_id=%s, 最终排名: %s",
+        game_id,
+        [(p.name, p.chips) for p in sorted(game.players, key=lambda p: p.chips, reverse=True)],
+    )
 
     # 更新数据库
     game_db = await db.get(GameDB, game_id)
@@ -418,12 +445,26 @@ async def player_action_endpoint(
     try:
         result = apply_action(game, request.player_id, action, request.target_id)
     except GameNotStartedError as e:
+        logger.warning(
+            "玩家操作失败(未开始) — game=%s, player=%s: %s", game_id, request.player_id, e
+        )
         raise HTTPException(status_code=400, detail=str(e))
     except RoundNotActiveError as e:
+        logger.warning(
+            "玩家操作失败(非活跃) — game=%s, player=%s: %s", game_id, request.player_id, e
+        )
         raise HTTPException(status_code=400, detail=str(e))
     except InvalidActionError as e:
+        logger.warning(
+            "玩家操作非法 — game=%s, player=%s, action=%s: %s",
+            game_id,
+            request.player_id,
+            request.action,
+            e,
+        )
         raise HTTPException(status_code=422, detail=str(e))
     except GameError as e:
+        logger.error("玩家操作错误 — game=%s, player=%s: %s", game_id, request.player_id, e)
         raise HTTPException(status_code=400, detail=str(e))
 
     # 如果本局结束，持久化局记录
