@@ -36,7 +36,11 @@ from app.agents.chat_engine import (
     create_trigger_event_from_action,
 )
 from app.api.game_store import GameStore, get_game_store
-from app.api.persistence import persist_chat_message, persist_thought_record
+from app.api.persistence import (
+    persist_chat_message,
+    persist_round_narrative,
+    persist_thought_record,
+)
 from app.db.database import get_db
 from app.db.schemas import PlayerDB, RoundDB
 from app.engine.game_manager import (
@@ -55,8 +59,11 @@ from app.models.game import (
     Player,
     PlayerStatus,
     PlayerType,
+    RoundResult,
+    RoundState,
 )
 from app.models.thought import ThoughtRecord
+from app.thought.reporter import ThoughtReporter
 
 logger = logging.getLogger(__name__)
 
@@ -430,7 +437,7 @@ async def process_ai_turns(
                     is_fallback=True,
                 )
                 if result.round_ended:
-                    await _handle_round_end(game_id, game, result, ws_manager)
+                    await _handle_round_end(game_id, game, result, ws_manager, agent_manager)
                     break
             except GameError:
                 break
@@ -573,7 +580,7 @@ async def process_ai_turns(
 
         # Step 8: 检查是否本局结束（在旁观反应之前检查，避免对已结束的局收集反应）
         if result.round_ended:
-            await _handle_round_end(game_id, game, result, ws_manager)
+            await _handle_round_end(game_id, game, result, ws_manager, agent_manager)
             break
 
         # Step 9: 如果下一个行动者是人类玩家，先发送 turn_changed 让玩家可以立即操作，
@@ -752,6 +759,7 @@ async def _handle_round_end(
     game: GameState,
     result: ActionResult,
     ws_manager: WebSocketManager,
+    agent_manager: AgentManager | None = None,
 ) -> None:
     """处理局结束事件"""
     if result.round_result is not None:
@@ -784,6 +792,140 @@ async def _handle_round_end(
         await ws_manager.broadcast(
             game_id,
             event_game_ended({"final_standings": final_standings}),
+        )
+
+    # 异步生成各 AI 玩家的局叙事（不阻塞游戏流程）
+    if agent_manager is not None and result.round_result is not None:
+        rr = result.round_result
+        round_state = game.current_round
+        for player in game.players:
+            if player.player_type != PlayerType.HUMAN:
+                agent = agent_manager.get_agent(game_id, player.id)
+                if agent is not None:
+                    asyncio.create_task(
+                        _generate_and_persist_narrative(
+                            game_id=game_id,
+                            agent=agent,
+                            player=player,
+                            round_number=rr.round_number,
+                            round_result=rr,
+                            round_state=round_state,
+                            chat_context=ws_manager.get_chat_context(game_id),
+                        )
+                    )
+
+
+async def _generate_and_persist_narrative(
+    game_id: str,
+    agent: BaseAgent,
+    player: Player,
+    round_number: int,
+    round_result: RoundResult,
+    round_state: RoundState | None,
+    chat_context: ChatContext,
+) -> None:
+    """为指定 AI 玩家生成单局叙事并持久化（后台任务）
+
+    从 Agent 内存中获取本局思考数据，调用 ThoughtReporter 生成叙事，
+    然后写入数据库。此函数通过 asyncio.create_task 在后台执行，
+    不阻塞游戏主流程。
+
+    Args:
+        game_id: 游戏 ID
+        agent: AI Agent 实例
+        player: 对应的玩家对象
+        round_number: 局号
+        round_result: 本局结算结果
+        round_state: 结算时的局面状态（可能为 None）
+        chat_context: 聊天上下文
+    """
+    try:
+        reporter = ThoughtReporter(agent)
+
+        # 从 Agent 内存中获取本局思考数据，转换为 ThoughtRecord
+        thought_data_list = agent.get_round_thoughts(round_number)
+        round_thoughts: list[ThoughtRecord] = []
+        for i, td in enumerate(thought_data_list):
+            round_thoughts.append(
+                ThoughtRecord(
+                    agent_id=player.id,
+                    round_number=round_number,
+                    turn_number=i + 1,
+                    hand_evaluation=td.hand_evaluation,
+                    opponent_analysis=td.opponent_analysis,
+                    risk_assessment=td.risk_assessment,
+                    chat_analysis=td.chat_analysis or None,
+                    reasoning=td.reasoning,
+                    confidence=td.confidence,
+                    emotion=td.emotion,
+                )
+            )
+
+        # 格式化聊天记录
+        chat_msgs = chat_context.get_recent(20)
+        chat_text = (
+            "\n".join(f"{m.player_name}: {m.content}" for m in chat_msgs)
+            if chat_msgs
+            else "（本局无聊天记录）"
+        )
+
+        # 格式化行动历史
+        if round_state and round_state.actions:
+            action_lines: list[str] = []
+            for a in round_state.actions:
+                if a.amount:
+                    action_lines.append(f"{a.player_name} {a.action.value}（{a.amount}筹码）")
+                else:
+                    action_lines.append(f"{a.player_name} {a.action.value}")
+            action_history = "\n".join(action_lines)
+        else:
+            action_history = "（无行动记录）"
+
+        # 手牌描述
+        hand_description = format_hand_description(player.hand, True)
+
+        # 本局结果描述
+        if round_result.winner_id == player.id:
+            round_outcome = f"赢得本局，获得 {round_result.pot} 筹码（{round_result.win_method}）"
+        else:
+            chip_change = round_result.player_chip_changes.get(player.id, 0)
+            round_outcome = (
+                f"本局失利，损失 {abs(chip_change)} 筹码"
+                f"（赢家: {round_result.winner_name}，"
+                f"{round_result.win_method}）"
+            )
+
+        # 调用 LLM 生成叙事
+        narrative = await reporter.generate_round_narrative(
+            round_number=round_number,
+            round_thoughts=round_thoughts,
+            chat_messages=chat_text,
+            action_history=action_history,
+            hand_description=hand_description,
+            round_outcome=round_outcome,
+        )
+
+        # 持久化到数据库
+        db = await _get_db_session()
+        try:
+            await persist_round_narrative(db, game_id, narrative)
+            await db.commit()
+            logger.info(
+                "叙事生成成功 — game=%s, agent=%s, round=%d",
+                game_id,
+                player.name,
+                round_number,
+            )
+        finally:
+            await db.close()
+
+    except Exception as e:
+        logger.warning(
+            "叙事生成失败 — game=%s, agent=%s, round=%d: %s",
+            game_id,
+            player.name,
+            round_number,
+            e,
         )
 
 
@@ -1207,7 +1349,7 @@ async def _handle_player_action(
     await _broadcast_action_result(game_id, game, player, action, result, ws_manager)
 
     if result.round_ended:
-        await _handle_round_end(game_id, game, result, ws_manager)
+        await _handle_round_end(game_id, game, result, ws_manager, agent_mgr)
         return
 
     # 启动 AI 回合循环（先发送 turn_changed / ai_thinking，避免 UI 卡顿）
