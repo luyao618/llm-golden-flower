@@ -72,17 +72,17 @@ class TestProviderManagerSetKey:
     def test_set_valid_provider_key(self):
         """设置已知 Provider 的 Key 应成功"""
         mgr = ProviderManager()
-        mgr.set_key("openai", "sk-test-123")
-        assert mgr.get_key("openai") == "sk-test-123"
+        mgr.set_key("openrouter", "sk-test-123")
+        assert mgr.get_key("openrouter") == "sk-test-123"
         # 清理环境变量
-        os.environ.pop("OPENAI_API_KEY", None)
+        os.environ.pop("OPENROUTER_API_KEY", None)
 
     def test_set_key_updates_env(self):
         """set_key 应同步写入环境变量"""
         mgr = ProviderManager()
-        mgr.set_key("anthropic", "ant-key-456")
-        assert os.environ.get("ANTHROPIC_API_KEY") == "ant-key-456"
-        os.environ.pop("ANTHROPIC_API_KEY", None)
+        mgr.set_key("siliconflow", "sf-key-456")
+        assert os.environ.get("SILICONFLOW_API_KEY") == "sf-key-456"
+        os.environ.pop("SILICONFLOW_API_KEY", None)
 
     def test_set_key_unknown_provider_raises(self):
         """设置未知 Provider 应抛出 ValueError"""
@@ -93,18 +93,18 @@ class TestProviderManagerSetKey:
     def test_set_key_overwrite(self):
         """重复设置同一 Provider 的 Key 应覆盖旧值"""
         mgr = ProviderManager()
-        mgr.set_key("openai", "key-1")
-        mgr.set_key("openai", "key-2")
-        assert mgr.get_key("openai") == "key-2"
-        os.environ.pop("OPENAI_API_KEY", None)
+        mgr.set_key("openrouter", "key-1")
+        mgr.set_key("openrouter", "key-2")
+        assert mgr.get_key("openrouter") == "key-2"
+        os.environ.pop("OPENROUTER_API_KEY", None)
 
-    def test_set_key_google(self):
-        """设置 Google Provider 的 Key"""
+    def test_set_key_azure(self):
+        """设置 Azure OpenAI Provider 的 Key"""
         mgr = ProviderManager()
-        mgr.set_key("google", "gemini-key-789")
-        assert mgr.get_key("google") == "gemini-key-789"
-        assert os.environ.get("GEMINI_API_KEY") == "gemini-key-789"
-        os.environ.pop("GEMINI_API_KEY", None)
+        mgr.set_key("azure_openai", "azure-key-789")
+        assert mgr.get_key("azure_openai") == "azure-key-789"
+        assert os.environ.get("AZURE_OPENAI_API_KEY") == "azure-key-789"
+        os.environ.pop("AZURE_OPENAI_API_KEY", None)
 
 
 class TestProviderManagerRemoveKey:
@@ -113,15 +113,15 @@ class TestProviderManagerRemoveKey:
     def test_remove_existing_key(self):
         """移除已设置的 Key"""
         mgr = ProviderManager()
-        mgr.set_key("openai", "sk-to-remove")
-        mgr.remove_key("openai")
-        assert mgr._keys.get("openai") is None
-        assert os.environ.get("OPENAI_API_KEY") is None
+        mgr.set_key("openrouter", "sk-to-remove")
+        mgr.remove_key("openrouter")
+        assert mgr._keys.get("openrouter") is None
+        assert os.environ.get("OPENROUTER_API_KEY") is None
 
     def test_remove_nonexistent_key_no_error(self):
         """移除未设置的 Key 不应报错"""
         mgr = ProviderManager()
-        mgr.remove_key("openai")  # 不应抛出异常
+        mgr.remove_key("openrouter")  # 不应抛出异常
 
     def test_remove_unknown_provider_raises(self):
         """移除未知 Provider 应抛出 ValueError"""
@@ -136,20 +136,20 @@ class TestProviderManagerGetKey:
     def test_get_runtime_key(self):
         """运行时设置的 Key 优先于环境变量"""
         mgr = ProviderManager()
-        mgr.set_key("openai", "runtime-key")
-        assert mgr.get_key("openai") == "runtime-key"
-        os.environ.pop("OPENAI_API_KEY", None)
+        mgr.set_key("openrouter", "runtime-key")
+        assert mgr.get_key("openrouter") == "runtime-key"
+        os.environ.pop("OPENROUTER_API_KEY", None)
 
     def test_get_key_returns_none_when_not_set(self):
         """未设置的 Provider 返回 None"""
         mgr = ProviderManager()
         # 确保环境变量也被清除
-        os.environ.pop("OPENAI_API_KEY", None)
+        os.environ.pop("OPENROUTER_API_KEY", None)
         with patch("app.config.get_settings") as mock_gs:
             settings = MagicMock()
-            settings.openai_api_key = ""
+            settings.openrouter_api_key = ""
             mock_gs.return_value = settings
-            assert mgr.get_key("openai") is None
+            assert mgr.get_key("openrouter") is None
 
 
 class TestProviderManagerHasKey:
@@ -158,25 +158,25 @@ class TestProviderManagerHasKey:
     def test_has_key_true(self):
         """已设置非空 Key 返回 True"""
         mgr = ProviderManager()
-        mgr.set_key("openai", "sk-valid")
-        assert mgr.has_key("openai") is True
-        os.environ.pop("OPENAI_API_KEY", None)
+        mgr.set_key("openrouter", "sk-valid")
+        assert mgr.has_key("openrouter") is True
+        os.environ.pop("OPENROUTER_API_KEY", None)
 
     def test_has_key_false_when_not_set(self):
         """未设置返回 False"""
         mgr = ProviderManager()
-        os.environ.pop("OPENAI_API_KEY", None)
+        os.environ.pop("OPENROUTER_API_KEY", None)
         with patch("app.config.get_settings") as mock_gs:
             settings = MagicMock()
-            settings.openai_api_key = ""
+            settings.openrouter_api_key = ""
             mock_gs.return_value = settings
-            assert mgr.has_key("openai") is False
+            assert mgr.has_key("openrouter") is False
 
     def test_has_key_false_for_whitespace(self):
         """仅空白字符的 Key 视为未设置"""
         mgr = ProviderManager()
-        mgr._keys["openai"] = "   "
-        assert mgr.has_key("openai") is False
+        mgr._keys["openrouter"] = "   "
+        assert mgr.has_key("openrouter") is False
 
 
 class TestProviderManagerGetAllStatus:
@@ -190,28 +190,28 @@ class TestProviderManagerGetAllStatus:
             os.environ.pop(meta["env_key"], None)
         with patch("app.config.get_settings") as mock_gs:
             settings = MagicMock()
-            settings.openai_api_key = ""
-            settings.anthropic_api_key = ""
-            settings.google_api_key = ""
+            settings.openrouter_api_key = ""
+            settings.siliconflow_api_key = ""
+            settings.azure_openai_api_key = ""
             mock_gs.return_value = settings
 
             statuses = mgr.get_all_status()
             assert len(statuses) == len(PROVIDERS)
             provider_ids = [s["provider"] for s in statuses]
-            assert "openai" in provider_ids
-            assert "anthropic" in provider_ids
-            assert "google" in provider_ids
+            assert "openrouter" in provider_ids
+            assert "siliconflow" in provider_ids
+            assert "azure_openai" in provider_ids
 
     def test_configured_provider_shows_preview(self):
         """已配置的 Provider 显示 key_preview"""
         mgr = ProviderManager()
-        mgr.set_key("openai", "sk-abcdefghijklmnop")
+        mgr.set_key("openrouter", "sk-abcdefghijklmnop")
         statuses = mgr.get_all_status()
-        openai_status = next(s for s in statuses if s["provider"] == "openai")
-        assert openai_status["configured"] is True
-        assert openai_status["key_preview"] is not None
-        assert "..." in openai_status["key_preview"]
-        os.environ.pop("OPENAI_API_KEY", None)
+        openrouter_status = next(s for s in statuses if s["provider"] == "openrouter")
+        assert openrouter_status["configured"] is True
+        assert openrouter_status["key_preview"] is not None
+        assert "..." in openrouter_status["key_preview"]
+        os.environ.pop("OPENROUTER_API_KEY", None)
 
 
 class TestProviderManagerMaskKey:
@@ -220,22 +220,22 @@ class TestProviderManagerMaskKey:
     def test_mask_long_key(self):
         """长 Key 显示前4后4"""
         mgr = ProviderManager()
-        mgr._keys["openai"] = "sk-1234567890abcdef"
-        masked = mgr._mask_key("openai")
+        mgr._keys["openrouter"] = "sk-1234567890abcdef"
+        masked = mgr._mask_key("openrouter")
         assert masked == "sk-1...cdef"
 
     def test_mask_short_key(self):
         """短 Key 显示 ****"""
         mgr = ProviderManager()
-        mgr._keys["openai"] = "abcd"
-        masked = mgr._mask_key("openai")
+        mgr._keys["openrouter"] = "abcd"
+        masked = mgr._mask_key("openrouter")
         assert masked == "****"
 
     def test_mask_empty_key(self):
         """空 Key 显示 ****"""
         mgr = ProviderManager()
-        mgr._keys["openai"] = ""
-        masked = mgr._mask_key("openai")
+        mgr._keys["openrouter"] = ""
+        masked = mgr._mask_key("openrouter")
         assert masked == "****"
 
 
@@ -254,92 +254,57 @@ class TestProviderManagerVerifyKey:
     async def test_verify_no_key(self):
         """未提供 Key 且无已配置 Key 时返回 valid=False"""
         mgr = ProviderManager()
-        os.environ.pop("OPENAI_API_KEY", None)
+        os.environ.pop("OPENROUTER_API_KEY", None)
         with patch("app.config.get_settings") as mock_gs:
             settings = MagicMock()
-            settings.openai_api_key = ""
+            settings.openrouter_api_key = ""
             mock_gs.return_value = settings
-            result = await mgr.verify_key("openai")
+            result = await mgr.verify_key("openrouter")
             assert result["valid"] is False
             assert "No API key" in result["message"]
 
     @pytest.mark.asyncio
-    async def test_verify_openai_success(self):
-        """OpenAI Key 验证成功"""
+    async def test_verify_openrouter_success(self):
+        """OpenRouter Key 验证成功"""
         mgr = ProviderManager()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
 
         with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp):
-            result = await mgr.verify_key("openai", "sk-valid-key")
+            result = await mgr.verify_key("openrouter", "sk-valid-key")
             assert result["valid"] is True
 
     @pytest.mark.asyncio
-    async def test_verify_openai_invalid(self):
-        """OpenAI Key 验证失败 (401)"""
+    async def test_verify_openrouter_invalid(self):
+        """OpenRouter Key 验证失败 (401)"""
         mgr = ProviderManager()
         mock_resp = MagicMock()
         mock_resp.status_code = 401
 
         with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp):
-            result = await mgr.verify_key("openai", "sk-bad-key")
+            result = await mgr.verify_key("openrouter", "sk-bad-key")
             assert result["valid"] is False
 
     @pytest.mark.asyncio
-    async def test_verify_anthropic_success(self):
-        """Anthropic Key 验证成功"""
-        mgr = ProviderManager()
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-
-        with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
-            result = await mgr.verify_key("anthropic", "ant-valid")
-            assert result["valid"] is True
-
-    @pytest.mark.asyncio
-    async def test_verify_anthropic_bad_request_but_valid(self):
-        """Anthropic 400 但非 auth_error 说明 Key 有效"""
-        mgr = ProviderManager()
-        mock_resp = MagicMock()
-        mock_resp.status_code = 400
-        mock_resp.json.return_value = {"error": {"type": "invalid_request_error"}}
-
-        with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
-            result = await mgr.verify_key("anthropic", "ant-valid")
-            assert result["valid"] is True
-
-    @pytest.mark.asyncio
-    async def test_verify_anthropic_auth_error(self):
-        """Anthropic 400 + authentication_error 说明 Key 无效"""
-        mgr = ProviderManager()
-        mock_resp = MagicMock()
-        mock_resp.status_code = 400
-        mock_resp.json.return_value = {"error": {"type": "authentication_error"}}
-
-        with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
-            result = await mgr.verify_key("anthropic", "ant-bad")
-            assert result["valid"] is False
-
-    @pytest.mark.asyncio
-    async def test_verify_google_success(self):
-        """Google Key 验证成功"""
+    async def test_verify_siliconflow_success(self):
+        """SiliconFlow Key 验证成功"""
         mgr = ProviderManager()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
 
         with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp):
-            result = await mgr.verify_key("google", "goog-valid")
+            result = await mgr.verify_key("siliconflow", "sf-valid")
             assert result["valid"] is True
 
     @pytest.mark.asyncio
-    async def test_verify_google_invalid(self):
-        """Google Key 验证失败 (403)"""
+    async def test_verify_siliconflow_invalid(self):
+        """SiliconFlow Key 验证失败 (403)"""
         mgr = ProviderManager()
         mock_resp = MagicMock()
         mock_resp.status_code = 403
 
         with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp):
-            result = await mgr.verify_key("google", "goog-bad")
+            result = await mgr.verify_key("siliconflow", "sf-bad")
             assert result["valid"] is False
 
     @pytest.mark.asyncio
@@ -349,7 +314,7 @@ class TestProviderManagerVerifyKey:
         with patch(
             "httpx.AsyncClient.get", new_callable=AsyncMock, side_effect=Exception("timeout")
         ):
-            result = await mgr.verify_key("openai", "sk-test")
+            result = await mgr.verify_key("openrouter", "sk-test")
             assert result["valid"] is False
 
 
@@ -859,19 +824,27 @@ class TestGetAvailableModels:
                 models = get_available_models()
                 assert models == []
 
-    def test_openai_configured_only(self):
-        """仅 OpenAI 配置时只返回 OpenAI 模型"""
+    def test_openrouter_configured_only(self):
+        """仅 OpenRouter 配置时只返回 OpenRouter 模型"""
         mock_pm = MagicMock()
-        mock_pm.has_key.side_effect = lambda p: p == "openai"
+        mock_pm.has_key.side_effect = lambda p: p == "openrouter"
         mock_ca = MagicMock()
         mock_ca.is_connected = False
+
+        # 添加一个 OpenRouter 模型到注册表
+        from app.config import add_openrouter_model, remove_openrouter_model
+
+        model_id = add_openrouter_model("meta-llama/llama-3", "Llama 3")
 
         with patch("app.services.provider_manager.get_provider_manager", return_value=mock_pm):
             with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_ca):
                 models = get_available_models()
                 assert len(models) > 0
                 for m in models:
-                    assert m["provider"] == "openai"
+                    assert m["provider"] == "openrouter"
+
+        # 清理
+        remove_openrouter_model(model_id)
 
     def test_copilot_connected_adds_models(self):
         """Copilot 连接后额外返回 Copilot 模型"""
@@ -904,19 +877,23 @@ class TestGetAvailableModels:
 class TestGetModelConfig:
     """config.get_model_config — 查找模型配置"""
 
-    def test_litellm_model(self):
-        """查找 LiteLLM 模型"""
-        config = get_model_config("openai-gpt4o")
-        assert config is not None
-        assert config["model"] == "gpt-4o"
-        assert config["provider"] == "openai"
-
     def test_copilot_model(self):
         """查找 Copilot 模型"""
         config = get_model_config("copilot-gpt4o")
         assert config is not None
         assert config["model"] == "gpt-4o"
         assert config["provider"] == "github_copilot"
+
+    def test_dynamic_openrouter_model(self):
+        """查找动态添加的 OpenRouter 模型"""
+        from app.config import add_openrouter_model, remove_openrouter_model
+
+        model_id = add_openrouter_model("meta-llama/llama-3", "Llama 3")
+        config = get_model_config(model_id)
+        assert config is not None
+        assert config["provider"] == "openrouter"
+        # 清理
+        remove_openrouter_model(model_id)
 
     def test_unknown_model(self):
         """查找不存在的模型返回 None"""
@@ -974,11 +951,15 @@ class TestBaseAgentCopilotRouting:
     async def test_litellm_model_does_not_route_to_copilot(self):
         """LiteLLM 模型不应路由到 _call_copilot"""
         from app.agents.base_agent import BaseAgent
+        from app.config import add_openrouter_model, remove_openrouter_model
+
+        # 动态注册一个 OpenRouter 模型用于测试
+        model_id = add_openrouter_model("test/model", "Test Model")
 
         agent = BaseAgent(
             agent_id="p1",
             name="TestBot",
-            model_id="openai-gpt4o",
+            model_id=model_id,
         )
 
         mock_response = MagicMock()
@@ -995,9 +976,6 @@ class TestBaseAgentCopilotRouting:
                 settings.llm_temperature = 0.7
                 settings.llm_timeout = 5
                 settings.llm_max_retries = 1
-                settings.openai_api_key = "sk-test"
-                settings.anthropic_api_key = ""
-                settings.google_api_key = ""
                 mock_settings.return_value = settings
 
                 with patch(
@@ -1010,6 +988,9 @@ class TestBaseAgentCopilotRouting:
                 ):
                     result = await agent.call_llm([{"role": "user", "content": "test"}])
                     assert result == '{"action":"fold"}'
+
+        # 清理
+        remove_openrouter_model(model_id)
 
     @pytest.mark.asyncio
     async def test_call_copilot_retries_on_failure(self):
@@ -1108,7 +1089,7 @@ class TestBaseAgentModelValidation:
             name="TestBot",
             model_id="nonexistent-model",
         )
-        assert agent.model_id == "openai-gpt4o-mini"
+        assert agent.model_id == "copilot-gpt4o"  # 回退到注册表第一个模型
 
 
 # ============================================================
@@ -1124,16 +1105,21 @@ class TestProviderAPIGetProviders:
         """应返回 Provider 状态列表"""
         mock_pm = MagicMock()
         mock_pm.get_all_status.return_value = [
-            {"provider": "openai", "name": "OpenAI", "configured": False, "key_preview": None},
             {
-                "provider": "anthropic",
-                "name": "Anthropic",
-                "configured": True,
-                "key_preview": "ant-...xyz",
+                "provider": "openrouter",
+                "name": "OpenRouter",
+                "configured": False,
+                "key_preview": None,
             },
             {
-                "provider": "google",
-                "name": "Google Gemini",
+                "provider": "siliconflow",
+                "name": "SiliconFlow",
+                "configured": True,
+                "key_preview": "sf-...xyz",
+            },
+            {
+                "provider": "azure_openai",
+                "name": "Azure OpenAI",
                 "configured": False,
                 "key_preview": None,
             },
@@ -1162,13 +1148,13 @@ class TestProviderAPISetKey:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 resp = await client.post(
-                    "/api/providers/openai/key",
+                    "/api/providers/openrouter/key",
                     json={"key": "sk-test-key"},
                 )
                 assert resp.status_code == 200
                 data = resp.json()
                 assert data["configured"] is True
-                mock_pm.set_key.assert_called_once_with("openai", "sk-test-key")
+                mock_pm.set_key.assert_called_once_with("openrouter", "sk-test-key")
 
     @pytest.mark.asyncio
     async def test_set_key_unknown_provider(self):
@@ -1189,7 +1175,7 @@ class TestProviderAPISetKey:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.post(
-                "/api/providers/openai/key",
+                "/api/providers/openrouter/key",
                 json={"key": ""},
             )
             assert resp.status_code == 400
@@ -1201,7 +1187,7 @@ class TestProviderAPISetKey:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.post(
-                "/api/providers/openai/key",
+                "/api/providers/openrouter/key",
                 json={"key": "   "},
             )
             assert resp.status_code == 400
@@ -1221,7 +1207,7 @@ class TestProviderAPIVerifyKey:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 resp = await client.post(
-                    "/api/providers/openai/verify",
+                    "/api/providers/openrouter/verify",
                     json={"key": "sk-test"},
                 )
                 assert resp.status_code == 200
@@ -1252,11 +1238,11 @@ class TestProviderAPIRemoveKey:
             app = _make_provider_test_app()
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.delete("/api/providers/openai/key")
+                resp = await client.delete("/api/providers/openrouter/key")
                 assert resp.status_code == 200
                 data = resp.json()
                 assert data["configured"] is False
-                mock_pm.remove_key.assert_called_once_with("openai")
+                mock_pm.remove_key.assert_called_once_with("openrouter")
 
     @pytest.mark.asyncio
     async def test_remove_key_unknown_provider(self):

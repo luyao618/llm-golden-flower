@@ -97,9 +97,9 @@ class ProviderManager:
         if provider == "openrouter":
             return settings.openrouter_api_key or os.environ.get("OPENROUTER_API_KEY") or None
         elif provider == "siliconflow":
-            return os.environ.get("SILICONFLOW_API_KEY") or None
+            return settings.siliconflow_api_key or os.environ.get("SILICONFLOW_API_KEY") or None
         elif provider == "azure_openai":
-            return os.environ.get("AZURE_OPENAI_API_KEY") or None
+            return settings.azure_openai_api_key or os.environ.get("AZURE_OPENAI_API_KEY") or None
 
         return None
 

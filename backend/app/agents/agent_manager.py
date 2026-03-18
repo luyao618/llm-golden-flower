@@ -31,8 +31,8 @@ class AgentManager:
         agents = manager.create_agents_for_game(
             game_id="game-1",
             agent_configs=[
-                {"model_id": "openai-gpt4o"},
-                {"model_id": "anthropic-claude-sonnet"},
+                {"model_id": "copilot-gpt4o"},
+                {"model_id": "copilot-claude-sonnet"},
             ],
         )
         agent = manager.get_agent("game-1", agents[0].agent_id)
@@ -55,7 +55,7 @@ class AgentManager:
             agent_configs: 每个 Agent 的配置列表，每项可包含:
                 - agent_id: 指定 ID（可选，不指定则自动生成）
                 - name: 显示名称（可选，不指定则随机分配）
-                - model_id: 模型标识（可选，默认 openai-gpt4o-mini）
+                - model_id: 模型标识（可选，未指定则使用默认模型）
 
         Returns:
             创建的 BaseAgent 列表
@@ -77,11 +77,18 @@ class AgentManager:
             # 分配头像
             _avatar = config.get("avatar", AI_AVATARS[i % len(AI_AVATARS)])
 
-            # 模型
-            model_id = config.get("model_id", "openai-gpt4o-mini")
-            if model_id not in ALL_MODELS:
-                logger.warning("Unknown model '%s', using 'openai-gpt4o-mini'", model_id)
-                model_id = "openai-gpt4o-mini"
+            # 模型 — 使用动态回退逻辑
+            model_id = config.get("model_id")
+            if model_id and model_id not in ALL_MODELS:
+                from app.config import get_default_model_id
+
+                default = get_default_model_id()
+                logger.warning("Unknown model '%s', using '%s'", model_id, default or "None")
+                model_id = default
+            elif not model_id:
+                from app.config import get_default_model_id
+
+                model_id = get_default_model_id()
 
             agent = BaseAgent(
                 agent_id=config.get("agent_id"),

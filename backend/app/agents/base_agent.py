@@ -154,17 +154,32 @@ class BaseAgent:
         self,
         agent_id: str | None = None,
         name: str = "AI Player",
-        model_id: str = "openai-gpt4o-mini",
+        model_id: str | None = None,
     ) -> None:
         self.agent_id = agent_id or str(uuid.uuid4())
         self.name = name
-        self.model_id = model_id
         self.memory = AgentMemory()
 
         # 验证 model_id 有效（使用动态注册表，包含 OpenRouter 模型）
-        if model_id not in _get_all_models():
-            logger.warning("Unknown model_id '%s', falling back to 'openai-gpt4o-mini'", model_id)
-            self.model_id = "openai-gpt4o-mini"
+        all_models = _get_all_models()
+        if model_id and model_id in all_models:
+            self.model_id = model_id
+        else:
+            # 动态回退：优先用基础模型，其次取注册表中第一个可用模型
+            from app.config import get_default_model_id
+
+            default = get_default_model_id()
+            if model_id:
+                logger.warning(
+                    "Unknown model_id '%s', falling back to '%s'",
+                    model_id,
+                    default or "None",
+                )
+            if default:
+                self.model_id = default
+            else:
+                logger.error("没有可用的 AI 模型，请先配置至少一个提供商")
+                self.model_id = model_id or "unconfigured"
 
     # ---- LLM 调用 ----
 
@@ -796,22 +811,20 @@ def _configure_api_keys(settings: Any) -> None:
 
     优先使用 ProviderManager 中的 key（包含用户通过 UI 运行时设置的），
     避免被 .env 中的占位符覆盖真实 key。
+
+    注意：ProviderManager.set_key() 已经会同步写入 os.environ，
+    此函数作为调用 LiteLLM 前的兜底确认，确保环境变量与 ProviderManager 一致。
     """
     import os
 
-    from app.services.provider_manager import get_provider_manager
+    from app.services.provider_manager import get_provider_manager, PROVIDERS
 
     pm = get_provider_manager()
 
-    for provider, env_key in [
-        ("openai", "OPENAI_API_KEY"),
-        ("anthropic", "ANTHROPIC_API_KEY"),
-        ("google", "GEMINI_API_KEY"),
-        ("openrouter", "OPENROUTER_API_KEY"),
-    ]:
+    for provider, meta in PROVIDERS.items():
         key = pm.get_key(provider)
         if key:
-            os.environ[env_key] = key
+            os.environ[meta["env_key"]] = key
 
 
 # ---- 决策上下文格式化函数 ----

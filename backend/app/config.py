@@ -26,8 +26,11 @@ class Settings(BaseSettings):
     # ---- 数据库 ----
     database_url: str = "sqlite+aiosqlite:///./golden_flower.db"
 
-    # ---- AI API Keys ----
+    # ---- AI Provider API Keys ----
+    # 可通过 .env 预配置，也可在前端页面动态设置（内存中，重启失效）
     openrouter_api_key: str = ""
+    siliconflow_api_key: str = ""
+    azure_openai_api_key: str = ""
 
     # ---- 游戏默认配置 ----
     default_initial_chips: int = 1000
@@ -268,3 +271,18 @@ def remove_azure_openai_model(model_id: str) -> bool:
 def get_azure_openai_models() -> list[dict]:
     """获取当前已添加的 Azure OpenAI 模型列表"""
     return [{"id": mid, **info} for mid, info in AZURE_OPENAI_MODELS.items()]
+
+
+# ---- 默认模型选择 ----
+
+
+def get_default_model_id() -> str | None:
+    """获取默认模型 ID（动态选择第一个可用模型）
+
+    从模型注册表中取第一个已注册的模型。
+    如果没有任何模型注册，返回 None。
+    """
+    all_models = _get_all_models()
+    if all_models:
+        return next(iter(all_models))
+    return None

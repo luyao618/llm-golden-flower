@@ -9,6 +9,7 @@
 """
 
 from __future__ import annotations
+from unittest.mock import patch, MagicMock
 
 import pytest
 import pytest_asyncio
@@ -61,10 +62,14 @@ async def db_session(async_engine):
 
 @pytest_asyncio.fixture
 async def async_client():
-    """创建测试用 HTTP 客户端"""
+    """创建测试用 HTTP 客户端，模拟 Copilot 已连接"""
+    mock_copilot = MagicMock()
+    mock_copilot.is_connected = True
+
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client
+    with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
 
 
 # ---- 数据库表创建测试 ----
@@ -192,7 +197,7 @@ class TestPlayerDB:
             name="火焰哥",
             avatar="avatar_2",
             player_type="ai",
-            model_id="openai-gpt4o",
+            model_id="copilot-gpt4o",
             initial_chips=1000,
             current_chips=950,
         )
@@ -202,7 +207,7 @@ class TestPlayerDB:
         result = await db_session.get(PlayerDB, "ai-001")
         assert result is not None
         assert result.player_type == "ai"
-        assert result.model_id == "openai-gpt4o"
+        assert result.model_id == "copilot-gpt4o"
         assert result.current_chips == 950
 
     @pytest.mark.asyncio
@@ -225,7 +230,7 @@ class TestPlayerDB:
             game_id="game-rel",
             name="AI-1",
             player_type="ai",
-            model_id="openai-gpt4o",
+            model_id="copilot-gpt4o",
             initial_chips=1000,
             current_chips=1000,
         )
@@ -630,7 +635,7 @@ class TestCrossTableRelationships:
             game_id="game-full",
             name="火焰哥",
             player_type="ai",
-            model_id="openai-gpt4o",
+            model_id="copilot-gpt4o",
             initial_chips=1000,
             current_chips=1000,
         )

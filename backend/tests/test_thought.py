@@ -330,7 +330,7 @@ def _make_agent(agent_id: str = "agent-1", name: str = "测试选手") -> BaseAg
     return BaseAgent(
         agent_id=agent_id,
         name=name,
-        model_id="openai-gpt4o-mini",
+        model_id="copilot-gpt4o-mini",
     )
 
 

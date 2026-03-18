@@ -366,12 +366,12 @@ class TestAgentManagerBasic:
         manager = AgentManager()
         agents = manager.create_agents_for_game(
             "game-1",
-            [{"model_id": "openai-gpt4o-mini"}, {"model_id": "openai-gpt4o-mini"}],
+            [{"model_id": "copilot-gpt4o-mini"}, {"model_id": "copilot-gpt4o-mini"}],
         )
         assert len(agents) == 2
         for agent in agents:
             assert agent.name
-            assert agent.model_id == "openai-gpt4o-mini"
+            assert agent.model_id == "copilot-gpt4o-mini"
 
     def test_agents_have_unique_names(self):
         """Agent 名称不重复"""

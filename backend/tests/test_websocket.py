@@ -76,12 +76,12 @@ def game_state():
         {
             "name": "AI-张三",
             "player_type": "ai",
-            "model_id": "openai-gpt4o-mini",
+            "model_id": "copilot-gpt4o-mini",
         },
         {
             "name": "AI-李四",
             "player_type": "ai",
-            "model_id": "openai-gpt4o-mini",
+            "model_id": "copilot-gpt4o-mini",
         },
     ]
     config = GameConfig(initial_chips=1000, ante=10)
@@ -97,7 +97,7 @@ def agent_manager(game_state):
         {
             "agent_id": p.id,
             "name": p.name,
-            "model_id": p.model_id or "openai-gpt4o-mini",
+            "model_id": p.model_id or "copilot-gpt4o-mini",
         }
         for p in ai_players
     ]
@@ -378,7 +378,7 @@ class TestWebSocketEndpoint:
             {
                 "name": "AI-1",
                 "player_type": "ai",
-                "model_id": "openai-gpt4o-mini",
+                "model_id": "copilot-gpt4o-mini",
             },
         ]
         game = create_game(player_configs, GameConfig(initial_chips=1000, ante=10))
@@ -394,7 +394,7 @@ class TestWebSocketEndpoint:
                 {
                     "agent_id": p.id,
                     "name": p.name,
-                    "model_id": "openai-gpt4o-mini",
+                    "model_id": "copilot-gpt4o-mini",
                 }
                 for p in ai_players
             ],
@@ -481,7 +481,7 @@ class TestStartRound:
             {
                 "name": "AI-1",
                 "player_type": "ai",
-                "model_id": "openai-gpt4o-mini",
+                "model_id": "copilot-gpt4o-mini",
             },
         ]
         game = create_game(player_configs, GameConfig(initial_chips=1000, ante=10))
@@ -497,7 +497,7 @@ class TestStartRound:
                 {
                     "agent_id": ai_player.id,
                     "name": ai_player.name,
-                    "model_id": "openai-gpt4o-mini",
+                    "model_id": "copilot-gpt4o-mini",
                 }
             ],
         )
@@ -557,7 +557,7 @@ class TestStartRound:
 
         player_configs = [
             {"name": "玩家", "player_type": "human"},
-            {"name": "AI-1", "player_type": "ai", "model_id": "openai-gpt4o-mini"},
+            {"name": "AI-1", "player_type": "ai", "model_id": "copilot-gpt4o-mini"},
         ]
         game = create_game(player_configs)
         game.status = "finished"
@@ -586,7 +586,7 @@ class TestPlayerAction:
             {
                 "name": "AI-1",
                 "player_type": "ai",
-                "model_id": "openai-gpt4o-mini",
+                "model_id": "copilot-gpt4o-mini",
             },
         ]
         game = create_game(player_configs, GameConfig(initial_chips=1000, ante=10))
@@ -605,7 +605,7 @@ class TestPlayerAction:
                 {
                     "agent_id": ai.id,
                     "name": ai.name,
-                    "model_id": "openai-gpt4o-mini",
+                    "model_id": "copilot-gpt4o-mini",
                 }
             ],
         )
@@ -770,7 +770,7 @@ class TestChatMessage:
             {
                 "name": "AI-1",
                 "player_type": "ai",
-                "model_id": "openai-gpt4o-mini",
+                "model_id": "copilot-gpt4o-mini",
             },
         ]
         game = create_game(player_configs)
@@ -785,7 +785,7 @@ class TestChatMessage:
                 {
                     "agent_id": ai_player.id,
                     "name": ai_player.name,
-                    "model_id": "openai-gpt4o-mini",
+                    "model_id": "copilot-gpt4o-mini",
                 }
             ],
         )
@@ -1069,7 +1069,7 @@ class TestFullRoundIntegration:
             {
                 "name": "AI-1",
                 "player_type": "ai",
-                "model_id": "openai-gpt4o-mini",
+                "model_id": "copilot-gpt4o-mini",
             },
         ]
         game = create_game(player_configs, GameConfig(initial_chips=1000, ante=10))
@@ -1084,7 +1084,7 @@ class TestFullRoundIntegration:
                 {
                     "agent_id": ai_player.id,
                     "name": ai_player.name,
-                    "model_id": "openai-gpt4o-mini",
+                    "model_id": "copilot-gpt4o-mini",
                 }
             ],
         )
@@ -1175,7 +1175,7 @@ class TestFullRoundIntegration:
             {
                 "name": "AI-1",
                 "player_type": "ai",
-                "model_id": "openai-gpt4o-mini",
+                "model_id": "copilot-gpt4o-mini",
             },
         ]
         game = create_game(player_configs, GameConfig(initial_chips=1000, ante=10))
@@ -1190,7 +1190,7 @@ class TestFullRoundIntegration:
                 {
                     "agent_id": ai_player.id,
                     "name": ai_player.name,
-                    "model_id": "openai-gpt4o-mini",
+                    "model_id": "copilot-gpt4o-mini",
                 }
             ],
         )

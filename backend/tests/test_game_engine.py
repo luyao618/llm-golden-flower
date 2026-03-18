@@ -53,7 +53,7 @@ def _default_player_configs(count: int = 3) -> list[dict]:
             {
                 "name": f"AI_{i + 1}",
                 "player_type": "ai",
-                "model_id": "openai-gpt4o",
+                "model_id": "copilot-gpt4o",
             }
         )
     return configs
@@ -141,7 +141,7 @@ class TestCreateGame:
         """AI 玩家属性正确设置"""
         game = _create_test_game(3)
         ai_player = game.players[1]
-        assert ai_player.model_id == "openai-gpt4o"
+        assert ai_player.model_id == "copilot-gpt4o"
 
 
 # ============================================================

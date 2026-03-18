@@ -70,28 +70,28 @@ class TestBaseAgentInit:
     def test_default_init(self):
         agent = BaseAgent()
         assert agent.name == "AI Player"
-        assert agent.model_id == "openai-gpt4o-mini"
+        assert agent.model_id == "copilot-gpt4o"  # 默认取注册表中第一个模型
         assert agent.agent_id  # 自动生成 UUID
 
     def test_custom_init(self):
         agent = BaseAgent(
             agent_id="test-id",
             name="测试选手",
-            model_id="anthropic-claude-sonnet",
+            model_id="copilot-claude-sonnet",
         )
         assert agent.agent_id == "test-id"
         assert agent.name == "测试选手"
-        assert agent.model_id == "anthropic-claude-sonnet"
+        assert agent.model_id == "copilot-claude-sonnet"
 
     def test_invalid_model_id_fallback(self):
         agent = BaseAgent(model_id="nonexistent-model")
-        assert agent.model_id == "openai-gpt4o-mini"
+        assert agent.model_id == "copilot-gpt4o"  # 回退到注册表第一个模型
 
     def test_repr(self):
-        agent = BaseAgent(name="火焰哥", model_id="openai-gpt4o-mini")
+        agent = BaseAgent(name="火焰哥", model_id="copilot-gpt4o-mini")
         repr_str = repr(agent)
         assert "火焰哥" in repr_str
-        assert "openai-gpt4o-mini" in repr_str
+        assert "copilot-gpt4o-mini" in repr_str
 
 
 # ============================================================
@@ -366,19 +366,16 @@ class TestParseDecisionIllegalActionFallback:
 
 
 class TestCallLLM:
-    """LLM 调用测试（mock litellm）"""
+    """LLM 调用测试（mock copilot）"""
 
     @pytest.mark.asyncio
     async def test_successful_call(self):
-        agent = BaseAgent(name="LLM测试", model_id="openai-gpt4o-mini")
+        agent = BaseAgent(name="LLM测试", model_id="copilot-gpt4o-mini")
 
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = '{"action": "call", "thought": {}}'
+        mock_copilot = MagicMock()
+        mock_copilot.call_copilot_api = AsyncMock(return_value='{"action": "call", "thought": {}}')
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_response
-
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
             result = await agent.call_llm(
                 [
                     {"role": "system", "content": "test system prompt"},
@@ -387,37 +384,32 @@ class TestCallLLM:
             )
 
             assert result == '{"action": "call", "thought": {}}'
-            mock_llm.assert_called_once()
+            mock_copilot.call_copilot_api.assert_called_once()
 
             # 验证调用参数
-            call_kwargs = mock_llm.call_args
+            call_kwargs = mock_copilot.call_copilot_api.call_args
             assert call_kwargs.kwargs["model"] == "gpt-4o-mini"
             assert call_kwargs.kwargs["response_format"] == {"type": "json_object"}
 
     @pytest.mark.asyncio
     async def test_retry_on_failure(self):
-        agent = BaseAgent(name="重试测试", model_id="openai-gpt4o-mini")
+        agent = BaseAgent(name="重试测试", model_id="copilot-gpt4o-mini")
 
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = '{"result": "ok"}'
-
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            # 前两次失败，第三次成功
-            mock_llm.side_effect = [
+        mock_copilot = MagicMock()
+        mock_copilot.call_copilot_api = AsyncMock(
+            side_effect=[
                 Exception("API error"),
                 Exception("Timeout"),
-                mock_response,
+                '{"result": "ok"}',
             ]
+        )
 
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
             with patch("app.agents.base_agent.get_settings") as mock_settings:
                 settings = MagicMock()
                 settings.llm_temperature = 0.7
                 settings.llm_timeout = 5
                 settings.llm_max_retries = 3
-                settings.openai_api_key = "test-key"
-                settings.anthropic_api_key = ""
-                settings.google_api_key = ""
                 mock_settings.return_value = settings
 
                 with patch(
@@ -426,23 +418,21 @@ class TestCallLLM:
                 ):
                     result = await agent.call_llm([{"role": "user", "content": "test"}])
                     assert result == '{"result": "ok"}'
-                    assert mock_llm.call_count == 3
+                    assert mock_copilot.call_copilot_api.call_count == 3
 
     @pytest.mark.asyncio
     async def test_all_retries_exhausted(self):
-        agent = BaseAgent(name="失败测试", model_id="openai-gpt4o-mini")
+        agent = BaseAgent(name="失败测试", model_id="copilot-gpt4o-mini")
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.side_effect = Exception("Persistent error")
+        mock_copilot = MagicMock()
+        mock_copilot.call_copilot_api = AsyncMock(side_effect=Exception("Persistent error"))
 
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
             with patch("app.agents.base_agent.get_settings") as mock_settings:
                 settings = MagicMock()
                 settings.llm_temperature = 0.7
                 settings.llm_timeout = 5
                 settings.llm_max_retries = 3
-                settings.openai_api_key = "test-key"
-                settings.anthropic_api_key = ""
-                settings.google_api_key = ""
                 mock_settings.return_value = settings
 
                 with patch(
@@ -454,23 +444,20 @@ class TestCallLLM:
 
     @pytest.mark.asyncio
     async def test_empty_content_raises_error(self):
-        agent = BaseAgent(name="空内容测试", model_id="openai-gpt4o-mini")
+        """Copilot 返回空内容时，call_copilot_api 应抛出异常触发重试"""
+        agent = BaseAgent(name="空内容测试", model_id="copilot-gpt4o-mini")
 
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = None
+        mock_copilot = MagicMock()
+        # Copilot 路径中，call_copilot_api 返回空字符串也算成功
+        # 但如果抛出异常则会重试
+        mock_copilot.call_copilot_api = AsyncMock(side_effect=Exception("Empty response"))
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.side_effect = [mock_response, mock_response, mock_response]
-
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
             with patch("app.agents.base_agent.get_settings") as mock_settings:
                 settings = MagicMock()
                 settings.llm_temperature = 0.7
                 settings.llm_timeout = 5
                 settings.llm_max_retries = 3
-                settings.openai_api_key = "test-key"
-                settings.anthropic_api_key = ""
-                settings.google_api_key = ""
                 mock_settings.return_value = settings
 
                 with patch(
@@ -481,38 +468,54 @@ class TestCallLLM:
                         await agent.call_llm([{"role": "user", "content": "test"}])
 
     @pytest.mark.asyncio
-    async def test_anthropic_model_call(self):
-        agent = BaseAgent(name="Claude测试", model_id="anthropic-claude-sonnet")
+    async def test_copilot_claude_model_call(self):
+        agent = BaseAgent(name="Claude测试", model_id="copilot-claude-sonnet")
 
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = '{"action": "fold"}'
+        with patch("app.agents.base_agent.get_settings") as mock_settings:
+            settings = MagicMock()
+            settings.llm_temperature = 0.7
+            settings.llm_timeout = 5
+            settings.llm_max_retries = 1
+            mock_settings.return_value = settings
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_response
+            mock_copilot = MagicMock()
+            mock_copilot.call_copilot_api = AsyncMock(return_value='{"action": "fold"}')
 
-            result = await agent.call_llm([{"role": "user", "content": "test"}])
-            assert result == '{"action": "fold"}'
+            with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
+                with patch(
+                    "app.agents.base_agent.get_runtime_llm_config",
+                    return_value=_make_llm_config(max_retries=1),
+                ):
+                    result = await agent.call_llm([{"role": "user", "content": "test"}])
+                    assert result == '{"action": "fold"}'
 
-            call_kwargs = mock_llm.call_args
-            assert call_kwargs.kwargs["model"] == "claude-sonnet-4-20250514"
+                    call_kwargs = mock_copilot.call_copilot_api.call_args
+                    assert call_kwargs.kwargs["model"] == "claude-3.5-sonnet"
 
     @pytest.mark.asyncio
-    async def test_gemini_model_call(self):
-        agent = BaseAgent(name="Gemini测试", model_id="google-gemini-flash")
+    async def test_copilot_gpt4o_model_call(self):
+        agent = BaseAgent(name="GPT4o测试", model_id="copilot-gpt4o")
 
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = '{"action": "raise"}'
+        with patch("app.agents.base_agent.get_settings") as mock_settings:
+            settings = MagicMock()
+            settings.llm_temperature = 0.7
+            settings.llm_timeout = 5
+            settings.llm_max_retries = 1
+            mock_settings.return_value = settings
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_response
+            mock_copilot = MagicMock()
+            mock_copilot.call_copilot_api = AsyncMock(return_value='{"action": "raise"}')
 
-            result = await agent.call_llm([{"role": "user", "content": "test"}])
-            assert result == '{"action": "raise"}'
+            with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
+                with patch(
+                    "app.agents.base_agent.get_runtime_llm_config",
+                    return_value=_make_llm_config(max_retries=1),
+                ):
+                    result = await agent.call_llm([{"role": "user", "content": "test"}])
+                    assert result == '{"action": "raise"}'
 
-            call_kwargs = mock_llm.call_args
-            assert call_kwargs.kwargs["model"] == "gemini/gemini-2.0-flash"
+                    call_kwargs = mock_copilot.call_copilot_api.call_args
+                    assert call_kwargs.kwargs["model"] == "gpt-4o"
 
 
 # ============================================================
@@ -572,13 +575,13 @@ class TestAgentManager:
         agents = manager.create_agents_for_game(
             "game-1",
             [
-                {"model_id": "openai-gpt4o-mini"},
-                {"model_id": "anthropic-claude-sonnet"},
+                {"model_id": "copilot-gpt4o-mini"},
+                {"model_id": "copilot-claude-sonnet"},
             ],
         )
         assert len(agents) == 2
-        assert agents[0].model_id == "openai-gpt4o-mini"
-        assert agents[1].model_id == "anthropic-claude-sonnet"
+        assert agents[0].model_id == "copilot-gpt4o-mini"
+        assert agents[1].model_id == "copilot-claude-sonnet"
 
     def test_create_agents_with_custom_names(self):
         manager = AgentManager()
@@ -676,7 +679,7 @@ class TestAgentManager:
                 {"model_id": "nonexistent-model"},
             ],
         )
-        assert agents[0].model_id == "openai-gpt4o-mini"
+        assert agents[0].model_id == "copilot-gpt4o"  # 回退到注册表第一个模型
 
     def test_repr(self):
         manager = AgentManager()
@@ -715,7 +718,7 @@ class TestDecisionFlow:
     async def test_full_decision_flow(self):
         agent = BaseAgent(
             name="集成测试Agent",
-            model_id="openai-gpt4o-mini",
+            model_id="copilot-gpt4o-mini",
         )
 
         # 构建 system prompt
@@ -740,13 +743,9 @@ class TestDecisionFlow:
             }
         )
 
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = llm_response
+        mock_copilot = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_response
-
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
             # 调用 LLM
             raw = await agent.call_llm(
                 [
@@ -774,17 +773,15 @@ class TestDecisionFlow:
         """LLM 调用失败时，应降级为安全操作"""
         agent = BaseAgent(name="失败降级测试")
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.side_effect = Exception("API down")
+        mock_copilot = MagicMock()
+        mock_copilot.call_copilot_api = AsyncMock(side_effect=Exception("API down"))
 
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
             with patch("app.agents.base_agent.get_settings") as mock_settings:
                 settings = MagicMock()
                 settings.llm_temperature = 0.7
                 settings.llm_timeout = 5
                 settings.llm_max_retries = 1  # 只试 1 次
-                settings.openai_api_key = ""
-                settings.anthropic_api_key = ""
-                settings.google_api_key = ""
                 mock_settings.return_value = settings
 
                 with patch(
@@ -1065,11 +1062,22 @@ def _mock_llm_response(
 
 
 def _patch_llm(response_content: str):
-    """创建 mock LLM 的 patch context"""
+    """创建 mock LLM 的 patch context（已弃用，保留兼容）"""
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
     mock_response.choices[0].message.content = response_content
     return mock_response
+
+
+def _mock_copilot(response_content: str):
+    """创建 mock Copilot auth 对象
+
+    Copilot 模型通过 _call_copilot -> copilot.call_copilot_api 调用，
+    call_copilot_api 直接返回字符串内容（不是 response 对象）。
+    """
+    mock = MagicMock()
+    mock.call_copilot_api = AsyncMock(return_value=response_content)
+    return mock
 
 
 class TestMakeDecision:
@@ -1094,11 +1102,9 @@ class TestMakeDecision:
                 "emotion": "冷静",
             },
         )
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
-
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
 
             assert decision.action == GameAction.CALL
@@ -1121,10 +1127,9 @@ class TestMakeDecision:
         player.status = PlayerStatus.ACTIVE_SEEN
 
         llm_response = _mock_llm_response(action="fold", table_talk=None)
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
             assert decision.action == GameAction.FOLD
             assert decision.table_talk is None
@@ -1141,10 +1146,9 @@ class TestMakeDecision:
             action="raise",
             table_talk="你确定要跟？",
         )
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
             assert decision.action == GameAction.RAISE
             assert decision.table_talk == "你确定要跟？"
@@ -1158,10 +1162,9 @@ class TestMakeDecision:
         player.status = PlayerStatus.ACTIVE_BLIND
 
         llm_response = _mock_llm_response(action="check_cards")
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
             assert decision.action == GameAction.CHECK_CARDS
 
@@ -1178,10 +1181,9 @@ class TestMakeDecision:
             target="p2",
             table_talk="来比一比！",
         )
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
             assert decision.action == GameAction.COMPARE
             assert decision.target == "p2"
@@ -1226,10 +1228,9 @@ class TestMakeDecision:
         game = _make_game_state(players=players)
 
         llm_response = _mock_llm_response(action="compare", target=None)
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, players[0])
             assert decision.action == GameAction.COMPARE
             # 应自动选择筹码最少的玩家C
@@ -1245,10 +1246,9 @@ class TestMakeDecision:
 
         # 指定一个不存在的目标
         llm_response = _mock_llm_response(action="compare", target="nonexistent-id")
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
             assert decision.action == GameAction.COMPARE
             # 应自动选择一个合法目标
@@ -1293,10 +1293,9 @@ class TestMakeDecision:
         game = _make_game_state(players=players)
 
         llm_response = _mock_llm_response(action="compare", target="p2")
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, players[0])
             assert decision.action == GameAction.COMPARE
             # p2 已弃牌，应自动选择 p3
@@ -1316,10 +1315,9 @@ class TestMakeDecisionIllegalActionFallback:
 
         # LLM 返回 compare，但暗注玩家不能比牌
         llm_response = _mock_llm_response(action="compare", target="p1")
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
             # compare 不在暗注玩家的可用操作中，应降级
             assert decision.action != GameAction.COMPARE
@@ -1339,10 +1337,9 @@ class TestMakeDecisionIllegalActionFallback:
         player.status = PlayerStatus.ACTIVE_SEEN
 
         llm_response = _mock_llm_response(action="check_cards")
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
             assert decision.action != GameAction.CHECK_CARDS
 
@@ -1358,17 +1355,15 @@ class TestMakeDecisionLLMFailure:
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.side_effect = Exception("API down")
+        mock_cop = MagicMock()
+        mock_cop.call_copilot_api = AsyncMock(side_effect=Exception("API down"))
 
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             with patch("app.agents.base_agent.get_settings") as mock_settings:
                 settings = MagicMock()
                 settings.llm_temperature = 0.7
                 settings.llm_timeout = 5
                 settings.llm_max_retries = 1
-                settings.openai_api_key = ""
-                settings.anthropic_api_key = ""
-                settings.google_api_key = ""
                 mock_settings.return_value = settings
 
                 with patch(
@@ -1414,17 +1409,15 @@ class TestMakeDecisionLLMFailure:
         ]
         game = _make_game_state(players=players)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.side_effect = Exception("API down")
+        mock_cop = MagicMock()
+        mock_cop.call_copilot_api = AsyncMock(side_effect=Exception("API down"))
 
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             with patch("app.agents.base_agent.get_settings") as mock_settings:
                 settings = MagicMock()
                 settings.llm_temperature = 0.7
                 settings.llm_timeout = 5
                 settings.llm_max_retries = 1
-                settings.openai_api_key = ""
-                settings.anthropic_api_key = ""
-                settings.google_api_key = ""
                 mock_settings.return_value = settings
 
                 with patch(
@@ -1452,16 +1445,14 @@ class TestMakeDecisionWithContext:
         ]
 
         llm_response = _mock_llm_response(action="call")
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
-
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player, chat_context=chat_context)
             assert decision.action == GameAction.CALL
 
             # 验证 LLM 被调用，且 messages 包含聊天上下文
-            call_args = mock_llm.call_args
+            call_args = mock_cop.call_copilot_api.call_args
             messages = call_args.kwargs["messages"]
             user_prompt = messages[1]["content"]
             assert "我牌超好的" in user_prompt
@@ -1477,14 +1468,12 @@ class TestMakeDecisionWithContext:
         player.status = PlayerStatus.ACTIVE_SEEN
 
         llm_response = _mock_llm_response(action="call")
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
-
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
 
-            call_args = mock_llm.call_args
+            call_args = mock_cop.call_copilot_api.call_args
             messages = call_args.kwargs["messages"]
             user_prompt = messages[1]["content"]
             assert "对手B喜欢诈唬" in user_prompt
@@ -1502,14 +1491,12 @@ class TestMakeDecisionWithContext:
         player.status = PlayerStatus.ACTIVE_SEEN
 
         llm_response = _mock_llm_response(action="call")
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
-
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
 
-            call_args = mock_llm.call_args
+            call_args = mock_cop.call_copilot_api.call_args
             messages = call_args.kwargs["messages"]
             user_prompt = messages[1]["content"]
             assert "玩家B" in user_prompt
@@ -1526,14 +1513,12 @@ class TestMakeDecisionWithContext:
         player.status = PlayerStatus.ACTIVE_BLIND
 
         llm_response = _mock_llm_response(action="call")
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
-
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
 
-            call_args = mock_llm.call_args
+            call_args = mock_cop.call_copilot_api.call_args
             messages = call_args.kwargs["messages"]
             user_prompt = messages[1]["content"]
             assert "未知" in user_prompt
@@ -1548,14 +1533,12 @@ class TestMakeDecisionWithContext:
         player.status = PlayerStatus.ACTIVE_SEEN
 
         llm_response = _mock_llm_response(action="call")
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
-
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
 
-            call_args = mock_llm.call_args
+            call_args = mock_cop.call_copilot_api.call_args
             messages = call_args.kwargs["messages"]
             user_prompt = messages[1]["content"]
             # 明注跟注费用 = current_bet * 2 = 20
@@ -1584,10 +1567,9 @@ class TestMakeDecisionThoughtRecording:
                 "emotion": "自信",
             },
         )
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
 
             # 检查思考数据已被记录
@@ -1610,12 +1592,9 @@ class TestMakeDecisionThoughtRecording:
                 action="call",
                 thought={"reasoning": f"第{i + 1}次决策", "confidence": 0.5 + i * 0.1},
             )
-            mock_resp = _patch_llm(llm_response)
+            mock_cop = _mock_copilot(llm_response)
 
-            with patch(
-                "app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock
-            ) as mock_llm:
-                mock_llm.return_value = mock_resp
+            with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
                 await agent.make_decision(game, player)
 
         thoughts = agent.get_round_thoughts(1)
@@ -1631,17 +1610,17 @@ class TestMakeDecisionThoughtRecording:
         player = game.players[0]
         player.status = PlayerStatus.ACTIVE_SEEN
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.side_effect = Exception("API down")
+        mock_cop = MagicMock()
+        mock_cop.call_copilot_api = AsyncMock(side_effect=Exception("API down"))
 
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             with patch("app.agents.base_agent.get_settings") as mock_settings:
                 settings = MagicMock()
                 settings.llm_temperature = 0.7
                 settings.llm_timeout = 5
                 settings.llm_max_retries = 1
-                settings.openai_api_key = ""
-                settings.anthropic_api_key = ""
-                settings.google_api_key = ""
+                settings.siliconflow_api_key = ""
+                settings.azure_openai_api_key = ""
                 mock_settings.return_value = settings
 
                 with patch(
@@ -1672,10 +1651,9 @@ class TestMakeDecisionEdgeCases:
                 "thought": {"reasoning": "跟注比较安全"},
             }
         )
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
             assert decision.action == GameAction.CALL
 
@@ -1691,10 +1669,9 @@ class TestMakeDecisionEdgeCases:
         llm_response = (
             '我决定 ```json\n{"action": "raise", "thought": {"reasoning": "感觉不错"}}\n``` 就这样'
         )
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
             assert decision.action == GameAction.RAISE
 
@@ -1707,10 +1684,9 @@ class TestMakeDecisionEdgeCases:
         player.status = PlayerStatus.ACTIVE_SEEN
 
         llm_response = "这是一段完全无关的文字，没有任何有用信息。天气真好。"
-        mock_resp = _patch_llm(llm_response)
+        mock_cop = _mock_copilot(llm_response)
 
-        with patch("app.agents.base_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = mock_resp
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
             decision = await agent.make_decision(game, player)
             # 应降级到安全操作
             assert decision.action in [GameAction.CALL, GameAction.FOLD]

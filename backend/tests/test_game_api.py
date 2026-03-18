@@ -10,6 +10,7 @@
 """
 
 from __future__ import annotations
+from unittest.mock import patch, MagicMock
 
 import pytest
 import pytest_asyncio
@@ -40,7 +41,7 @@ async def async_engine():
 
 @pytest_asyncio.fixture
 async def async_client(async_engine):
-    """创建测试用 HTTP 客户端，覆盖数据库依赖"""
+    """创建测试用 HTTP 客户端，覆盖数据库依赖，并模拟 Copilot 已连接"""
     test_session_factory = async_sessionmaker(
         async_engine, class_=AsyncSession, expire_on_commit=False
     )
@@ -59,9 +60,14 @@ async def async_client(async_engine):
     test_app = create_app()
     test_app.dependency_overrides[get_db] = _override_get_db
 
+    # 模拟 Copilot 认证已连接，使 get_available_models() 返回 Copilot 模型
+    mock_copilot = MagicMock()
+    mock_copilot.is_connected = True
+
     transport = ASGITransport(app=test_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client
+    with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
 
     # 每次测试后清理 game store
     reset_game_store()
@@ -79,7 +85,7 @@ def store():
 
 async def create_test_game(client: AsyncClient, ai_count: int = 2) -> dict:
     """创建一个测试游戏的辅助函数"""
-    models = ["openai-gpt4o", "openai-gpt4o-mini", "anthropic-claude-sonnet"]
+    models = ["copilot-gpt4o", "copilot-gpt4o-mini", "copilot-claude-sonnet"]
     ai_opponents = [{"model_id": models[i % len(models)]} for i in range(ai_count)]
     response = await client.post(
         "/api/game/create",
@@ -106,7 +112,7 @@ class TestCreateGame:
             "/api/game/create",
             json={
                 "player_name": "玩家A",
-                "ai_opponents": [{"model_id": "openai-gpt4o"}],
+                "ai_opponents": [{"model_id": "copilot-gpt4o"}],
             },
         )
         assert response.status_code == 200
@@ -125,9 +131,9 @@ class TestCreateGame:
             json={
                 "player_name": "玩家B",
                 "ai_opponents": [
-                    {"model_id": "openai-gpt4o", "name": "AI-1"},
-                    {"model_id": "anthropic-claude-sonnet", "name": "AI-2"},
-                    {"model_id": "google-gemini-flash"},
+                    {"model_id": "copilot-gpt4o", "name": "AI-1"},
+                    {"model_id": "copilot-claude-sonnet", "name": "AI-2"},
+                    {"model_id": "copilot-gpt4o"},
                 ],
             },
         )
@@ -137,7 +143,7 @@ class TestCreateGame:
         # 第一个 AI 使用自定义名称
         ai1 = data["players"][1]
         assert ai1["name"] == "AI-1"
-        assert ai1["model_id"] == "openai-gpt4o"
+        assert ai1["model_id"] == "copilot-gpt4o"
 
     @pytest.mark.asyncio
     async def test_create_game_custom_config(self, async_client: AsyncClient):
@@ -146,7 +152,7 @@ class TestCreateGame:
             "/api/game/create",
             json={
                 "player_name": "富豪玩家",
-                "ai_opponents": [{"model_id": "openai-gpt4o"}],
+                "ai_opponents": [{"model_id": "copilot-gpt4o"}],
                 "initial_chips": 5000,
                 "ante": 50,
                 "max_bet": 1000,
@@ -179,7 +185,7 @@ class TestCreateGame:
             "/api/game/create",
             json={
                 "player_name": "玩家",
-                "ai_opponents": [{"model_id": "openai-gpt4o"} for _ in range(6)],
+                "ai_opponents": [{"model_id": "copilot-gpt4o"} for _ in range(6)],
             },
         )
         assert response.status_code == 422  # Pydantic validation error
@@ -204,8 +210,8 @@ class TestCreateGame:
             json={
                 "player_name": "玩家",
                 "ai_opponents": [
-                    {"model_id": "openai-gpt4o"},
-                    {"model_id": "openai-gpt4o-mini"},
+                    {"model_id": "copilot-gpt4o"},
+                    {"model_id": "copilot-gpt4o-mini"},
                 ],
             },
         )

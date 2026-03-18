@@ -41,7 +41,7 @@ from app.models.game import GameAction
 def make_agent(
     agent_id: str = "agent-1",
     name: str = "测试AI",
-    model_id: str = "openai-gpt4o-mini",
+    model_id: str = "copilot-gpt4o-mini",
 ) -> BaseAgent:
     """创建测试用 BaseAgent"""
     return BaseAgent(

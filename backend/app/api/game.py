@@ -18,7 +18,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.agent_manager import get_agent_manager
 from app.api.game_store import GameStore, get_game_store
-from app.config import AI_AVATARS, AI_NAMES, get_available_models, get_settings
+from app.config import (
+    AI_AVATARS,
+    AI_NAMES,
+    get_available_models,
+    get_default_model_id,
+    get_settings,
+)
 from app.db.database import get_db
 from app.db.schemas import GameDB, PlayerDB, RoundDB
 from app.engine.game_manager import (
@@ -45,7 +51,7 @@ router = APIRouter()
 class AIPlayerConfig(BaseModel):
     """单个 AI 对手的配置"""
 
-    model_id: str = Field(..., description="AI 模型标识，如 'openai-gpt4o'")
+    model_id: str = Field(..., description="AI 模型标识，如 'copilot-gpt4o'")
     name: str | None = Field(None, description="自定义名称（留空自动分配）")
 
 
@@ -230,7 +236,7 @@ async def create_game_endpoint(
         {
             "agent_id": p.id,
             "name": p.name,
-            "model_id": p.model_id or "openai-gpt4o-mini",
+            "model_id": p.model_id or get_default_model_id(),
         }
         for p in ai_players
     ]
