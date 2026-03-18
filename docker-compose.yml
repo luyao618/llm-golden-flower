@@ -1,0 +1,43 @@
+# Golden Flower Poker AI - Docker Compose 部署配置
+#
+# 架构: nginx (反向代理 + 静态文件) + backend (FastAPI)
+# 前端静态文件通过共享 volume 从 backend 容器复制到 nginx
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: golden-flower-backend
+    restart: unless-stopped
+    volumes:
+      # 数据库持久化
+      - app-data:/app/data
+      # 日志持久化
+      - app-logs:/app/backend/logs
+      # 前端构建产物共享给 nginx
+      - frontend-dist:/app/frontend/dist
+    env_file:
+      - backend/.env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/golden_flower.db
+    expose:
+      - "8000"
+
+  nginx:
+    image: nginx:alpine
+    container_name: golden-flower-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # 共享前端静态文件
+      - frontend-dist:/app/frontend/dist:ro
+    depends_on:
+      - backend
+
+volumes:
+  app-data:
+  app-logs:
+  frontend-dist:
