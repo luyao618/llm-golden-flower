@@ -610,17 +610,19 @@ async def process_ai_turns(
             )
             human_turn_notified = True
 
-        # Step 10: 旁观者反应（仅在局未结束时收集）
-        await _collect_and_broadcast_bystander_reactions(
-            game_id=game_id,
-            game=game,
-            actor=current_player,
-            action=action,
-            result=result,
-            agent_manager=agent_manager,
-            chat_engine=chat_engine,
-            chat_context=chat_context,
-            ws_manager=ws_manager,
+        # Step 10: 旁观者反应（后台异步执行，不阻塞游戏循环）
+        asyncio.create_task(
+            _collect_and_broadcast_bystander_reactions(
+                game_id=game_id,
+                game=game,
+                actor=current_player,
+                action=action,
+                result=result,
+                agent_manager=agent_manager,
+                chat_engine=chat_engine,
+                chat_context=chat_context,
+                ws_manager=ws_manager,
+            )
         )
 
         # 如果已经提前通知了人类玩家，跳出循环（不再重复发送 turn_changed）
@@ -643,10 +645,8 @@ async def handle_player_chat(
     """处理人类玩家发送的聊天消息
 
     流程：
-    1. 创建 ChatMessage 并广播
-    2. 创建 must_respond 触发事件
-    3. 收集 AI 旁观者反应
-    4. 广播 AI 回应
+    1. 创建 ChatMessage 并立即广播（同步，不阻塞）
+    2. 将 AI 回复生成放入后台任务（不阻塞 WebSocket 消息循环）
     """
     player = game.get_player_by_id(player_id)
     if player is None:
@@ -656,7 +656,7 @@ async def handle_player_chat(
     if game.current_round:
         round_number = game.current_round.round_number
 
-    # 创建并广播玩家消息
+    # 创建并广播玩家消息（立即完成）
     player_msg = ChatMessage(
         game_id=game_id,
         round_number=round_number,
@@ -686,46 +686,83 @@ async def handle_player_chat(
     except Exception as e:
         logger.warning("Failed to persist player chat message: %s", e)
 
-    # 创建触发事件并收集 AI 反应
-    trigger = create_player_message_event(player_id, player.name, content)
-
-    # 获取所有活跃的 AI Agent 作为旁观者（排除已弃牌的）
-    all_agents = agent_manager.get_agents_for_game(game_id)
-    bystanders = []
-    for a in all_agents:
-        p = game.get_player_by_id(a.agent_id)
-        if p is not None and p.is_active:
-            bystanders.append(a)
-    if not bystanders:
-        return
-
-    # 构建各 Agent 的状态信息
-    agent_states = _build_agent_states(game, bystanders)
-
-    reactions = await chat_engine.collect_bystander_reactions(
-        event=trigger,
-        bystanders=bystanders,
-        chat_context=chat_context,
-        agent_states=agent_states,
+    # 将 AI 回复生成放入后台任务，不阻塞 WebSocket 消息循环
+    asyncio.create_task(
+        _generate_ai_chat_responses(
+            game_id=game_id,
+            game=game,
+            player_id=player_id,
+            player_name=player.name,
+            content=content,
+            round_number=round_number,
+            ws_manager=ws_manager,
+            agent_manager=agent_manager,
+            chat_engine=chat_engine,
+            chat_context=chat_context,
+        )
     )
 
-    # 广播 AI 回应
-    for reaction in reactions:
-        msg = reaction.to_chat_message(game_id=game_id, round_number=round_number)
-        if msg is not None:
-            chat_context.add_message(msg)
-            await ws_manager.broadcast(game_id, event_chat_message(msg))
-            # 持久化 AI 回应消息（T4.4）
-            try:
-                db = await _get_db_session()
+
+async def _generate_ai_chat_responses(
+    game_id: str,
+    game: GameState,
+    player_id: str,
+    player_name: str,
+    content: str,
+    round_number: int,
+    ws_manager: WebSocketManager,
+    agent_manager: AgentManager,
+    chat_engine: ChatEngine,
+    chat_context: ChatContext,
+) -> None:
+    """后台任务：生成 AI 聊天回复并广播
+
+    从 handle_player_chat 中拆出的耗时操作，通过 asyncio.create_task 异步执行，
+    避免阻塞 WebSocket 消息循环。
+    """
+    try:
+        # 创建触发事件并收集 AI 反应
+        trigger = create_player_message_event(player_id, player_name, content)
+
+        # 获取所有活跃的 AI Agent 作为旁观者（排除已弃牌的）
+        all_agents = agent_manager.get_agents_for_game(game_id)
+        bystanders = []
+        for a in all_agents:
+            p = game.get_player_by_id(a.agent_id)
+            if p is not None and p.is_active:
+                bystanders.append(a)
+        if not bystanders:
+            return
+
+        # 构建各 Agent 的状态信息
+        agent_states = _build_agent_states(game, bystanders)
+
+        reactions = await chat_engine.collect_bystander_reactions(
+            event=trigger,
+            bystanders=bystanders,
+            chat_context=chat_context,
+            agent_states=agent_states,
+        )
+
+        # 广播 AI 回应
+        for reaction in reactions:
+            msg = reaction.to_chat_message(game_id=game_id, round_number=round_number)
+            if msg is not None:
+                chat_context.add_message(msg)
+                await ws_manager.broadcast(game_id, event_chat_message(msg))
+                # 持久化 AI 回应消息（T4.4）
                 try:
-                    await persist_chat_message(db, msg)
-                    await db.commit()
-                finally:
-                    await db.close()
-            except Exception as e:
-                logger.warning("Failed to persist AI response chat message: %s", e)
-            await asyncio.sleep(0.3)  # 间隔一小段时间，模拟打字
+                    db = await _get_db_session()
+                    try:
+                        await persist_chat_message(db, msg)
+                        await db.commit()
+                    finally:
+                        await db.close()
+                except Exception as e:
+                    logger.warning("Failed to persist AI response chat message: %s", e)
+                await asyncio.sleep(0.3)  # 间隔一小段时间，模拟打字
+    except Exception as e:
+        logger.error("后台 AI 聊天回复生成失败 — game=%s, error=%s", game_id, e)
 
 
 # ---- Internal Helpers ----
@@ -971,69 +1008,72 @@ async def _collect_and_broadcast_bystander_reactions(
     chat_context: ChatContext,
     ws_manager: WebSocketManager,
 ) -> None:
-    """收集并广播旁观者反应"""
-    round_state = game.current_round
-    current_bet = round_state.current_bet if round_state else 0
+    """收集并广播旁观者反应（可能作为后台任务运行）"""
+    try:
+        round_state = game.current_round
+        current_bet = round_state.current_bet if round_state else 0
 
-    # 构建触发事件
-    compare_winner = None
-    target_name = None
-    if result.compare_result:
-        compare_winner = result.compare_result.get("winner_id")
-        target_name = result.compare_result.get("loser_name")
-        if compare_winner == actor.id:
+        # 构建触发事件
+        compare_winner = None
+        target_name = None
+        if result.compare_result:
+            compare_winner = result.compare_result.get("winner_id")
             target_name = result.compare_result.get("loser_name")
-        else:
-            target_name = result.compare_result.get("winner_name")
+            if compare_winner == actor.id:
+                target_name = result.compare_result.get("loser_name")
+            else:
+                target_name = result.compare_result.get("winner_name")
 
-    trigger = create_trigger_event_from_action(
-        action=action,
-        actor_id=actor.id,
-        actor_name=actor.name,
-        amount=result.amount,
-        current_bet=current_bet,
-        target_name=target_name,
-        compare_winner=compare_winner,
-    )
+        trigger = create_trigger_event_from_action(
+            action=action,
+            actor_id=actor.id,
+            actor_name=actor.name,
+            amount=result.amount,
+            current_bet=current_bet,
+            target_name=target_name,
+            compare_winner=compare_winner,
+        )
 
-    # 获取旁观者（排除行动者自己，排除已弃牌的玩家）
-    all_agents = agent_manager.get_agents_for_game(game_id)
-    bystanders = []
-    for a in all_agents:
-        if a.agent_id == actor.id:
-            continue
-        p = game.get_player_by_id(a.agent_id)
-        if p is not None and p.is_active:
-            bystanders.append(a)
-    if not bystanders:
-        return
+        # 获取旁观者（排除行动者自己，排除已弃牌的玩家）
+        all_agents = agent_manager.get_agents_for_game(game_id)
+        bystanders = []
+        for a in all_agents:
+            if a.agent_id == actor.id:
+                continue
+            p = game.get_player_by_id(a.agent_id)
+            if p is not None and p.is_active:
+                bystanders.append(a)
+        if not bystanders:
+            return
 
-    agent_states = _build_agent_states(game, bystanders)
+        agent_states = _build_agent_states(game, bystanders)
 
-    reactions = await chat_engine.collect_bystander_reactions(
-        event=trigger,
-        bystanders=bystanders,
-        chat_context=chat_context,
-        agent_states=agent_states,
-    )
+        reactions = await chat_engine.collect_bystander_reactions(
+            event=trigger,
+            bystanders=bystanders,
+            chat_context=chat_context,
+            agent_states=agent_states,
+        )
 
-    for reaction in reactions:
-        round_number = round_state.round_number if round_state else 0
-        msg = reaction.to_chat_message(game_id=game_id, round_number=round_number)
-        if msg is not None:
-            chat_context.add_message(msg)
-            await ws_manager.broadcast(game_id, event_chat_message(msg))
-            # 持久化旁观者反应消息（T4.4）
-            try:
-                db = await _get_db_session()
+        for reaction in reactions:
+            round_number = round_state.round_number if round_state else 0
+            msg = reaction.to_chat_message(game_id=game_id, round_number=round_number)
+            if msg is not None:
+                chat_context.add_message(msg)
+                await ws_manager.broadcast(game_id, event_chat_message(msg))
+                # 持久化旁观者反应消息（T4.4）
                 try:
-                    await persist_chat_message(db, msg)
-                    await db.commit()
-                finally:
-                    await db.close()
-            except Exception as e:
-                logger.warning("Failed to persist bystander reaction: %s", e)
-            await asyncio.sleep(0.2)
+                    db = await _get_db_session()
+                    try:
+                        await persist_chat_message(db, msg)
+                        await db.commit()
+                    finally:
+                        await db.close()
+                except Exception as e:
+                    logger.warning("Failed to persist bystander reaction: %s", e)
+                await asyncio.sleep(0.2)
+    except Exception as e:
+        logger.error("后台旁观者反应生成失败 — game=%s, error=%s", game_id, e)
 
 
 def _format_chat_for_agent(chat_context: ChatContext) -> list[dict[str, str]]:
@@ -1392,10 +1432,10 @@ async def _handle_player_action(
             event_error(f"AI 回合处理出错: {e}"),
         )
 
-    # 收集人类行动的旁观反应（在 turn_changed 之后，不阻塞 UI）
+    # 收集人类行动的旁观反应（后台异步执行，不阻塞 WebSocket 消息循环）
     chat_context = ws_manager.get_chat_context(game_id)
-    try:
-        await _collect_and_broadcast_bystander_reactions(
+    asyncio.create_task(
+        _collect_and_broadcast_bystander_reactions(
             game_id=game_id,
             game=game,
             actor=player,
@@ -1406,13 +1446,7 @@ async def _handle_player_action(
             chat_context=chat_context,
             ws_manager=ws_manager,
         )
-    except Exception as e:
-        logger.error(
-            "Error during bystander reactions: game=%s, error=%s",
-            game_id,
-            e,
-            exc_info=True,
-        )
+    )
 
 
 async def _handle_start_round(

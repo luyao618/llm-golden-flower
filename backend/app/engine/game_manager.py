@@ -403,12 +403,12 @@ def _execute_action(
         # 比牌结果：正数表示发起方更大，负数或0表示发起方输（相同时发起方输）
         if cmp_result > 0:
             # 发起方赢
-            target.status = PlayerStatus.FOLDED
+            target.status = PlayerStatus.COMPARE_LOST
             winner = player
             loser = target
         else:
             # 发起方输（包括相同时）
-            player.status = PlayerStatus.FOLDED
+            player.status = PlayerStatus.COMPARE_LOST
             winner = target
             loser = player
 

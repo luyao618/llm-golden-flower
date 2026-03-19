@@ -152,7 +152,7 @@ export default function GameInfoPanel() {
 
   // Active (non-folded, non-out) player count
   const activePlayers = players.filter(
-    (p) => p.status !== 'folded' && p.status !== 'out'
+    (p) => p.status !== 'folded' && p.status !== 'compare_lost' && p.status !== 'out'
   ).length
 
   const pot = currentRound?.pot ?? 0

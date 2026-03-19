@@ -165,7 +165,7 @@ export default function GameLog() {
 
   // Count active (non-folded, non-out) players
   const activePlayers = players.filter(
-    (p) => p.status !== 'folded' && p.status !== 'out'
+    (p) => p.status !== 'folded' && p.status !== 'compare_lost' && p.status !== 'out'
   ).length
 
   return (

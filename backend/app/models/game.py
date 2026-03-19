@@ -69,7 +69,8 @@ class PlayerStatus(str, Enum):
 
     ACTIVE_BLIND = "active_blind"  # 未看牌（暗注）
     ACTIVE_SEEN = "active_seen"  # 已看牌（明注）
-    FOLDED = "folded"  # 已弃牌
+    FOLDED = "folded"  # 已弃牌（主动弃牌）
+    COMPARE_LOST = "compare_lost"  # 比牌落败
     OUT = "out"  # 筹码用完，出局
 
 

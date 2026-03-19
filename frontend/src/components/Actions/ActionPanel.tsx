@@ -160,7 +160,7 @@ export default function ActionPanel({ onAction }: ActionPanelProps) {
   // 比牌选择模式
   if (isCompareMode) {
     const compareTargets = players.filter(
-      (p) => p.id !== myPlayerId && p.status !== 'folded' && p.status !== 'out',
+      (p) => p.id !== myPlayerId && p.status !== 'folded' && p.status !== 'compare_lost' && p.status !== 'out',
     )
     return (
       <div className="p-3">

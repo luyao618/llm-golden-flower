@@ -973,6 +973,8 @@ def format_players_status(
 
         if p.status == PlayerStatus.FOLDED:
             status_text = "已弃牌"
+        elif p.status == PlayerStatus.COMPARE_LOST:
+            status_text = "比牌落败"
         elif p.status == PlayerStatus.OUT:
             status_text = "已出局"
         elif p.status == PlayerStatus.ACTIVE_BLIND:

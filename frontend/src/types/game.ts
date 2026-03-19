@@ -91,6 +91,7 @@ export type PlayerStatus =
   | 'active_blind'
   | 'active_seen'
   | 'folded'
+  | 'compare_lost'
   | 'out'
 
 export interface Player {

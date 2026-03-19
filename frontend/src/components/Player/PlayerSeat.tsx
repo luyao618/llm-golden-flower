@@ -28,6 +28,7 @@ const STATUS_LABELS: Record<PlayerStatus, string> = {
   active_blind: '暗注',
   active_seen: '明注',
   folded: '弃牌',
+  compare_lost: '落败',
   out: '出局',
 }
 
@@ -65,7 +66,7 @@ export default function PlayerSeat({
 }: PlayerSeatProps) {
   const { isCompareMode, thinkingPlayerId, reviewingPlayerId, showPlayerCards, hasLookedAtCards, compareRevealedCards, toggleThoughtDrawer } = useUIStore()
 
-  const isFolded = player.status === 'folded'
+  const isFolded = player.status === 'folded' || player.status === 'compare_lost'
   const isOut = player.status === 'out'
   const isDimmed = isFolded || isOut
   const isThinking = thinkingPlayerId === player.id
@@ -315,6 +316,7 @@ function getStatusColor(status: PlayerStatus): string {
     case 'active_seen':
       return 'text-[var(--color-gold)]'
     case 'folded':
+    case 'compare_lost':
       return 'text-[var(--text-secondary)]'
     case 'out':
       return 'text-[var(--color-danger)]'

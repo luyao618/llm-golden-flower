@@ -937,7 +937,7 @@ export default function ModelConfigPanel({ open, onClose }: ModelConfigPanelProp
           {/* Footer */}
           <div className="px-5 py-3 border-t model-config-divider flex-shrink-0 flex items-center justify-between">
             <p className="text-[10px] text-[#8090a0] leading-relaxed">
-              API Key 仅存储在内存中，刷新页面或重启服务后需重新配置。
+              API Key 仅存储在浏览器本地（localStorage），不会发送到服务端保存。
             </p>
             <button
               onClick={onClose}
