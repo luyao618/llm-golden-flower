@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion'
 import type { Player } from '../../types/game'
-import { getAvatarColor, getAvatarText } from '../../utils/theme'
 
 // ---- 状态标签 ----
 
@@ -81,16 +80,6 @@ export default function CompareSelector({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.95 }}
           >
-            {/* 小头像 */}
-            <div
-              className={`
-                w-7 h-7 rounded-full flex items-center justify-center shrink-0
-                text-white text-xs font-bold
-                bg-gradient-to-br ${getAvatarColor(target.id)}
-              `}
-            >
-              {target.avatar || getAvatarText(target.name)}
-            </div>
             {/* 名字和状态 */}
             <div className="flex flex-col items-start min-w-0">
               <span className="text-white text-xs font-medium leading-tight">
