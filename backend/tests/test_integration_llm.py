@@ -36,7 +36,6 @@ from app.models.game import (
     RoundState,
 )
 from app.models.thought import ReviewTrigger, RoundNarrative, ThoughtRecord
-from app.services.provider_manager import get_provider_manager
 from app.thought.reporter import ThoughtReporter
 
 # ============================================================
@@ -58,9 +57,10 @@ ZHIPU_TEST_DISPLAY_NAME = "GLM-4 Flash"
 
 @pytest.fixture(autouse=True)
 def setup_zhipu_provider():
-    """注册智谱模型并设置 API Key
+    """注册智谱模型
 
-    测试结束后清理注册的模型（但保留环境变量以便后续测试复用）。
+    测试结束后清理注册的模型。
+    API Key 通过 agent.set_api_keys() 在 zhipu_agent fixture 中设置。
     """
     api_key = os.environ.get("ZHIPU_API_KEY", "")
     if not api_key:
@@ -70,24 +70,23 @@ def setup_zhipu_provider():
     model_id = add_zhipu_model(ZHIPU_TEST_MODEL, ZHIPU_TEST_DISPLAY_NAME)
     assert model_id == ZHIPU_TEST_MODEL_ID
 
-    # 设置 provider key
-    pm = get_provider_manager()
-    pm.set_key("zhipu", api_key)
-
     yield
 
-    # 清理模型注册（保留 env var 和 provider key，供后续测试使用）
+    # 清理模型注册
     remove_zhipu_model(ZHIPU_TEST_MODEL_ID)
 
 
 @pytest.fixture
 def zhipu_agent() -> BaseAgent:
     """创建使用智谱模型的 Agent"""
-    return BaseAgent(
+    api_key = os.environ.get("ZHIPU_API_KEY", "")
+    agent = BaseAgent(
         agent_id="test-agent-zhipu",
         name="测试选手",
         model_id=ZHIPU_TEST_MODEL_ID,
     )
+    agent.set_api_keys({"zhipu": api_key})
+    return agent
 
 
 @pytest.fixture
@@ -258,6 +257,8 @@ class TestLLMConnectivity:
                 name="Bad Agent",
                 model_id=bad_model_id,
             )
+            api_key = os.environ.get("ZHIPU_API_KEY", "")
+            agent.set_api_keys({"zhipu": api_key})
 
             with pytest.raises(LLMCallError):
                 await agent.call_llm(

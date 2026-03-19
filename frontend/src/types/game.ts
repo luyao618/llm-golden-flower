@@ -346,11 +346,6 @@ export interface CopilotStatusResponse {
   models: AIModelInfo[]
 }
 
-export interface SetKeyResponse {
-  message: string
-  provider: string
-  configured: boolean
-}
 
 export interface VerifyKeyResponse {
   valid: boolean

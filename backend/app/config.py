@@ -26,13 +26,6 @@ class Settings(BaseSettings):
     # ---- 数据库 ----
     database_url: str = "sqlite+aiosqlite:///./golden_flower.db"
 
-    # ---- AI Provider API Keys ----
-    # 可通过 .env 预配置，也可在前端页面动态设置（内存中，重启失效）
-    openrouter_api_key: str = ""
-    siliconflow_api_key: str = ""
-    azure_openai_api_key: str = ""
-    zhipu_api_key: str = ""
-
     # ---- 游戏默认配置 ----
     default_initial_chips: int = 1000
     default_ante: int = 10
@@ -124,44 +117,38 @@ def _get_all_models() -> dict[str, dict]:
 def get_available_models() -> list[dict]:
     """获取可用的 AI 模型列表
 
-    动态过滤：只返回已配置 API Key 的 Provider 的模型。
+    返回所有已注册的模型（不再按 API Key 过滤）。
+    API Key 由前端 localStorage 管理，后端不知道哪些 Key 已配置。
+    前端根据自己的 key 存储状态在 UI 上做可用性提示。
     - GitHub Copilot: 需要 Copilot 认证成功
-    - OpenRouter: 需要 OpenRouter API Key 已配置，且模型由用户动态添加
-    - SiliconFlow: 需要 SiliconFlow API Key 已配置，且模型由用户动态添加
-    - Azure OpenAI: 需要 Azure OpenAI API Key 已配置，且模型由用户动态添加
+    - 其他 Provider: 返回所有动态注册的模型
     """
     from app.services.copilot_auth import get_copilot_auth
-    from app.services.provider_manager import get_provider_manager
 
-    provider_manager = get_provider_manager()
     copilot_auth = get_copilot_auth()
 
     models = []
 
-    # Copilot 模型
+    # Copilot 模型（仍需认证状态判断，因为 Copilot 走独立认证流程）
     if copilot_auth.is_connected:
         for model_id, model_info in COPILOT_MODELS.items():
             models.append({"id": model_id, **model_info})
 
     # OpenRouter 动态模型
-    if provider_manager.has_key("openrouter"):
-        for model_id, model_info in OPENROUTER_MODELS.items():
-            models.append({"id": model_id, **model_info})
+    for model_id, model_info in OPENROUTER_MODELS.items():
+        models.append({"id": model_id, **model_info})
 
     # SiliconFlow 动态模型
-    if provider_manager.has_key("siliconflow"):
-        for model_id, model_info in SILICONFLOW_MODELS.items():
-            models.append({"id": model_id, **model_info})
+    for model_id, model_info in SILICONFLOW_MODELS.items():
+        models.append({"id": model_id, **model_info})
 
     # Azure OpenAI 动态模型
-    if provider_manager.has_key("azure_openai"):
-        for model_id, model_info in AZURE_OPENAI_MODELS.items():
-            models.append({"id": model_id, **model_info})
+    for model_id, model_info in AZURE_OPENAI_MODELS.items():
+        models.append({"id": model_id, **model_info})
 
     # 智谱 (Zhipu / GLM) 动态模型
-    if provider_manager.has_key("zhipu"):
-        for model_id, model_info in ZHIPU_MODELS.items():
-            models.append({"id": model_id, **model_info})
+    for model_id, model_info in ZHIPU_MODELS.items():
+        models.append({"id": model_id, **model_info})
 
     return models
 

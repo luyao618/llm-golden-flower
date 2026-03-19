@@ -1,11 +1,68 @@
 // ============================================================
 // 游戏设置 Store (Zustand)
 // 管理全局设置：AI 调用配置、LLM max_tokens
+// 管理 Provider API Keys（持久化到 localStorage）
 // ============================================================
 
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { getSettings, updateSettings, type AiThinkingMode, type SettingsData } from '../services/api'
 import { useUIStore } from './uiStore'
+
+// ---- Provider Keys Store (localStorage 持久化) ----
+
+export type ProviderName = 'openrouter' | 'siliconflow' | 'azure_openai' | 'zhipu'
+
+interface ProviderKeysState {
+  /** provider -> API Key */
+  keys: Partial<Record<ProviderName, string>>
+  /** 设置某个 Provider 的 API Key */
+  setKey: (provider: ProviderName, key: string) => void
+  /** 移除某个 Provider 的 API Key */
+  removeKey: (provider: ProviderName) => void
+  /** 获取某个 Provider 的 API Key */
+  getKey: (provider: ProviderName) => string | undefined
+  /** 获取所有已配置的 keys（用于传递给后端） */
+  getAllKeys: () => Record<string, string>
+}
+
+export const useProviderKeysStore = create<ProviderKeysState>()(
+  persist(
+    (set, get) => ({
+      keys: {},
+
+      setKey: (provider, key) => {
+        set((state) => ({
+          keys: { ...state.keys, [provider]: key },
+        }))
+      },
+
+      removeKey: (provider) => {
+        set((state) => {
+          const newKeys = { ...state.keys }
+          delete newKeys[provider]
+          return { keys: newKeys }
+        })
+      },
+
+      getKey: (provider) => get().keys[provider],
+
+      getAllKeys: () => {
+        const keys = get().keys
+        const result: Record<string, string> = {}
+        for (const [k, v] of Object.entries(keys)) {
+          if (v) result[k] = v
+        }
+        return result
+      },
+    }),
+    {
+      name: 'golden-flower-provider-keys',
+    },
+  ),
+)
+
+// ---- Settings Store (非持久化，从后端拉取) ----
 
 export interface SettingsState {
   /** LLM 最大生成 token 数，null 表示无上限 */

@@ -30,13 +30,12 @@ import {
   getProviders,
   removeAzureOpenAIModel,
   removeOpenRouterModel,
-  removeProviderKey,
   removeSiliconFlowModel,
   setProviderConfig,
-  setProviderKey,
   verifyProviderKey,
 } from '../../services/api'
 import { useGameStore } from '../../stores/gameStore'
+import { useProviderKeysStore, type ProviderName } from '../../stores/settingsStore'
 import CopilotConnect from './CopilotConnect'
 
 interface ModelConfigPanelProps {
@@ -190,7 +189,6 @@ function ExtraConfigSection({
   onSave: (config: Partial<ProviderExtraConfig>) => Promise<void>
 }) {
   const fields = meta.needsExtraConfig
-  if (!fields) return null
 
   const [values, setValues] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -198,6 +196,7 @@ function ExtraConfigSection({
 
   // Initialize values from currentConfig
   useEffect(() => {
+    if (!fields) return
     const init: Record<string, string> = {}
     if (fields.api_host) init.api_host = currentConfig.api_host || fields.api_host.default || ''
     if (fields.api_version) init.api_version = currentConfig.api_version || fields.api_version.default || ''
@@ -219,6 +218,8 @@ function ExtraConfigSection({
       setSaving(false)
     }
   }, [values, onSave])
+
+  if (!fields) return null
 
   return (
     <div className="space-y-2">
@@ -274,11 +275,9 @@ function ExtraConfigSection({
 
 function APIKeySection({
   meta,
-  providerStatus,
   onUpdate,
 }: {
   meta: ProviderMeta
-  providerStatus: ProviderStatus | null
   onUpdate: () => void
 }) {
   const [keyInput, setKeyInput] = useState('')
@@ -286,47 +285,54 @@ function APIKeySection({
   const [verifying, setVerifying] = useState(false)
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
-  const isConfigured = providerStatus?.configured ?? false
+  const { getKey, setKey, removeKey } = useProviderKeysStore()
+  const storedKey = getKey(meta.id as ProviderName)
+  const isConfigured = !!storedKey
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(() => {
     if (!keyInput.trim()) return
     setSaving(true)
     setMessage(null)
     try {
-      await setProviderKey(meta.id, keyInput.trim())
+      setKey(meta.id as ProviderName, keyInput.trim())
       setKeyInput('')
-      setMessage({ text: 'API Key 已保存', type: 'success' })
+      setMessage({ text: 'API Key 已保存到浏览器', type: 'success' })
       onUpdate()
     } catch (err) {
       setMessage({ text: err instanceof Error ? err.message : '保存失败', type: 'error' })
     } finally {
       setSaving(false)
     }
-  }, [keyInput, meta.id, onUpdate])
+  }, [keyInput, meta.id, onUpdate, setKey])
 
   const handleVerify = useCallback(async () => {
     setVerifying(true)
     setMessage(null)
     try {
-      const res = await verifyProviderKey(meta.id, keyInput.trim() || undefined)
+      // 验证时传入输入框的 key 或已保存的 key
+      const keyToVerify = keyInput.trim() || storedKey
+      const res = await verifyProviderKey(meta.id, keyToVerify || undefined)
       setMessage({ text: res.message, type: res.valid ? 'success' : 'error' })
     } catch (err) {
       setMessage({ text: err instanceof Error ? err.message : '验证失败', type: 'error' })
     } finally {
       setVerifying(false)
     }
-  }, [keyInput, meta.id])
+  }, [keyInput, meta.id, storedKey])
 
-  const handleRemove = useCallback(async () => {
-    try {
-      await removeProviderKey(meta.id)
-      setKeyInput('')
-      setMessage(null)
-      onUpdate()
-    } catch {
-      // ignore
-    }
-  }, [meta.id, onUpdate])
+  const handleRemove = useCallback(() => {
+    removeKey(meta.id as ProviderName)
+    setKeyInput('')
+    setMessage(null)
+    onUpdate()
+  }, [meta.id, onUpdate, removeKey])
+
+  // 遮盖 key 显示
+  const keyPreview = storedKey
+    ? storedKey.length > 8
+      ? `${storedKey.slice(0, 4)}...${storedKey.slice(-4)}`
+      : '****'
+    : null
 
   return (
     <div className="space-y-2">
@@ -336,7 +342,7 @@ function APIKeySection({
           type="password"
           value={keyInput}
           onChange={(e) => setKeyInput(e.target.value)}
-          placeholder={isConfigured ? `已配置 ${providerStatus?.key_preview ?? ''}` : meta.placeholder}
+          placeholder={isConfigured ? `已配置 ${keyPreview ?? ''}` : meta.placeholder}
           className="model-config-input flex-1 px-3 py-1.5
                      text-sm placeholder-[#6a7a8a]"
         />
@@ -616,6 +622,8 @@ function RightPanel({
 }) {
   const fetchModels = useGameStore((s) => s.fetchModels)
   const meta = PROVIDERS_META.find((m) => m.id === activeTab)!
+  const providerKeys = useProviderKeysStore((s) => s.keys)
+  const providerKeyConfigured = !!providerKeys[activeTab as ProviderName]
 
   // Find the provider status for the active tab (API-based providers only)
   const providerStatus = providers.find((p) => p.provider === activeTab) ?? null
@@ -652,7 +660,7 @@ function RightPanel({
   }
 
   // API Key based providers (OpenRouter / Azure OpenAI / SiliconFlow)
-  const isConfigured = providerStatus?.configured ?? false
+  const isConfigured = providerKeyConfigured
   const extraConfig: ProviderExtraConfig = providerStatus?.extra_config ?? {}
 
   // Model manager per provider
@@ -785,7 +793,7 @@ function RightPanel({
       )}
 
       {/* API Key */}
-      <APIKeySection meta={meta} providerStatus={providerStatus} onUpdate={onUpdate} />
+      <APIKeySection meta={meta} onUpdate={onUpdate} />
 
       {/* Divider + Model Manager */}
       {isConfigured && (

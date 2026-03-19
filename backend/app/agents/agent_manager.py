@@ -176,6 +176,23 @@ class AgentManager:
             agent.reset_for_new_game()
         logger.info("Reset all agents for game '%s'", game_id)
 
+    def set_api_keys_for_game(self, game_id: str, api_keys: dict[str, str]) -> None:
+        """为指定游戏的所有 Agent 设置 API Keys
+
+        Args:
+            game_id: 游戏 ID
+            api_keys: provider -> key 的字典，如 {"openrouter": "sk-xxx"}
+        """
+        agents = self.get_agents_for_game(game_id)
+        for agent in agents:
+            agent.set_api_keys(api_keys)
+        logger.info(
+            "Set API keys for %d agents in game '%s' (providers: %s)",
+            len(agents),
+            game_id,
+            list(api_keys.keys()),
+        )
+
     @property
     def active_game_count(self) -> int:
         """当前活跃的游戏数量"""
