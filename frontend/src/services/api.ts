@@ -22,13 +22,13 @@ import type {
   ProviderExtraConfig,
   ProviderStatus,
   RoundNarrative,
-  SetKeyResponse,
   SetProviderConfigResponse,
   SiliconFlowAddedModel,
   SiliconFlowModel,
   ThoughtRecord,
   VerifyKeyResponse,
 } from '../types/game'
+import { useProviderKeysStore } from '../stores/settingsStore'
 
 const BASE_URL = '/api'
 
@@ -38,11 +38,19 @@ async function request<T>(
   url: string,
   options?: RequestInit
 ): Promise<T> {
+  // 从 localStorage 获取 provider keys 并注入 header
+  const providerKeys = useProviderKeysStore.getState().getAllKeys()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string>),
+  }
+  if (Object.keys(providerKeys).length > 0) {
+    headers['X-Provider-Keys'] = JSON.stringify(providerKeys)
+  }
+
   const response = await fetch(`${BASE_URL}${url}`, {
-    headers: {
-      'Content-Type': 'application/json',
-    },
     ...options,
+    headers,
   })
 
   if (!response.ok) {
@@ -223,18 +231,7 @@ export async function getProviders(): Promise<ProviderStatus[]> {
   return request<ProviderStatus[]>('/providers')
 }
 
-/** 设置 Provider API Key */
-export async function setProviderKey(
-  provider: string,
-  key: string
-): Promise<SetKeyResponse> {
-  return request<SetKeyResponse>(`/providers/${provider}/key`, {
-    method: 'POST',
-    body: JSON.stringify({ key }),
-  })
-}
-
-/** 验证 Provider API Key */
+/** 验证 Provider API Key（key 从 header 中读取，或传入新 key 验证） */
 export async function verifyProviderKey(
   provider: string,
   key?: string
@@ -243,13 +240,6 @@ export async function verifyProviderKey(
     method: 'POST',
     body: JSON.stringify({ key: key ?? null }),
   })
-}
-
-/** 移除 Provider API Key */
-export async function removeProviderKey(
-  provider: string
-): Promise<{ message: string; provider: string; configured: boolean }> {
-  return request(`/providers/${provider}/key`, { method: 'DELETE' })
 }
 
 // ---- GitHub Copilot (T8.0) ----

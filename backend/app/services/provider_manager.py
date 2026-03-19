@@ -1,7 +1,8 @@
 """Provider 管理器
 
-管理各 LLM Provider（OpenRouter / SiliconFlow / Azure OpenAI）的 API Key 和配置。
-API Key 运行时存储在内存中，不持久化到磁盘（安全考虑）。
+管理各 LLM Provider 的额外配置（api_host, api_version）和 Key 验证逻辑。
+API Key 不再存储在后端，由前端通过 localStorage 管理，
+每次请求通过 X-Provider-Keys header 或 WebSocket query params 传入。
 """
 
 from __future__ import annotations
@@ -43,78 +44,15 @@ PROVIDERS: dict[str, dict[str, str]] = {
 
 
 class ProviderManager:
-    """Provider API Key 管理器（单例）
+    """Provider 配置管理器（单例）
 
-    在运行时管理各 Provider 的 API Key 和额外配置。
-    Key 存储在内存中，应用重启后失效。
+    管理各 Provider 的额外配置（api_host, api_version）和 Key 验证。
+    API Key 不再存储在后端内存中。
     """
 
     def __init__(self) -> None:
-        # provider_id -> API Key
-        self._keys: dict[str, str] = {}
         # provider_id -> extra config (api_host, api_version, etc.)
         self._extra_config: dict[str, dict[str, str]] = {}
-
-    def set_key(self, provider: str, key: str) -> None:
-        """设置某个 Provider 的 API Key
-
-        同时更新环境变量，使 LiteLLM 能够使用。
-        """
-        if provider not in PROVIDERS:
-            raise ValueError(f"Unknown provider: {provider}")
-
-        self._keys[provider] = key
-
-        # 同步更新环境变量
-        import os
-
-        env_key = PROVIDERS[provider]["env_key"]
-        os.environ[env_key] = key
-
-        logger.info("API Key set for provider: %s", provider)
-
-    def remove_key(self, provider: str) -> None:
-        """移除某个 Provider 的 API Key"""
-        if provider not in PROVIDERS:
-            raise ValueError(f"Unknown provider: {provider}")
-
-        self._keys.pop(provider, None)
-
-        # 清除环境变量
-        import os
-
-        env_key = PROVIDERS[provider]["env_key"]
-        os.environ.pop(env_key, None)
-
-        logger.info("API Key removed for provider: %s", provider)
-
-    def get_key(self, provider: str) -> str | None:
-        """获取某个 Provider 的 API Key"""
-        # 优先使用运行时设置的 key
-        if provider in self._keys:
-            return self._keys[provider]
-
-        # 回退到环境变量 / Settings
-        import os
-        from app.config import get_settings
-
-        settings = get_settings()
-
-        if provider == "openrouter":
-            return settings.openrouter_api_key or os.environ.get("OPENROUTER_API_KEY") or None
-        elif provider == "siliconflow":
-            return settings.siliconflow_api_key or os.environ.get("SILICONFLOW_API_KEY") or None
-        elif provider == "azure_openai":
-            return settings.azure_openai_api_key or os.environ.get("AZURE_OPENAI_API_KEY") or None
-        elif provider == "zhipu":
-            return settings.zhipu_api_key or os.environ.get("ZHIPU_API_KEY") or None
-
-        return None
-
-    def has_key(self, provider: str) -> bool:
-        """检查某个 Provider 是否已配置 API Key"""
-        key = self.get_key(provider)
-        return bool(key and key.strip())
 
     # ---- 额外配置管理 (api_host, api_version) ----
 
@@ -149,17 +87,22 @@ class ProviderManager:
         base.update(self._extra_config.get(provider, {}))
         return base
 
-    def get_all_status(self) -> list[dict[str, Any]]:
-        """获取所有 Provider 的状态"""
+    def get_all_status(self, api_keys: dict[str, str] | None = None) -> list[dict[str, Any]]:
+        """获取所有 Provider 的状态
+
+        Args:
+            api_keys: 从请求中传入的 provider keys（来自前端 localStorage）
+        """
+        keys = api_keys or {}
         result = []
         for provider_id, meta in PROVIDERS.items():
-            has_key = self.has_key(provider_id)
+            has_key = bool(keys.get(provider_id, "").strip())
             extra = self.get_extra_config(provider_id)
             status: dict[str, Any] = {
                 "provider": provider_id,
                 "name": meta["name"],
                 "configured": has_key,
-                "key_preview": self._mask_key(provider_id) if has_key else None,
+                "key_preview": self._mask_key(keys.get(provider_id, "")) if has_key else None,
             }
             # 包含额外配置信息
             if extra:
@@ -172,7 +115,7 @@ class ProviderManager:
 
         Args:
             provider: Provider ID
-            key: 要验证的 key，None 则使用已配置的 key
+            key: 要验证的 key
 
         Returns:
             {"valid": bool, "message": str}
@@ -180,7 +123,7 @@ class ProviderManager:
         if provider not in PROVIDERS:
             return {"valid": False, "message": f"Unknown provider: {provider}"}
 
-        api_key = key or self.get_key(provider)
+        api_key = key
         if not api_key:
             return {"valid": False, "message": "No API key provided"}
 
@@ -282,10 +225,10 @@ class ProviderManager:
             else:
                 return {"valid": False, "message": f"HTTP {resp.status_code}: {resp.text[:100]}"}
 
-    def _mask_key(self, provider: str) -> str:
+    @staticmethod
+    def _mask_key(key: str) -> str:
         """遮盖 API Key，仅显示前后几位"""
-        key = self.get_key(provider) or ""
-        if len(key) <= 8:
+        if not key or len(key) <= 8:
             return "****"
         return f"{key[:4]}...{key[-4:]}"
 
@@ -301,3 +244,25 @@ def get_provider_manager() -> ProviderManager:
     if _provider_manager is None:
         _provider_manager = ProviderManager()
     return _provider_manager
+
+
+def parse_provider_keys_header(header_value: str | None) -> dict[str, str]:
+    """解析 X-Provider-Keys header 值
+
+    Args:
+        header_value: JSON 格式的 provider keys，如 '{"openrouter":"sk-xxx","zhipu":"zk-xxx"}'
+
+    Returns:
+        provider -> key 的字典
+    """
+    if not header_value:
+        return {}
+    import json
+
+    try:
+        keys = json.loads(header_value)
+        if isinstance(keys, dict):
+            return {k: v for k, v in keys.items() if isinstance(v, str) and v.strip()}
+    except (json.JSONDecodeError, TypeError):
+        logger.warning("Failed to parse X-Provider-Keys header")
+    return {}

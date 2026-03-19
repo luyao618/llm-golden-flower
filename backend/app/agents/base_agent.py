@@ -18,7 +18,7 @@ import litellm
 
 from app.agents.prompts import render_decision_prompt, render_system_prompt
 from app.api.settings import get_runtime_llm_config, get_thinking_mode
-from app.config import _get_all_models, get_settings
+from app.config import _get_all_models
 from app.engine.evaluator import evaluate_hand
 from app.engine.rules import (
     get_available_actions,
@@ -159,6 +159,8 @@ class BaseAgent:
         self.agent_id = agent_id or str(uuid.uuid4())
         self.name = name
         self.memory = AgentMemory()
+        # 用户的 API Keys（从前端 localStorage 通过 WebSocket query params 传入）
+        self._api_keys: dict[str, str] = {}
 
         # 验证 model_id 有效（使用动态注册表，包含 OpenRouter 模型）
         all_models = _get_all_models()
@@ -180,6 +182,17 @@ class BaseAgent:
             else:
                 logger.error("没有可用的 AI 模型，请先配置至少一个提供商")
                 self.model_id = model_id or "unconfigured"
+
+    def set_api_keys(self, api_keys: dict[str, str]) -> None:
+        """设置用户的 API Keys（来自前端 localStorage）
+
+        在 WebSocket 连接建立时调用，将用户的 keys 绑定到 agent 实例上，
+        后续 call_llm 时自动使用。
+
+        Args:
+            api_keys: provider -> key 的字典
+        """
+        self._api_keys = api_keys
 
     # ---- LLM 调用 ----
 
@@ -208,7 +221,6 @@ class BaseAgent:
         Raises:
             LLMCallError: LLM 调用失败且重试耗尽时抛出
         """
-        settings = get_settings()
         llm_cfg = get_runtime_llm_config()
         model_config = _get_all_models().get(self.model_id)
         if not model_config:
@@ -226,8 +238,8 @@ class BaseAgent:
             )
 
         # ---- LiteLLM 路径 ----
-        # 设置 API keys（LiteLLM 会根据模型自动选择对应的 key）
-        _configure_api_keys(settings)
+        # 设置 API keys（使用 agent 实例上的 keys，来自前端 localStorage）
+        _configure_api_keys(self._api_keys)
 
         # 为需要自定义 api_base 的 provider 获取端点
         api_base = _get_provider_api_base(provider)
@@ -269,7 +281,7 @@ class BaseAgent:
                     call_kwargs["api_base"] = api_base
                     # openai/ 前缀的 Provider 使用自定义 api_base 时，
                     # LiteLLM 仍然读取 OPENAI_API_KEY，需要显式传入该 Provider 的 key
-                    api_key = _get_provider_api_key(provider)
+                    api_key = _get_provider_api_key(provider, self._api_keys)
                     if api_key:
                         call_kwargs["api_key"] = api_key
 
@@ -851,23 +863,21 @@ class LLMCallError(Exception):
 # ---- 辅助函数 ----
 
 
-def _configure_api_keys(settings: Any) -> None:
+def _configure_api_keys(api_keys: dict[str, str]) -> None:
     """配置 LiteLLM 使用的 API keys
 
-    优先使用 ProviderManager 中的 key（包含用户通过 UI 运行时设置的），
-    避免被 .env 中的占位符覆盖真实 key。
+    将前端传入的 provider keys 写入环境变量，
+    使 LiteLLM 能在调用时读取对应的 key。
 
-    注意：ProviderManager.set_key() 已经会同步写入 os.environ，
-    此函数作为调用 LiteLLM 前的兜底确认，确保环境变量与 ProviderManager 一致。
+    Args:
+        api_keys: provider -> key 的字典（来自前端 localStorage）
     """
     import os
 
-    from app.services.provider_manager import PROVIDERS, get_provider_manager
-
-    pm = get_provider_manager()
+    from app.services.provider_manager import PROVIDERS
 
     for provider, meta in PROVIDERS.items():
-        key = pm.get_key(provider)
+        key = api_keys.get(provider)
         if key:
             os.environ[meta["env_key"]] = key
 
@@ -898,7 +908,7 @@ def _get_provider_api_base(provider: str) -> str | None:
     return None
 
 
-def _get_provider_api_key(provider: str) -> str | None:
+def _get_provider_api_key(provider: str, api_keys: dict[str, str]) -> str | None:
     """获取指定 Provider 的 API Key
 
     用于 openai/ 前缀的 Provider（如智谱、SiliconFlow），
@@ -907,14 +917,12 @@ def _get_provider_api_key(provider: str) -> str | None:
 
     Args:
         provider: Provider 标识
+        api_keys: provider -> key 的字典（来自前端 localStorage）
 
     Returns:
         API Key 字符串，未配置时返回 None
     """
-    from app.services.provider_manager import get_provider_manager
-
-    pm = get_provider_manager()
-    return pm.get_key(provider)
+    return api_keys.get(provider) or None
 
 
 # ---- 决策上下文格式化函数 ----

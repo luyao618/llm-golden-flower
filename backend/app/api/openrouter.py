@@ -14,7 +14,7 @@ import time
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.config import (
@@ -22,7 +22,7 @@ from app.config import (
     get_openrouter_models,
     remove_openrouter_model,
 )
-from app.services.provider_manager import get_provider_manager
+from app.services.provider_manager import parse_provider_keys_header
 
 logger = logging.getLogger(__name__)
 
@@ -115,14 +115,14 @@ async def _fetch_openrouter_models(api_key: str) -> list[dict[str, Any]]:
 
 
 @router.get("/models")
-async def list_openrouter_models():
+async def list_openrouter_models(request: Request):
     """从 OpenRouter API 获取可用模型列表
 
-    需要先配置 OpenRouter API Key。
+    需要先配置 OpenRouter API Key（通过 X-Provider-Keys header 传入）。
     返回的列表经过过滤（仅 text 模型），并带有定价信息。
     """
-    manager = get_provider_manager()
-    api_key = manager.get_key("openrouter")
+    api_keys = parse_provider_keys_header(request.headers.get("X-Provider-Keys"))
+    api_key = api_keys.get("openrouter")
     if not api_key:
         raise HTTPException(
             status_code=400,
@@ -144,14 +144,9 @@ async def add_model(req: AddModelRequest):
     """添加一个 OpenRouter 模型到游戏可用列表
 
     添加后该模型将出现在游戏的 AI 对手模型下拉列表中。
+    注意：不再检查 API Key 是否已配置，模型注册与 Key 无关。
+    Key 在实际 LLM 调用时由前端通过 WebSocket 传入。
     """
-    manager = get_provider_manager()
-    if not manager.has_key("openrouter"):
-        raise HTTPException(
-            status_code=400,
-            detail="OpenRouter API Key not configured",
-        )
-
     if not req.model_id or not req.model_id.strip():
         raise HTTPException(status_code=400, detail="model_id cannot be empty")
     if not req.display_name or not req.display_name.strip():

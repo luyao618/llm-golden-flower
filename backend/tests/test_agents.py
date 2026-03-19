@@ -423,20 +423,13 @@ class TestCallLLM:
         )
 
         with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
-            with patch("app.agents.base_agent.get_settings") as mock_settings:
-                settings = MagicMock()
-                settings.llm_temperature = 0.7
-                settings.llm_timeout = 5
-                settings.llm_max_retries = 3
-                mock_settings.return_value = settings
-
-                with patch(
-                    "app.agents.base_agent.get_runtime_llm_config",
-                    return_value=_make_llm_config(max_retries=3),
-                ):
-                    result = await agent.call_llm([{"role": "user", "content": "test"}])
-                    assert result == '{"result": "ok"}'
-                    assert mock_copilot.call_copilot_api.call_count == 3
+            with patch(
+                "app.agents.base_agent.get_runtime_llm_config",
+                return_value=_make_llm_config(max_retries=3),
+            ):
+                result = await agent.call_llm([{"role": "user", "content": "test"}])
+                assert result == '{"result": "ok"}'
+                assert mock_copilot.call_copilot_api.call_count == 3
 
     @pytest.mark.asyncio
     async def test_all_retries_exhausted(self):
@@ -446,19 +439,12 @@ class TestCallLLM:
         mock_copilot.call_copilot_api = AsyncMock(side_effect=Exception("Persistent error"))
 
         with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
-            with patch("app.agents.base_agent.get_settings") as mock_settings:
-                settings = MagicMock()
-                settings.llm_temperature = 0.7
-                settings.llm_timeout = 5
-                settings.llm_max_retries = 3
-                mock_settings.return_value = settings
-
-                with patch(
-                    "app.agents.base_agent.get_runtime_llm_config",
-                    return_value=_make_llm_config(max_retries=3),
-                ):
-                    with pytest.raises(LLMCallError, match="failed after 3 retries"):
-                        await agent.call_llm([{"role": "user", "content": "test"}])
+            with patch(
+                "app.agents.base_agent.get_runtime_llm_config",
+                return_value=_make_llm_config(max_retries=3),
+            ):
+                with pytest.raises(LLMCallError, match="failed after 3 retries"):
+                    await agent.call_llm([{"role": "user", "content": "test"}])
 
     @pytest.mark.asyncio
     async def test_empty_content_raises_error(self):
@@ -471,69 +457,48 @@ class TestCallLLM:
         mock_copilot.call_copilot_api = AsyncMock(side_effect=Exception("Empty response"))
 
         with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
-            with patch("app.agents.base_agent.get_settings") as mock_settings:
-                settings = MagicMock()
-                settings.llm_temperature = 0.7
-                settings.llm_timeout = 5
-                settings.llm_max_retries = 3
-                mock_settings.return_value = settings
-
-                with patch(
-                    "app.agents.base_agent.get_runtime_llm_config",
-                    return_value=_make_llm_config(max_retries=3),
-                ):
-                    with pytest.raises(LLMCallError):
-                        await agent.call_llm([{"role": "user", "content": "test"}])
+            with patch(
+                "app.agents.base_agent.get_runtime_llm_config",
+                return_value=_make_llm_config(max_retries=3),
+            ):
+                with pytest.raises(LLMCallError):
+                    await agent.call_llm([{"role": "user", "content": "test"}])
 
     @pytest.mark.asyncio
     async def test_copilot_claude_model_call(self):
         agent = BaseAgent(name="Claude测试", model_id="copilot-claude-sonnet")
 
-        with patch("app.agents.base_agent.get_settings") as mock_settings:
-            settings = MagicMock()
-            settings.llm_temperature = 0.7
-            settings.llm_timeout = 5
-            settings.llm_max_retries = 1
-            mock_settings.return_value = settings
+        mock_copilot = MagicMock()
+        mock_copilot.call_copilot_api = AsyncMock(return_value='{"action": "fold"}')
 
-            mock_copilot = MagicMock()
-            mock_copilot.call_copilot_api = AsyncMock(return_value='{"action": "fold"}')
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
+            with patch(
+                "app.agents.base_agent.get_runtime_llm_config",
+                return_value=_make_llm_config(max_retries=1),
+            ):
+                result = await agent.call_llm([{"role": "user", "content": "test"}])
+                assert result == '{"action": "fold"}'
 
-            with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
-                with patch(
-                    "app.agents.base_agent.get_runtime_llm_config",
-                    return_value=_make_llm_config(max_retries=1),
-                ):
-                    result = await agent.call_llm([{"role": "user", "content": "test"}])
-                    assert result == '{"action": "fold"}'
-
-                    call_kwargs = mock_copilot.call_copilot_api.call_args
-                    assert call_kwargs.kwargs["model"] == "claude-3.5-sonnet"
+                call_kwargs = mock_copilot.call_copilot_api.call_args
+                assert call_kwargs.kwargs["model"] == "claude-3.5-sonnet"
 
     @pytest.mark.asyncio
     async def test_copilot_gpt4o_model_call(self):
         agent = BaseAgent(name="GPT4o测试", model_id="copilot-gpt4o")
 
-        with patch("app.agents.base_agent.get_settings") as mock_settings:
-            settings = MagicMock()
-            settings.llm_temperature = 0.7
-            settings.llm_timeout = 5
-            settings.llm_max_retries = 1
-            mock_settings.return_value = settings
+        mock_copilot = MagicMock()
+        mock_copilot.call_copilot_api = AsyncMock(return_value='{"action": "raise"}')
 
-            mock_copilot = MagicMock()
-            mock_copilot.call_copilot_api = AsyncMock(return_value='{"action": "raise"}')
+        with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
+            with patch(
+                "app.agents.base_agent.get_runtime_llm_config",
+                return_value=_make_llm_config(max_retries=1),
+            ):
+                result = await agent.call_llm([{"role": "user", "content": "test"}])
+                assert result == '{"action": "raise"}'
 
-            with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
-                with patch(
-                    "app.agents.base_agent.get_runtime_llm_config",
-                    return_value=_make_llm_config(max_retries=1),
-                ):
-                    result = await agent.call_llm([{"role": "user", "content": "test"}])
-                    assert result == '{"action": "raise"}'
-
-                    call_kwargs = mock_copilot.call_copilot_api.call_args
-                    assert call_kwargs.kwargs["model"] == "gpt-4o"
+                call_kwargs = mock_copilot.call_copilot_api.call_args
+                assert call_kwargs.kwargs["model"] == "gpt-4o"
 
 
 # ============================================================
@@ -795,25 +760,18 @@ class TestDecisionFlow:
         mock_copilot.call_copilot_api = AsyncMock(side_effect=Exception("API down"))
 
         with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_copilot):
-            with patch("app.agents.base_agent.get_settings") as mock_settings:
-                settings = MagicMock()
-                settings.llm_temperature = 0.7
-                settings.llm_timeout = 5
-                settings.llm_max_retries = 1  # 只试 1 次
-                mock_settings.return_value = settings
+            with patch(
+                "app.agents.base_agent.get_runtime_llm_config",
+                return_value=_make_llm_config(max_retries=1),
+            ):
+                # LLM 调用应该抛出 LLMCallError
+                with pytest.raises(LLMCallError):
+                    await agent.call_llm([{"role": "user", "content": "test"}])
 
-                with patch(
-                    "app.agents.base_agent.get_runtime_llm_config",
-                    return_value=_make_llm_config(max_retries=1),
-                ):
-                    # LLM 调用应该抛出 LLMCallError
-                    with pytest.raises(LLMCallError):
-                        await agent.call_llm([{"role": "user", "content": "test"}])
-
-                # 调用方可以 catch 后降级
-                available = [GameAction.CALL, GameAction.FOLD]
-                fallback = agent._get_fallback_action(available)
-                assert fallback == GameAction.CALL
+            # 调用方可以 catch 后降级
+            available = [GameAction.CALL, GameAction.FOLD]
+            fallback = agent._get_fallback_action(available)
+            assert fallback == GameAction.CALL
 
 
 # ============================================================
@@ -1377,26 +1335,17 @@ class TestMakeDecisionLLMFailure:
         mock_cop.call_copilot_api = AsyncMock(side_effect=Exception("API down"))
 
         with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
-            with patch("app.agents.base_agent.get_settings") as mock_settings:
-                settings = MagicMock()
-                settings.llm_temperature = 0.7
-                settings.llm_timeout = 5
-                settings.llm_max_retries = 1
-                mock_settings.return_value = settings
+            with patch(
+                "app.agents.base_agent.get_runtime_llm_config",
+                return_value=_make_llm_config(max_retries=1),
+            ):
+                decision = await agent.make_decision(game, player)
 
-                with patch(
-                    "app.agents.base_agent.get_runtime_llm_config",
-                    return_value=_make_llm_config(max_retries=1),
-                ):
-                    decision = await agent.make_decision(game, player)
-
-                    # 应降级为 CALL（最安全的操作）
-                    assert decision.action == GameAction.CALL
-                    assert decision.thought is not None
-                    assert (
-                        "失败" in decision.thought.reasoning or "降级" in decision.thought.reasoning
-                    )
-                    assert decision.thought.confidence == 0.0
+                # 应降级为 CALL（最安全的操作）
+                assert decision.action == GameAction.CALL
+                assert decision.thought is not None
+                assert "失败" in decision.thought.reasoning or "降级" in decision.thought.reasoning
+                assert decision.thought.confidence == 0.0
 
     @pytest.mark.asyncio
     async def test_llm_failure_fallback_fold_when_no_call(self):
@@ -1431,19 +1380,12 @@ class TestMakeDecisionLLMFailure:
         mock_cop.call_copilot_api = AsyncMock(side_effect=Exception("API down"))
 
         with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
-            with patch("app.agents.base_agent.get_settings") as mock_settings:
-                settings = MagicMock()
-                settings.llm_temperature = 0.7
-                settings.llm_timeout = 5
-                settings.llm_max_retries = 1
-                mock_settings.return_value = settings
-
-                with patch(
-                    "app.agents.base_agent.get_runtime_llm_config",
-                    return_value=_make_llm_config(max_retries=1),
-                ):
-                    decision = await agent.make_decision(game, players[0])
-                    assert decision.action == GameAction.FOLD
+            with patch(
+                "app.agents.base_agent.get_runtime_llm_config",
+                return_value=_make_llm_config(max_retries=1),
+            ):
+                decision = await agent.make_decision(game, players[0])
+                assert decision.action == GameAction.FOLD
 
 
 class TestMakeDecisionWithContext:
@@ -1632,24 +1574,15 @@ class TestMakeDecisionThoughtRecording:
         mock_cop.call_copilot_api = AsyncMock(side_effect=Exception("API down"))
 
         with patch("app.services.copilot_auth.get_copilot_auth", return_value=mock_cop):
-            with patch("app.agents.base_agent.get_settings") as mock_settings:
-                settings = MagicMock()
-                settings.llm_temperature = 0.7
-                settings.llm_timeout = 5
-                settings.llm_max_retries = 1
-                settings.siliconflow_api_key = ""
-                settings.azure_openai_api_key = ""
-                mock_settings.return_value = settings
+            with patch(
+                "app.agents.base_agent.get_runtime_llm_config",
+                return_value=_make_llm_config(max_retries=1),
+            ):
+                decision = await agent.make_decision(game, player)
 
-                with patch(
-                    "app.agents.base_agent.get_runtime_llm_config",
-                    return_value=_make_llm_config(max_retries=1),
-                ):
-                    decision = await agent.make_decision(game, player)
-
-                    thoughts = agent.get_round_thoughts(1)
-                    assert len(thoughts) == 1
-                    assert thoughts[0].confidence == 0.0
+                thoughts = agent.get_round_thoughts(1)
+                assert len(thoughts) == 1
+                assert thoughts[0].confidence == 0.0
 
 
 class TestMakeDecisionEdgeCases:

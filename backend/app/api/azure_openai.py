@@ -14,7 +14,7 @@ import time
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.config import (
@@ -22,7 +22,7 @@ from app.config import (
     get_azure_openai_models,
     remove_azure_openai_model,
 )
-from app.services.provider_manager import get_provider_manager
+from app.services.provider_manager import get_provider_manager, parse_provider_keys_header
 
 logger = logging.getLogger(__name__)
 
@@ -103,10 +103,10 @@ async def _fetch_azure_models(api_key: str) -> list[dict[str, Any]]:
 
 
 @router.get("/models")
-async def list_azure_models():
+async def list_azure_models(request: Request):
     """从 Azure OpenAI 获取已部署的模型列表"""
-    manager = get_provider_manager()
-    api_key = manager.get_key("azure_openai")
+    api_keys = parse_provider_keys_header(request.headers.get("X-Provider-Keys"))
+    api_key = api_keys.get("azure_openai")
     if not api_key:
         raise HTTPException(
             status_code=400,
@@ -125,14 +125,11 @@ async def list_added_models():
 
 @router.post("/models")
 async def add_model(req: AddModelRequest):
-    """添加一个 Azure OpenAI 模型到游戏可用列表"""
-    manager = get_provider_manager()
-    if not manager.has_key("azure_openai"):
-        raise HTTPException(
-            status_code=400,
-            detail="Azure OpenAI API Key not configured",
-        )
+    """添加一个 Azure OpenAI 模型到游戏可用列表
 
+    注意：不再检查 API Key 是否已配置，模型注册与 Key 无关。
+    Key 在实际 LLM 调用时由前端通过 WebSocket 传入。
+    """
     if not req.model_id or not req.model_id.strip():
         raise HTTPException(status_code=400, detail="model_id cannot be empty")
     if not req.display_name or not req.display_name.strip():

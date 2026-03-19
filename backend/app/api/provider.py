@@ -1,27 +1,26 @@
 """Provider / API Key 管理 API 路由
 
-提供端点管理各 LLM Provider 的 API Key 和配置:
+提供端点管理各 LLM Provider 的配置:
 - GET    /api/providers                       — 获取所有 Provider 状态
-- POST   /api/providers/{provider}/key        — 设置 API Key
 - POST   /api/providers/{provider}/verify     — 验证 API Key 有效性
-- DELETE /api/providers/{provider}/key        — 移除 API Key
 - POST   /api/providers/{provider}/config     — 设置额外配置 (api_host, api_version)
+
+注意: API Key 的存储/移除已迁移到前端 localStorage，
+后端通过 X-Provider-Keys header 获取当前用户的 keys。
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from app.services.provider_manager import get_provider_manager, PROVIDERS
+from app.services.provider_manager import (
+    get_provider_manager,
+    parse_provider_keys_header,
+    PROVIDERS,
+)
 
 router = APIRouter(prefix="/api/providers", tags=["providers"])
-
-
-class SetKeyRequest(BaseModel):
-    """设置 API Key 请求体"""
-
-    key: str
 
 
 class VerifyKeyRequest(BaseModel):
@@ -38,8 +37,10 @@ class SetExtraConfigRequest(BaseModel):
 
 
 @router.get("")
-async def get_providers():
+async def get_providers(request: Request):
     """获取所有 Provider 的连接状态
+
+    API Key 从 X-Provider-Keys header 中读取（来自前端 localStorage）。
 
     Returns:
         各 Provider 的状态列表，包含:
@@ -50,36 +51,15 @@ async def get_providers():
         - extra_config: 额外配置 (api_host, api_version 等)
     """
     manager = get_provider_manager()
-    return manager.get_all_status()
-
-
-@router.post("/{provider}/key")
-async def set_provider_key(provider: str, req: SetKeyRequest):
-    """设置某个 Provider 的 API Key
-
-    设置后该 Provider 的模型将出现在可用模型列表中。
-    """
-    if provider not in PROVIDERS:
-        raise HTTPException(status_code=404, detail=f"Unknown provider: {provider}")
-
-    if not req.key or not req.key.strip():
-        raise HTTPException(status_code=400, detail="API Key cannot be empty")
-
-    manager = get_provider_manager()
-    manager.set_key(provider, req.key.strip())
-
-    return {
-        "message": f"API Key set for {PROVIDERS[provider]['name']}",
-        "provider": provider,
-        "configured": True,
-    }
+    api_keys = parse_provider_keys_header(request.headers.get("X-Provider-Keys"))
+    return manager.get_all_status(api_keys)
 
 
 @router.post("/{provider}/verify")
-async def verify_provider_key(provider: str, req: VerifyKeyRequest):
+async def verify_provider_key(provider: str, req: VerifyKeyRequest, request: Request):
     """验证某个 Provider 的 API Key 有效性
 
-    可以传入 key 验证，也可以不传验证已配置的 key。
+    可以传入 key 验证，也可以从 X-Provider-Keys header 中读取已配置的 key。
 
     Returns:
         valid: 是否有效
@@ -88,28 +68,13 @@ async def verify_provider_key(provider: str, req: VerifyKeyRequest):
     if provider not in PROVIDERS:
         raise HTTPException(status_code=404, detail=f"Unknown provider: {provider}")
 
+    # 优先使用请求体中的 key，其次从 header 中读取
+    api_keys = parse_provider_keys_header(request.headers.get("X-Provider-Keys"))
+    key_to_verify = req.key or api_keys.get(provider)
+
     manager = get_provider_manager()
-    result = await manager.verify_key(provider, req.key)
+    result = await manager.verify_key(provider, key_to_verify)
     return result
-
-
-@router.delete("/{provider}/key")
-async def remove_provider_key(provider: str):
-    """移除某个 Provider 的 API Key
-
-    移除后该 Provider 的模型将从可用模型列表中消失。
-    """
-    if provider not in PROVIDERS:
-        raise HTTPException(status_code=404, detail=f"Unknown provider: {provider}")
-
-    manager = get_provider_manager()
-    manager.remove_key(provider)
-
-    return {
-        "message": f"API Key removed for {PROVIDERS[provider]['name']}",
-        "provider": provider,
-        "configured": False,
-    }
 
 
 @router.post("/{provider}/config")

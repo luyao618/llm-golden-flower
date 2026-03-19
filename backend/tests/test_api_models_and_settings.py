@@ -191,48 +191,20 @@ class TestAddModel:
         self, provider, prefix, raw_id, display, add_fn, remove_fn, get_fn, registry, id_key
     ):
         """成功添加模型"""
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.has_key.return_value = True
-
-        patch_target = f"app.api.{provider}.get_provider_manager"
-        with patch(patch_target, return_value=mock_pm):
-            app = _make_model_mgmt_test_app()
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.post(
-                    f"{prefix}/models",
-                    json={"model_id": raw_id, "display_name": display},
-                )
-                assert resp.status_code == 200
-                data = resp.json()
-                assert "model_id" in data
-                assert data["display_name"] == display
-                assert data[id_key] == raw_id
-                # 清理
-                remove_fn(data["model_id"])
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "provider,prefix,raw_id,display,add_fn,remove_fn,get_fn,registry,id_key",
-        PROVIDER_PARAMS,
-    )
-    async def test_add_model_no_api_key(
-        self, provider, prefix, raw_id, display, add_fn, remove_fn, get_fn, registry, id_key
-    ):
-        """未配置 API Key 时应返回 400"""
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.has_key.return_value = False
-
-        patch_target = f"app.api.{provider}.get_provider_manager"
-        with patch(patch_target, return_value=mock_pm):
-            app = _make_model_mgmt_test_app()
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.post(
-                    f"{prefix}/models",
-                    json={"model_id": raw_id, "display_name": display},
-                )
-                assert resp.status_code == 400
+        app = _make_model_mgmt_test_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                f"{prefix}/models",
+                json={"model_id": raw_id, "display_name": display},
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert "model_id" in data
+            assert data["display_name"] == display
+            assert data[id_key] == raw_id
+            # 清理
+            remove_fn(data["model_id"])
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -243,19 +215,14 @@ class TestAddModel:
         self, provider, prefix, raw_id, display, add_fn, remove_fn, get_fn, registry, id_key
     ):
         """model_id 为空应返回 400"""
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.has_key.return_value = True
-
-        patch_target = f"app.api.{provider}.get_provider_manager"
-        with patch(patch_target, return_value=mock_pm):
-            app = _make_model_mgmt_test_app()
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.post(
-                    f"{prefix}/models",
-                    json={"model_id": "", "display_name": display},
-                )
-                assert resp.status_code == 400
+        app = _make_model_mgmt_test_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                f"{prefix}/models",
+                json={"model_id": "", "display_name": display},
+            )
+            assert resp.status_code == 400
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -266,19 +233,14 @@ class TestAddModel:
         self, provider, prefix, raw_id, display, add_fn, remove_fn, get_fn, registry, id_key
     ):
         """display_name 为空应返回 400"""
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.has_key.return_value = True
-
-        patch_target = f"app.api.{provider}.get_provider_manager"
-        with patch(patch_target, return_value=mock_pm):
-            app = _make_model_mgmt_test_app()
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.post(
-                    f"{prefix}/models",
-                    json={"model_id": raw_id, "display_name": ""},
-                )
-                assert resp.status_code == 400
+        app = _make_model_mgmt_test_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                f"{prefix}/models",
+                json={"model_id": raw_id, "display_name": ""},
+            )
+            assert resp.status_code == 400
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -289,27 +251,22 @@ class TestAddModel:
         self, provider, prefix, raw_id, display, add_fn, remove_fn, get_fn, registry, id_key
     ):
         """带前后空白的 model_id 应成功添加（内部注册时去除空白）"""
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.has_key.return_value = True
-
-        patch_target = f"app.api.{provider}.get_provider_manager"
-        with patch(patch_target, return_value=mock_pm):
-            app = _make_model_mgmt_test_app()
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.post(
-                    f"{prefix}/models",
-                    json={
-                        "model_id": f"  {raw_id}  ",
-                        "display_name": f"  {display}  ",
-                    },
-                )
-                assert resp.status_code == 200
-                data = resp.json()
-                # API 返回原始请求值（含空白），但内部注册使用了 strip
-                assert "model_id" in data
-                # 验证内部注册的模型可以被找到和移除
-                remove_fn(data["model_id"])
+        app = _make_model_mgmt_test_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                f"{prefix}/models",
+                json={
+                    "model_id": f"  {raw_id}  ",
+                    "display_name": f"  {display}  ",
+                },
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            # API 返回原始请求值（含空白），但内部注册使用了 strip
+            assert "model_id" in data
+            # 验证内部注册的模型可以被找到和移除
+            remove_fn(data["model_id"])
 
 
 class TestRemoveModel:
@@ -390,13 +347,15 @@ class TestRemoveModel:
 
 
 class TestListRemoteModels:
-    """GET /api/{provider}/models — 从远程 API 获取可用模型列表"""
+    """GET /api/{provider}/models — 从远程 API 获取可用模型列表
+
+    API Key 通过 X-Provider-Keys header 传入（来自前端 localStorage）。
+    """
 
     @pytest.mark.asyncio
     async def test_openrouter_list_models_success(self):
         """OpenRouter: 成功获取远程模型列表"""
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.get_key.return_value = "sk-test-key"
+        import json as json_mod
 
         # 直接 mock _fetch_openrouter_models 避免 httpx 上下文管理器问题
         mock_models = [
@@ -408,61 +367,61 @@ class TestListRemoteModels:
             }
         ]
 
-        with patch("app.api.openrouter.get_provider_manager", return_value=mock_pm):
-            with patch(
-                "app.api.openrouter._fetch_openrouter_models",
-                new_callable=AsyncMock,
-                return_value=mock_models,
-            ):
-                app = _make_model_mgmt_test_app()
-                transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test") as client:
-                    resp = await client.get("/api/openrouter/models")
-                    assert resp.status_code == 200
-                    data = resp.json()
-                    assert data["total"] == 1
-                    assert data["models"][0]["id"] == "openai/gpt-4o"
-                    assert data["models"][0]["pricing"]["prompt"] == "0.0025"
+        with patch(
+            "app.api.openrouter._fetch_openrouter_models",
+            new_callable=AsyncMock,
+            return_value=mock_models,
+        ):
+            app = _make_model_mgmt_test_app()
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                resp = await client.get(
+                    "/api/openrouter/models",
+                    headers={"X-Provider-Keys": json_mod.dumps({"openrouter": "sk-test-key"})},
+                )
+                assert resp.status_code == 200
+                data = resp.json()
+                assert data["total"] == 1
+                assert data["models"][0]["id"] == "openai/gpt-4o"
+                assert data["models"][0]["pricing"]["prompt"] == "0.0025"
 
     @pytest.mark.asyncio
     async def test_openrouter_list_models_no_key(self):
         """OpenRouter: 未配置 API Key 时应返回 400"""
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.get_key.return_value = None
-
-        with patch("app.api.openrouter.get_provider_manager", return_value=mock_pm):
-            app = _make_model_mgmt_test_app()
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.get("/api/openrouter/models")
-                assert resp.status_code == 400
+        app = _make_model_mgmt_test_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/api/openrouter/models")
+            assert resp.status_code == 400
 
     @pytest.mark.asyncio
     async def test_openrouter_list_models_api_error(self):
         """OpenRouter: 远程 API 返回错误应返回 502"""
+        import json as json_mod
+
         from fastapi import HTTPException
 
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.get_key.return_value = "sk-test-key"
-
-        with patch("app.api.openrouter.get_provider_manager", return_value=mock_pm):
-            with patch(
-                "app.api.openrouter._fetch_openrouter_models",
-                new_callable=AsyncMock,
-                side_effect=HTTPException(
-                    status_code=502,
-                    detail="Failed to fetch models from OpenRouter: HTTP 401",
-                ),
-            ):
-                app = _make_model_mgmt_test_app()
-                transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test") as client:
-                    resp = await client.get("/api/openrouter/models")
-                    assert resp.status_code == 502
+        with patch(
+            "app.api.openrouter._fetch_openrouter_models",
+            new_callable=AsyncMock,
+            side_effect=HTTPException(
+                status_code=502,
+                detail="Failed to fetch models from OpenRouter: HTTP 401",
+            ),
+        ):
+            app = _make_model_mgmt_test_app()
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                resp = await client.get(
+                    "/api/openrouter/models",
+                    headers={"X-Provider-Keys": json_mod.dumps({"openrouter": "sk-test-key"})},
+                )
+                assert resp.status_code == 502
 
     @pytest.mark.asyncio
     async def test_openrouter_list_models_uses_cache(self):
         """OpenRouter: 缓存有效期内应使用缓存"""
+        import json as json_mod
         import time
 
         import app.api.openrouter as openrouter_mod
@@ -473,19 +432,18 @@ class TestListRemoteModels:
         openrouter_mod._models_cache = cached_models
         openrouter_mod._cache_timestamp = time.time()  # 刚刚缓存
 
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.get_key.return_value = "sk-test-key"
-
-        with patch("app.api.openrouter.get_provider_manager", return_value=mock_pm):
-            # 不 mock _fetch — 如果缓存生效则 _fetch 会直接返回缓存
-            app = _make_model_mgmt_test_app()
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.get("/api/openrouter/models")
-                assert resp.status_code == 200
-                data = resp.json()
-                assert data["total"] == 1
-                assert data["models"][0]["id"] == "cached/model"
+        # 不 mock _fetch — 如果缓存生效则 _fetch 会直接返回缓存
+        app = _make_model_mgmt_test_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get(
+                "/api/openrouter/models",
+                headers={"X-Provider-Keys": json_mod.dumps({"openrouter": "sk-test-key"})},
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["total"] == 1
+            assert data["models"][0]["id"] == "cached/model"
 
         # 还原缓存
         openrouter_mod._models_cache = []
@@ -494,8 +452,7 @@ class TestListRemoteModels:
     @pytest.mark.asyncio
     async def test_siliconflow_list_models_success(self):
         """SiliconFlow: 成功获取远程模型列表（过滤 embedding/image 类）"""
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.get_key.return_value = "sf-test-key"
+        import json as json_mod
 
         mock_models = [
             {
@@ -512,41 +469,38 @@ class TestListRemoteModels:
             },
         ]
 
-        with patch("app.api.siliconflow.get_provider_manager", return_value=mock_pm):
-            with patch(
-                "app.api.siliconflow._fetch_siliconflow_models",
-                new_callable=AsyncMock,
-                return_value=mock_models,
-            ):
-                app = _make_model_mgmt_test_app()
-                transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test") as client:
-                    resp = await client.get("/api/siliconflow/models")
-                    assert resp.status_code == 200
-                    data = resp.json()
-                    assert data["total"] == 2
-                    model_ids = [m["id"] for m in data["models"]]
-                    assert "deepseek-ai/DeepSeek-V3" in model_ids
-                    assert "Qwen/Qwen2.5-72B-Instruct" in model_ids
+        with patch(
+            "app.api.siliconflow._fetch_siliconflow_models",
+            new_callable=AsyncMock,
+            return_value=mock_models,
+        ):
+            app = _make_model_mgmt_test_app()
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                resp = await client.get(
+                    "/api/siliconflow/models",
+                    headers={"X-Provider-Keys": json_mod.dumps({"siliconflow": "sf-test-key"})},
+                )
+                assert resp.status_code == 200
+                data = resp.json()
+                assert data["total"] == 2
+                model_ids = [m["id"] for m in data["models"]]
+                assert "deepseek-ai/DeepSeek-V3" in model_ids
+                assert "Qwen/Qwen2.5-72B-Instruct" in model_ids
 
     @pytest.mark.asyncio
     async def test_siliconflow_list_models_no_key(self):
         """SiliconFlow: 未配置 API Key 时应返回 400"""
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.get_key.return_value = None
-
-        with patch("app.api.siliconflow.get_provider_manager", return_value=mock_pm):
-            app = _make_model_mgmt_test_app()
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.get("/api/siliconflow/models")
-                assert resp.status_code == 400
+        app = _make_model_mgmt_test_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/api/siliconflow/models")
+            assert resp.status_code == 400
 
     @pytest.mark.asyncio
     async def test_azure_list_models_success(self):
         """Azure OpenAI: 成功获取已部署模型列表"""
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.get_key.return_value = "azure-key-123"
+        import json as json_mod
 
         mock_models = [
             {
@@ -563,63 +517,61 @@ class TestListRemoteModels:
             },
         ]
 
-        with patch("app.api.azure_openai.get_provider_manager", return_value=mock_pm):
-            with patch(
-                "app.api.azure_openai._fetch_azure_models",
-                new_callable=AsyncMock,
-                return_value=mock_models,
-            ):
-                app = _make_model_mgmt_test_app()
-                transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test") as client:
-                    resp = await client.get("/api/azure-openai/models")
-                    assert resp.status_code == 200
-                    data = resp.json()
-                    assert data["total"] == 2
-                    model_ids = [m["id"] for m in data["models"]]
-                    assert "gpt-4o" in model_ids
+        with patch(
+            "app.api.azure_openai._fetch_azure_models",
+            new_callable=AsyncMock,
+            return_value=mock_models,
+        ):
+            app = _make_model_mgmt_test_app()
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                resp = await client.get(
+                    "/api/azure-openai/models",
+                    headers={"X-Provider-Keys": json_mod.dumps({"azure_openai": "azure-key-123"})},
+                )
+                assert resp.status_code == 200
+                data = resp.json()
+                assert data["total"] == 2
+                model_ids = [m["id"] for m in data["models"]]
+                assert "gpt-4o" in model_ids
 
     @pytest.mark.asyncio
     async def test_azure_list_models_no_key(self):
         """Azure OpenAI: 未配置 API Key 时应返回 400"""
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.get_key.return_value = None
-
-        with patch("app.api.azure_openai.get_provider_manager", return_value=mock_pm):
-            app = _make_model_mgmt_test_app()
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.get("/api/azure-openai/models")
-                assert resp.status_code == 400
+        app = _make_model_mgmt_test_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/api/azure-openai/models")
+            assert resp.status_code == 400
 
     @pytest.mark.asyncio
     async def test_azure_list_models_no_host(self):
         """Azure OpenAI: 未配置 api_host 时应返回 400"""
+        import json as json_mod
+
         from fastapi import HTTPException
 
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.get_key.return_value = "azure-key"
-
-        with patch("app.api.azure_openai.get_provider_manager", return_value=mock_pm):
-            with patch(
-                "app.api.azure_openai._fetch_azure_models",
-                new_callable=AsyncMock,
-                side_effect=HTTPException(
-                    status_code=400,
-                    detail="Azure OpenAI API Host (endpoint) not configured",
-                ),
-            ):
-                app = _make_model_mgmt_test_app()
-                transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test") as client:
-                    resp = await client.get("/api/azure-openai/models")
-                    assert resp.status_code == 400
+        with patch(
+            "app.api.azure_openai._fetch_azure_models",
+            new_callable=AsyncMock,
+            side_effect=HTTPException(
+                status_code=400,
+                detail="Azure OpenAI API Host (endpoint) not configured",
+            ),
+        ):
+            app = _make_model_mgmt_test_app()
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                resp = await client.get(
+                    "/api/azure-openai/models",
+                    headers={"X-Provider-Keys": json_mod.dumps({"azure_openai": "azure-key"})},
+                )
+                assert resp.status_code == 400
 
     @pytest.mark.asyncio
     async def test_zhipu_list_models_success(self):
         """Zhipu: 成功获取远程模型列表（过滤 image/video/embedding 类）"""
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.get_key.return_value = "zhipu-test-key"
+        import json as json_mod
 
         mock_models = [
             {
@@ -636,58 +588,57 @@ class TestListRemoteModels:
             },
         ]
 
-        with patch("app.api.zhipu.get_provider_manager", return_value=mock_pm):
-            with patch(
-                "app.api.zhipu._fetch_zhipu_models",
-                new_callable=AsyncMock,
-                return_value=mock_models,
-            ):
-                app = _make_model_mgmt_test_app()
-                transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test") as client:
-                    resp = await client.get("/api/zhipu/models")
-                    assert resp.status_code == 200
-                    data = resp.json()
-                    assert data["total"] == 2
-                    model_ids = [m["id"] for m in data["models"]]
-                    assert "glm-4-flash" in model_ids
-                    assert "glm-4" in model_ids
+        with patch(
+            "app.api.zhipu._fetch_zhipu_models",
+            new_callable=AsyncMock,
+            return_value=mock_models,
+        ):
+            app = _make_model_mgmt_test_app()
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                resp = await client.get(
+                    "/api/zhipu/models",
+                    headers={"X-Provider-Keys": json_mod.dumps({"zhipu": "zhipu-test-key"})},
+                )
+                assert resp.status_code == 200
+                data = resp.json()
+                assert data["total"] == 2
+                model_ids = [m["id"] for m in data["models"]]
+                assert "glm-4-flash" in model_ids
+                assert "glm-4" in model_ids
 
     @pytest.mark.asyncio
     async def test_zhipu_list_models_no_key(self):
         """Zhipu: 未配置 API Key 时应返回 400"""
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.get_key.return_value = None
-
-        with patch("app.api.zhipu.get_provider_manager", return_value=mock_pm):
-            app = _make_model_mgmt_test_app()
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.get("/api/zhipu/models")
-                assert resp.status_code == 400
+        app = _make_model_mgmt_test_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/api/zhipu/models")
+            assert resp.status_code == 400
 
     @pytest.mark.asyncio
     async def test_zhipu_list_models_api_error(self):
         """Zhipu: 远程 API 返回错误应返回 502"""
+        import json as json_mod
+
         from fastapi import HTTPException
 
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.get_key.return_value = "zhipu-test-key"
-
-        with patch("app.api.zhipu.get_provider_manager", return_value=mock_pm):
-            with patch(
-                "app.api.zhipu._fetch_zhipu_models",
-                new_callable=AsyncMock,
-                side_effect=HTTPException(
-                    status_code=502,
-                    detail="Failed to fetch models from Zhipu: HTTP 500",
-                ),
-            ):
-                app = _make_model_mgmt_test_app()
-                transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test") as client:
-                    resp = await client.get("/api/zhipu/models")
-                    assert resp.status_code == 502
+        with patch(
+            "app.api.zhipu._fetch_zhipu_models",
+            new_callable=AsyncMock,
+            side_effect=HTTPException(
+                status_code=502,
+                detail="Failed to fetch models from Zhipu: HTTP 500",
+            ),
+        ):
+            app = _make_model_mgmt_test_app()
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                resp = await client.get(
+                    "/api/zhipu/models",
+                    headers={"X-Provider-Keys": json_mod.dumps({"zhipu": "zhipu-test-key"})},
+                )
+                assert resp.status_code == 502
 
 
 # ============================================================
@@ -1116,40 +1067,35 @@ class TestModelCRUDFlow:
         original = dict(registry)
         registry.clear()
 
-        mock_pm = MagicMock(spec=ProviderManager)
-        mock_pm.has_key.return_value = True
-
-        patch_target = f"app.api.{provider}.get_provider_manager"
         try:
-            with patch(patch_target, return_value=mock_pm):
-                app = _make_model_mgmt_test_app()
-                transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test") as client:
-                    # 1. 初始列表为空
-                    resp = await client.get(f"{prefix}/models/added")
-                    assert resp.json()["models"] == []
+            app = _make_model_mgmt_test_app()
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                # 1. 初始列表为空
+                resp = await client.get(f"{prefix}/models/added")
+                assert resp.json()["models"] == []
 
-                    # 2. 添加模型
-                    resp = await client.post(
-                        f"{prefix}/models",
-                        json={"model_id": raw_id, "display_name": display},
-                    )
-                    assert resp.status_code == 200
-                    model_id = resp.json()["model_id"]
+                # 2. 添加模型
+                resp = await client.post(
+                    f"{prefix}/models",
+                    json={"model_id": raw_id, "display_name": display},
+                )
+                assert resp.status_code == 200
+                model_id = resp.json()["model_id"]
 
-                    # 3. 确认模型出现在列表中
-                    resp = await client.get(f"{prefix}/models/added")
-                    model_ids = [m["id"] for m in resp.json()["models"]]
-                    assert model_id in model_ids
+                # 3. 确认模型出现在列表中
+                resp = await client.get(f"{prefix}/models/added")
+                model_ids = [m["id"] for m in resp.json()["models"]]
+                assert model_id in model_ids
 
-                    # 4. 移除模型
-                    resp = await client.delete(f"{prefix}/models/{model_id}")
-                    assert resp.status_code == 200
+                # 4. 移除模型
+                resp = await client.delete(f"{prefix}/models/{model_id}")
+                assert resp.status_code == 200
 
-                    # 5. 确认模型已从列表中消失
-                    resp = await client.get(f"{prefix}/models/added")
-                    model_ids = [m["id"] for m in resp.json()["models"]]
-                    assert model_id not in model_ids
+                # 5. 确认模型已从列表中消失
+                resp = await client.get(f"{prefix}/models/added")
+                model_ids = [m["id"] for m in resp.json()["models"]]
+                assert model_id not in model_ids
         finally:
             registry.clear()
             registry.update(original)

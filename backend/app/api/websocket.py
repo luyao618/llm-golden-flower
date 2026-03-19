@@ -13,9 +13,11 @@ WebSocket 连接: ws://localhost:8000/ws/{game_id}?player_id={player_id}
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 from typing import Any
+from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1125,6 +1127,22 @@ async def websocket_endpoint(
 
     # 接受连接
     await ws_manager.connect(game_id, player_id, websocket)
+
+    # 解析 provider_keys（从 query params 获取前端 localStorage 中的 API Keys）
+    raw_provider_keys = websocket.query_params.get("provider_keys", "")
+    api_keys: dict[str, str] = {}
+    if raw_provider_keys:
+        try:
+            decoded = unquote(raw_provider_keys)
+            parsed = json.loads(decoded)
+            if isinstance(parsed, dict):
+                api_keys = {k: v for k, v in parsed.items() if isinstance(v, str) and v.strip()}
+        except (json.JSONDecodeError, TypeError):
+            logger.warning("Failed to parse provider_keys query param for game=%s", game_id)
+
+    # 将 API Keys 设置到该游戏的所有 Agent 上
+    if api_keys:
+        agent_mgr.set_api_keys_for_game(game_id, api_keys)
 
     try:
         # 发送当前游戏状态

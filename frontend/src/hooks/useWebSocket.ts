@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ClientEvent, GameAction, ServerEvent } from '../types/game'
+import { useProviderKeysStore } from '../stores/settingsStore'
 
 // ---- 连接状态 ----
 
@@ -66,7 +67,12 @@ const MAX_RECONNECT_DELAY = 30000
 function buildWsUrl(gameId: string, playerId: string): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.host
-  return `${protocol}//${host}/ws/${gameId}?player_id=${playerId}`
+  const providerKeys = useProviderKeysStore.getState().getAllKeys()
+  const params = new URLSearchParams({ player_id: playerId })
+  if (Object.keys(providerKeys).length > 0) {
+    params.set('provider_keys', JSON.stringify(providerKeys))
+  }
+  return `${protocol}//${host}/ws/${gameId}?${params.toString()}`
 }
 
 // ---- Hook ----
